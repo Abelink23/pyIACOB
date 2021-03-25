@@ -1,0 +1,12 @@
+MANIFEST.in
+README.md
+setup.py
+gaiadr3_zeropoint.egg-info/PKG-INFO
+gaiadr3_zeropoint.egg-info/SOURCES.txt
+gaiadr3_zeropoint.egg-info/dependency_links.txt
+gaiadr3_zeropoint.egg-info/requires.txt
+gaiadr3_zeropoint.egg-info/top_level.txt
+zero_point/__init__.py
+zero_point/zpt.py
+zero_point/coefficients/z5_200720.txt
+zero_point/coefficients/z6_200720.txt

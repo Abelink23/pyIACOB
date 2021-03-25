@@ -1,0 +1,15 @@
+Things to improve:
+
+Hacer un programa que coja el with de input y vaya barriendo todo el espectro, luego mover width/3 y correrlo otra vez, luego otro width/3 y así. Con 1/3 puede valer, y quizá coger solo líneas con EW> X y FWHM > X.
+
+http://learn.astropy.org/rst-tutorials/User-Defined-Model.html?highlight=filtertutorials
+
+Saved figures have the same filename. Fix with maybe some ID or adding a number.
+
+Anadir un argumento a las funciones para elegir corregir o no de heliocentric correction, hel_cor = Yes (default) y despues pues.. if No, usar la linea comentada.
+Esto mismo aplicarlo a /home/abelink/PhD/PerOB1/Radial_Velocity/Plot_line_mask_OBA.py para elegir si quiero o no overplotear las lineas.
+
+Ahora mismo como todo está en dos carpetas para SNR > o < 50, si hay un espectro en lowSNR con fecha anterior a cualquiera de IACOB, para la misma estrella, el eje X tendrá valores negativos de MJD, pero la solución más sencilla sería meter todo en la misma carpeta.
+
+En fitline.py, el resampling solo funciona para los espectros de antes de Sep. 2019 cuando Mercator todavía no puso lambda en logaritmo. Hay que cambiarlo ya que t = wave, da waves no equiespaciados, y es condición necesaria.
+
