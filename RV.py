@@ -7,6 +7,114 @@ Program to calculate the radial velocities for a given spectra/spectrum via
 lists of individual lines or via cross correlation using synthetic spectra.
 ============================================================================='''
 
+def RV_cc(name_star, windows=[(3950,4160),(4310,4360),(4370,4490),(4540,4690),(4840,4950)]):
+    spectra = findstar(name_star)
+
+    synthetic = []
+    for file in os.listdir(datadir+'ASCII/Synthetic_MAUI/'):
+        if name_star+'_' in file: synthetic.append(file)
+
+    if len(synthetic) == 0:
+        print('No files found for %s.\n' % (name_star))
+    elif len(synthetic) == 1:
+        synthetic = synthetic[0]
+    else:
+        for name,i in zip(synthetic,range(len(synthetic))): print(name,i)
+        which = input('Enter the number of the synthetic spectra you want to use: ')
+        synthetic = synthetic[int(which)]
+
+    fig, ax = plt.subplots()
+
+    RVs_angs = []; RVs_kms = []
+    for spectrum in spectra:
+
+        print('Analyzing spectrum: ' + spectrum.split('/')[-1])
+
+        RV_angs_i,RV_kms_i = RV1_cc(spectrum,synthetic,windows=windows)
+        RVs_angs.append(RV_angs_i); RVs_kms.append(RV_kms_i)
+
+        date_obs = spec(spectrum).hjd - 2400000.5
+        if spectrum == spectra[0]: date_obs_0 = date_obs
+
+        ax.scatter(date_obs,RV_kms_i,s=10,c='b')
+        #ax.errorbar(date_obs,RVs_mean,yerr=std,elinewidth=.4,marker='o',
+        #            color=color,capsize=2,markersize=3)
+
+    peak_to_peak = max(RVs_kms) - min(RVs_kms)
+
+    ax.plot([date_obs_0, date_obs],[np.mean(RVs_kms),np.mean(RVs_kms)],'-k',lw=.5)
+
+
+    '''============================== Output ================================'''
+    print('====================================================')
+    print('Results for '+ name_star)
+    print('The mean radial velocity is: ' + str(round(np.mean(RVs_kms), 4)))
+    print('The peak to peak value is: ' + str(round(peak_to_peak, 4)))
+    print('The time span of the spectra is: ' + str(round(date_obs-date_obs_0, 2)))
+    print('The number of spectra used is: ' + str(len(RVs_kms)))
+    print('====================================================')
+
+    ax.set_title(name_star)
+    ax.set_xlabel('MBJD',size=13)
+    ax.set_ylabel('V$_{r}$ [km/s]',size=13)
+    ax.tick_params(direction='in',top='on')
+    ax.figure.subplots_adjust(top=.9,bottom=.1,right=.95,left=.15)
+
+    completeName = os.path.join(maindir+'tmp_plots/','RVCC_%s.eps' % name_star)
+    ax.figure.savefig(completeName,dpi=300)
+
+    plt.show(block=False)
+
+
+def RV1_cc(spectra1, spectra2,
+    windows=[(3950,4160),(4310,4360),(4370,4490),(4540,4690),(4840,4950)]):
+    '''
+
+    Parameters
+    ----------
+    spectra1 : str
+        Original spectra.
+
+    spectra2 : str
+        Synthetic spectra.
+
+    windows : list, optional
+        List of pairs of wavelengths where the cross correlation is going to be
+        computed. If more than one pair, the result is averaged.
+        Default is [(3900,5080)].
+
+    '''
+
+    spec1 = spec(spectra1)
+    spec2 = spec(spectra2,txt=True)
+
+    resol = 1/np.sqrt((1/spec1.resolution)**2-(1/85000)**2)
+    if not resol == np.inf: spec2.degrade(resol=resol)
+
+    spec2.resamp(dx=spec1.dx,lwl=spec1.wave[0],rwl=spec1.wave[-1])
+    spec1.resamp(dx=spec1.dx)
+
+    RVs_angs = []; RVs_kms = []
+    for win in windows:
+        flux2 = spec2.flux[(spec2.wave >= win[0]) & (spec2.wave <= win[1])]
+        flux1 = spec1.flux[(spec1.wave >= win[0]) & (spec1.wave <= win[1])]
+        wave1 = spec1.wave[(spec1.wave >= win[0]) & (spec1.wave <= win[1])]
+
+        corr = correlate(flux2-1,flux1-1)
+        corr /= np.max(corr)
+        lags = correlation_lags(len(flux1),len(flux2))
+
+        RVs_angs.append(-lags[np.argmax(corr)]*spec1.dx)
+        RVs_kms.append(round(RVs_angs[-1]/np.mean(wave1)*cte.c/1000,3))
+
+        plt.plot(lags,corr,lw=.5)
+
+    RV_angs = np.mean(RVs_angs)
+    RV_kms = np.mean(RVs_kms)
+
+    return RV_angs,RV_kms
+
+
 def RV0(lines,spectrum,ewcut=30,width=20,tol=150,func='g',output=None,plot=None):
     '''
     Parameters
@@ -54,24 +162,6 @@ def RV0(lines,spectrum,ewcut=30,width=20,tol=150,func='g',output=None,plot=None)
 
     return RV_0
 
-def RV_cc(spectra1,spectra2,windows=[(3900,5080)]):
-    '''
-
-    Parameters
-    ----------
-    spectra1 : str
-        Original spectra.
-
-    spectra2 : str
-        Synthetic spectra.
-
-    '''
-
-    spectra1 = spec(findstar(spectra=spectra1,SNR='best'))
-    spectra2 = spec(findstar(spectra=spectra1,txt=True))
-
-
-    return None
 
 def RV(lines,spectra,SNR=None,linesRV0=None,linecut=1,ewcut=25,width=None,tol=50,\
        func='g',output=None,plot=None):

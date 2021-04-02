@@ -23,15 +23,12 @@ vmac = idldata.obsdat.spectrum[0].MACRO[0]
 
 [i for i in idldata.solution.dtype.names]
 
- idldata.solution[0].var_label
-
+idldata.solution[0].var_label
 idldata.solution[0].sol
-
-
 
 data_rows = []
 data_row = []
-data_row.extend([idlspec.name_star])
+data_row.extend([name_star])
 parameters = [i.decode() for i in idldata.solution.var_label[0]]
 for i in range(len(parameters)):
     # Los 11/13 parametros
@@ -53,26 +50,4 @@ for i in range(len(parameters)):
 
 if len(parameters) == 11:
     data_row.extend([np.nan,np.nan,np.nan,np.nan,np.nan,np.nan])
-data_rows.append(data_row)
-
-
-output = Table(
-rows=data_rows,
-names= ['Teff','Teff_eUP','Teff_eDW',
-'lgf','lgf_eUP','lgf_eDW',
-'He','He_eUP','He_eDW',
-'Micro','Micro_eUP','Micro_eDW',
-'logQs','logQs_eUP','logQs_eDW',
-'beta','beta_eUP','beta_eDW',
-'C','C_eUP','C_eDW',
-'N','N_eUP','N_eDW',
-'O','O_eUP','O_eDW',
-'Mg','Mg_eUP','Mg_eDW',
-'Si','Si_eUP','Si_eDW',
-'fcl','fcl_eUP','fcl_eDW',
-'vcl','vcl_eUP','vcl_eDW'
-])
-
-
-    hdu_f = fits.BinTableHDU(data=output.filled(np.nan))
-    hdu_f.writeto(maindir+'tables/OBs_RVEWFWs.fits',overwrite=True)
+data_rows.append(tuple(data_row))

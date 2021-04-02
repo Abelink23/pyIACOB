@@ -8,11 +8,70 @@ from astroquery.atomic import AtomicLineList
 from astropy.stats import sigma_clip
 from astropy.coordinates import EarthLocation
 
+
+#===============================================================================
+# Generate table with Gaia eDR3 data plus corrected parallax zero point offset.
+#===============================================================================
+def zp_edr3(table, ra, dec, search_radius=0.5):
+    '''
+    Function to query input list of RA/DEC coordinates in Gaia eDR3 and for the
+    output sources adds a column with the corrected parallax zero point offset.
+
+    Parameters
+    ----------
+    table : str
+        Name of the input table containing the coordinates.
+
+    ra : str
+        Column name of the RA.
+
+    dec : str
+        Column name of the DEC.
+
+    search_radius : int/float
+        Search radius for Gaia query in arcseconds. Default is 0.5.
+
+    Returns: Table containing the output query of Gaia eDR3 including the
+    corrected parallax offset.
+    '''
+
+    import sys; sys.path.append(os.path.expanduser('~')+'/MEGA/PhD/programs/python/edr3_zp')
+    import zpt; zpt.load_tables()
+    from astroquery.gaia import Gaia
+
+    sr = round(search_radius/60/60,7)
+
+    table = findtable(table)
+
+    first = True
+    for ra_i,dec_i in zip(table[ra],table[dec]):
+        job = Gaia.launch_job("select TOP 3 * FROM gaiaedr3.gaia_source "
+                    "WHERE 1=CONTAINS(POINT('ICRS',ra,dec), "
+                    "CIRCLE('ICRS',%f,%f,%f))" % (ra_i,dec_i,sr)).get_results()
+        if len(job) == 0: continue
+        elif len(job) > 1: job.sort('phot_g_mean_mag')
+
+        if first == True: table = job; first = False
+        else: table.add_row(job[0])
+
+    table = table[table['astrometric_params_solved']>3]
+    zpvals = zpt.get_zpt(table['phot_g_mean_mag'],table['nu_eff_used_in_astrometry'],\
+           table['pseudocolour'],table['ecl_lat'],table['astrometric_params_solved'])
+    table.add_column(zpvals,name='zp_offset')
+
+    table.remove_column('designation')
+
+    hdu = fits.BinTableHDU(data=table)
+    hdu.writeto(maindir+'tables/zp_offset_eDR3.fits',overwrite=True)
+
+    return table
+
+
 #===============================================================================
 # Atomic lines and wavelenghts conversions.
 #===============================================================================
 
-def atline(lwl,rwl,elements=None,source='ALL'):
+def atline(lwl, rwl, elements=None, source='ALL'):
     '''
     Function to retrieve spectral lines from the Atomic Line databases.
 
@@ -50,7 +109,7 @@ def atline(lwl,rwl,elements=None,source='ALL'):
     return list
 
 
-def atokms(dlamb,lamb0):
+def atokms(dlamb, lamb0):
     '''
     Function to calculate the velocity in km/s providing delta(lambda) [AA].
 
@@ -70,7 +129,7 @@ def atokms(dlamb,lamb0):
     return velocity
 
 
-def kmstoa(dkms,lamb0):
+def kmstoa(dkms, lamb0):
     '''
     Function to calculate delta(lambda) [AA] providing the equivalent in km/s.
 
@@ -114,7 +173,7 @@ def vac2air(lamvac):
 # COORDINATES AND DISTANCES
 #===============================================================================
 
-def sky_dist(radec1,radec2):
+def sky_dist(radec1, radec2):
     '''
     Function to calculate the distance between two positions in the sky.
 
@@ -138,7 +197,7 @@ def sky_dist(radec1,radec2):
     return c1.separation(c2).arcsec,c1.separation(c2).deg
 
 
-def pos_ang(radec1,radec2):
+def pos_ang(radec1, radec2):
     '''
     Function to calculate the possition angle in degrees.
 
@@ -162,7 +221,7 @@ def pos_ang(radec1,radec2):
     return c2.position_angle(c1).deg
 
 
-def changecoords(list,infmt,outfmt):
+def changecoords(list, infmt, outfmt):
     '''
     Parameters
     ----------
@@ -210,7 +269,7 @@ def changecoords(list,infmt,outfmt):
 # Others:
 #===============================================================================
 
-def exptime(exp,mag,fib=3):
+def exptime(exp, mag, fib=3):
     '''
     Function to calculate the SNR for a given exposure time and magnitude (Vega).
     It is assumed an average airmass of 1.4 and gray night.
@@ -225,9 +284,9 @@ def exptime(exp,mag,fib=3):
     Returns: SNR
     '''
 
-    
 
-def outliers(data,iter=3,siglo=2.5,sigup=2.5):
+
+def outliers(data, iter=3, siglo=2.5, sigup=2.5):
     '''
     Function to perform a sigma clipping to a list of values.
 
@@ -258,7 +317,7 @@ def outliers(data,iter=3,siglo=2.5,sigup=2.5):
     return data[mask_in],data[mask_out],bounds
 
 
-def rv_corr(spectrum,observatory,correction):
+def rv_corr(spectrum, observatory, correction):
     '''
     Function to calculate the heliocentric/barycentric radial velocity correction in km/s.
 

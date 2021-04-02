@@ -16,11 +16,11 @@ from mist import *
 from tools_plt import *
 
 
-'''========================= Find and load the data ========================='''
+'''======================== Find and load the tables ========================'''
 table = findtable('IACOB_O9BAs_SNR20.fits') # file where quality flags are
 table_REF = findtable('O9BAs_RVEWFWs.fits') # file where RVs, EWs and FWs are
 table_REF.remove_columns(['mySpC','SpC','SpT_code','LC_code'])
-table_IB = findtable('IB-summary_ver5.txt') # file where vsini and vmac are
+table_IB = findtable('IB_results_ver5.txt') # file where vsini and vmac are
 table_IB.remove_columns(['filename','line','snr'])
 results = findtable('zsummary_results.txt') # file with output from MAUI
 results.remove_columns(['vsini','vmac','SpC','FW3414'])
@@ -39,7 +39,7 @@ gonzalo = setdiff(gonzalo_raw,table_f,keys='Name')
 #table_f['FIES'].sum()+table_f['HERMES'].sum()+table_f['FEROS'].sum()
 #table['FIES'].sum()+table['HERMES'].sum()+table['FEROS'].sum()
 
-# Grids MAUI:
+'''=============================== Grids MAUI ==============================='''
 names = ['Grids coverage','BSgs_CNOSiMg_old','BDws_CNOSIMg_old','OBSgs_hot_NOSi_new','BSgs_cool_NOSi_new']
 box_all = [[4.543,4.290,4.290,4.146,4.146,4.543,4.543],
 [2.391,2.391,3.092,3.092,4.391,4.391,2.391]]
@@ -53,13 +53,14 @@ box3 = [[4.399,4.544,4.544,4.399,4.399],[3.488,3.488,4.386,4.386,3.488]]
 box4 = [[4.146,4.322,4.322,4.146,4.146],[3.092,3.092,4.391,4.391,3.092]]
 grids = [box_all,box1,box2,box3,box4]
 
-
 '''=============================== Parameters ==============================='''
 units = {'pc' : u.pc, 'kpc' : u.kpc, 'au' : u.au, 'lyr' : u.lyr, 'deg' : u.deg}
 
 #mass_list = [.8,.9,1.0,1.1,1.2,1.3,1.5,1.7,2,2.5,3,4,5,7,9,12,15,20,25,32,40,60,85,120]
 #mass_list = [.8,.9,1.,1.1,1.2,1.3,1.5,1.7,2,2.5,3,4,5,7,9,12,15,20,25,32,40,60,85]
 mass_list = [7,9,12,15,20,25,32,40,60,85]
+
+
 
 '''=========================================================================='''
 '''================================= Fig. 1 ================================='''
@@ -617,22 +618,22 @@ ax.set_ylabel(r"log($\mathcal{L}$/$\mathcal{L}_{\odot}$)",size=13)
 ax.set_xlim(xlim); ax.set_ylim(ylim)
 ax.legend(ncol=1,loc=3,fontsize=9,borderaxespad=1.5)
 
-af =  AnnoteFinder(x,y,table_f['Name'].tolist()+gonzalo['Name'].tolist(),ax=ax,xtol=.05,ytol=.05)
-fig.canvas.mpl_connect('button_press_event', af)
+#af =  AnnoteFinder(x,y,table_f['Name'].tolist()+gonzalo['Name'].tolist(),ax=ax,xtol=.05,ytol=.05)
+#fig.canvas.mpl_connect('button_press_event', af)
+#plt.show(block=False)
+
+table_i = join(table_f,gonzalo,keys='Name',join_type='outer')
+
+selector = SelectFromCollection(ax, pts)
+def accept(event):
+    if event.key == "enter":
+        selector.disconnect()
+        fig.canvas.draw()
+        accept.table_selction = table_i[selector.mask]
+
+fig.canvas.mpl_connect("key_press_event", accept)
+
 plt.show(block=False)
 
-#table_i = join(table_f,gonzalo,keys='Name',join_type='outer')
-#
-#selector = SelectFromCollection(ax, pts)
-#def accept(event):
-#    if event.key == "enter":
-#        selector.disconnect()
-#        fig.canvas.draw()
-#        accept.table_selction = table_i[selector.mask]
-#
-#fig.canvas.mpl_connect("key_press_event", accept)
-#
-#plt.show(block=False)
-#
-#hdu = fits.BinTableHDU(data=accept.table_selction.filled(0))
-#hdu.writeto(maindir+'tables/table_selection.fits',overwrite=True)
+hdu = fits.BinTableHDU(data=accept.table_selction.filled(0))
+hdu.writeto(maindir+'tables/table_selection.fits',overwrite=True)

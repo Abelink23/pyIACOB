@@ -3,13 +3,12 @@ from RV import *
 
 import random
 
-'''=============================================================================
-Function to iteratively calculate and store EWs and FWHMs of stars using high-
-resolution spectra, adjusted to find BSGs (i.e. using SiIII triplet + Hb line)
-============================================================================='''
-
-def RVEWFW(RV0tol=150,ewcut=10,tol=100,redo='n'):
+def RVEWFW(RV0tol=150, ewcut=10, tol=100, redo='n'):
     '''
+    Function to iteratively calculate and store EWs and FWHMs of stars using high-
+    resolution spectra, adjusted to find BSGs (i.e. using SiIII triplet + Hb line)
+
+
     Parameters
     ----------
     RV0tol : int, optional
@@ -204,7 +203,22 @@ def RVEWFW(RV0tol=150,ewcut=10,tol=100,redo='n'):
     return('DONE')
 
 
-def findSB(name=None,SpT=None,RVcorr=True):
+def findSB(input_table=None, RVcorr=True):
+    '''
+    Function to plot all the available spectra from a star in order to visually
+    identify spectroscopic binaries.
+
+    Parameters
+    ----------
+    input_table : str
+        Name of the input table contaning the list of stars to analyze.
+
+    RVcorr : boolean
+        True if RV0 corrections is applied before plotting the spectra.
+
+    redo : str, optional
+        Coma separated string with the list of stars for which repeat the analysis.
+    '''
 
     if name == None: table = findtable('IACOB_O9BAs_SNR20.fits')
 

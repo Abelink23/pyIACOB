@@ -9,7 +9,7 @@ from mist import *
 
 table = findtable('IACOB_O9BAs_SNR20.fits') # file where quality flags are
 table_REF = findtable('O9BAs_RVEWFWs.fits') # file where RVs, EWs and FWs are
-table_IB = findtable('IB-summary_ver5.txt') # file where vsini and vmac are
+table_IB = findtable('IB_results_ver5.txt') # file where vsini and vmac are
 results = findtable('zsummary_results.txt') # file with output from MAUI
 
 def input_maui(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_verX',RV0tol=200,ascii_0='y'):

@@ -1,5 +1,9 @@
-from spec import *
 from RV import *
+from tools import *
+
+
+#x = zp_edr3(table='Gaia.fits',ra='ra_epoch2000',dec='dec_epoch2000',search_radius=.5)
+
 
 #table_selection = findtable('table_selection.fits')
 #for i in table_selection:
@@ -37,8 +41,6 @@ from RV import *
 #        if check == True: print('Check',row['Name'])
 #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # UPDATE FITS HEADER
-#spectrum = findstar('HD193237')[0]
-#hdu = fits.open(spectrum)  # Open the fits image file
-#header0 = hdu[0].header         # Read header of primary extension
-#header0['I-SNR'] = 61   # Instrument
+#spectrum = findstar('BD+57647')[1]
+#hdu = fits.open(spectrum); header0 = hdu[0].header; header0['OBJECT'] = 'HD237010'
 #hdu.writeto(spectrum,output_verify='ignore',overwrite=True)

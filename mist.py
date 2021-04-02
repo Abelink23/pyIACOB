@@ -95,20 +95,19 @@ TRAC_FeH0_Av%s_V%s/TRAC_FeH0_08-120_Av%s_V%s.fits'%(Av,vr,Av,vr))
 ## with all the tracks
 ## NOTE: Edit every new table from MIST removing the first lines before the column names.
 #t_master = Table()
-#path = os.path.expanduser('~')+'/Documents/MIST/TRACKS/TRAC_FeH0_Av00_V00/'
-#for root, dirs, files in os.walk(path):
-#    for file in files:
-#        if not file.endswith('.cmd'):
-#            try:t_mist = Table.read(os.path.join(root,file),format='ascii')
-#            except: print(file,' could not be read. Check the file.')
-#            mass = str(round(t_mist['star_mass'][0],1)).replace('.','')
-#            digit = 4-len(mass); mass = '0'*digit+mass
-#            t_mist = t_mist[(t_mist['phase']>=0) & (t_mist['phase']<=4)]
+#path = os.path.expanduser('~')+'/Documents/MIST/'
+#for file in os.listdir(path):
+#    if file.endswith('.cmd'):
+#        try: t_mist = Table.read(path+file,format='ascii')
+#        except: print(file,' could not be read. Check the file.')
+#        mass = str(round(t_mist['star_mass'][0],1)).replace('.','')
+#        digit = 4-len(mass); mass = '0'*digit+mass
+#        t_mist = t_mist[(t_mist['phase']>=0) & (t_mist['phase']<=4)]
 #
-#            hdu = fits.BinTableHDU(data=t_mist.filled(np.nan))
-#            hdu.writeto(path+'TRAC_FeH0_%sMsol_Av00_V00.fits' % mass,overwrite=True)
+#        hdu = fits.BinTableHDU(data=t_mist.filled(np.nan))
+#        hdu.writeto(path+'TRAC_FeH0_%sMsol_Av00_V00.fits' % mass,overwrite=True)
 #
-#            t_master = vstack([t_master,t_mist],join_type='outer')
+#        t_master = vstack([t_master,t_mist],join_type='outer')
 #
 #hdu = fits.BinTableHDU(data=t_master.filled(np.nan))
 #hdu.writeto(path+'TRAC_FeH0_08-120_Av00_V00.fits' ,overwrite=True)

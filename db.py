@@ -4,8 +4,7 @@ import os.path
 import platform
 import progressbar as pb
 
-import warnings
-warnings.filterwarnings("ignore")
+import warnings; warnings.filterwarnings("ignore")
 
 import numpy as np
 
@@ -355,8 +354,8 @@ def snr(spectra,snrcut=None,get_MF=None):
     return best_spectra
 
 
-def gen_fits(list,db,coords=None,limdist=None,spt=None,lc=None,snrcut=None,
-    spccode=None,bmag=None,vmag=None,gaia=None,skip=None):
+def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None,
+    spccode=None, bmag=None, vmag=None, gaia=None, skip=None):
     '''
     Function to generate a FITS table with information about sources coming from
     IACOB/FEROS database, a list of names or coordinates, allowing to limitate
@@ -454,7 +453,7 @@ def gen_fits(list,db,coords=None,limdist=None,spt=None,lc=None,snrcut=None,
 
     '''============================ Progress Bar ============================'''
     bar = pb.ProgressBar(maxval=len(lst_sources_f),
-                        widgets=[pb.Bar('=','[',']'),' ',pb.Percentage()])
+                         widgets=[pb.Bar('=','[',']'),' ',pb.Percentage()])
     bar.start()
 
 

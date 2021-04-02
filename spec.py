@@ -170,6 +170,7 @@ class spec():
         wave = wave - self.offset
 
         if lwl != None and rwl != None:
+            dx = (wave[-1]-wave[0])/(len(wave)-1)
             if wave[0] > lwl+dx or wave[-1] < rwl-dx:
                 print('Warning!: Wavelenght limits outside spectrum wavelenght range.')
             flux = flux[(wave >= lwl-width/2.)&(wave <= rwl+width/2.)]
