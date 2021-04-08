@@ -22,8 +22,7 @@ table_REF = findtable('O9BAs_RVEWFWs.fits') # file where RVs, EWs and FWs are
 table_REF.remove_columns(['mySpC','SpC','SpT_code','LC_code'])
 table_IB = findtable('IB_results_ver5.txt') # file where vsini and vmac are
 table_IB.remove_columns(['filename','line','snr'])
-results = findtable('zsummary_results.txt') # file with output from MAUI
-results.remove_columns(['vsini','vmac','SpC','FW3414'])
+results = findtable('MAUI_results.fits')
 gonzalo_raw = findtable('table_gon_vsini_paper.txt')
 gaia = findtable('zsummary_results_Gaia.txt') # file Gaia for stars from MAUI
 
@@ -66,10 +65,10 @@ mass_list = [7,9,12,15,20,25,32,40,60,85]
 '''================================= Fig. 1 ================================='''
 fig_1, ax1 = plt.subplots(figsize=(8,7),tight_layout=True) # 8,7 ; 6,8
 ax1_top = ax1.twiny(); ax1_right = ax1.twinx()
-xlim = [4.79,4.01]; ylim = [2.2,4.49]
+xlim = [4.78,3.90]; ylim = [2.2,4.49]
 
 # this, gon, subgroup, grids, masses, density
-show = 'this'
+show = 'density'
 
 # Plot the tracks first:
 for i in mass_list:
@@ -115,7 +114,6 @@ if show == 'subgroup':
     cax = fig_1.add_axes([0.8,0.33,0.02,0.55])
     cbar = fig_1.colorbar(im,cax=cax,label='SpT')
     cbar.set_ticks([1.9,2.1,2.3,2.5,2.7]); cbar.set_ticklabels(['O9','B1','B3','B5','B7'])
-
 
 if show == 'grids':
 
@@ -199,13 +197,13 @@ ax1.set_ylabel(r"log($\mathcal{L}$/$\mathcal{L}_{\odot}$)",size=13)
 ax1.set_xlim(xlim); ax1.set_ylim(ylim)
 ax1.legend(ncol=1,loc=3,fontsize=9,borderaxespad=1.5)
 
-ax1_top.tick_params(direction='in',top='off')
+ax1_top.tick_params(direction='in',top='off',color=c)
 ax1_top.set_xlim(ax1.get_xlim())
 ax1_top.set_xticks(ax1.get_xticks()[1:-1])
 ax1_top.set_xticklabels([round(10**i/1000)*1000 for i in ax1.get_xticks()[1:-1]])
 ax1_top.set_xlabel(r"T$_{eff}\,$[K]",size=13,labelpad=13)
 
-ax1_right.tick_params(direction='in',right='off')
+ax1_right.tick_params(direction='in',right='off',color=c)
 ax1_right.set_ylim(ax1.get_ylim())
 ax1_right.set_yticks(ax1.get_yticks()[1:-1])
 ax1_right.set_yticklabels([round(5.39-i,1) for i in ax1.get_yticks()[1:-1]])
@@ -378,7 +376,7 @@ for i in mass_list:
 log_Teff = np.asarray(4+np.log10(table_i['Teff']))
 log_LLsol = np.asarray(5.39-table_i['lgf'])
 
-color = table_i['logQs']-10
+color = table_i['logQs']
 im = ax4.scatter(log_Teff,log_LLsol,c=color,s=100,cmap='gnuplot',alpha=0.7)
 cax = fig_4.add_axes([0.8,0.12,0.03,0.4])
 

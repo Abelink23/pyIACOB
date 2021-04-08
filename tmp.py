@@ -12,7 +12,7 @@ from tools import *
 #    plt.show(block='False')
 
 #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-#spectra = findstar('HD34447')
+#spectra = findstar('HD14543')
 #for i,j in zip(spectra,range(len(spectra))):
 #    x = spec(i)
 #    x.waveflux(3900,6800)
@@ -20,7 +20,7 @@ from tools import *
 #    x.resamp(5*x.dx)
 #    print('\n',x.file_name,x.snr)
 #    x.flux = x.flux+j*0.05
-#    #x.plotspec(4500,4600)
+#    x.plotspec()
 #    x.plotline(4552.622,width=8)
 #    plt.legend().remove()
 #
@@ -41,6 +41,9 @@ from tools import *
 #        if check == True: print('Check',row['Name'])
 #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # UPDATE FITS HEADER
-#spectrum = findstar('BD+57647')[1]
-#hdu = fits.open(spectrum); header0 = hdu[0].header; header0['OBJECT'] = 'HD237010'
+#spectrum = findstar('sddsds.fits')[0]
+#hdu = fits.open(spectrum); header0 = hdu[0].header
+#header0['OBJECT'] = 'XX'
+#header0['I-SPC   '] = 'XXX'
+#header0['I-SPCREF']= 'SIMBAD'
 #hdu.writeto(spectrum,output_verify='ignore',overwrite=True)

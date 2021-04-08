@@ -31,15 +31,20 @@ def mainpath(path=None):
     Returns: Selected main directory path.
     '''
 
-    if platform.system() == 'Darwin': defmainpath = '/Users/abelink/MEGA/PhD/'
-    elif platform.uname().node == 'msi': defmainpath = '/home/abelink/MEGA/PhD/'
-    elif platform.uname().node == 'dama.dyn.iac.es':
-        defmainpath = '/net/nas/proyectos/hots/adeburgos/'
+    if path in ['def','default']:
+        if platform.system() == 'Darwin':
+            defmainpath = '/Users/abelink/MEGA/PhD/'
+        elif platform.uname().node == 'msi':
+            defmainpath = '/home/abelink/MEGA/PhD/'
+        elif platform.uname().node == 'dama.dyn.iac.es':
+            defmainpath = '/net/nas/proyectos/hots/adeburgos/'
 
-    if path in ['def','default']: mainpath = defmainpath
+        mainpath = defmainpath
+
     elif path == None:
-        mainpath = input('Working directory path (default is %s) : ' %defmainpath)
+        mainpath = input('Working directory path (default is %s) : ' % defmainpath)
         if mainpath == '': mainpath = defmainpath
+
     else: mainpath = path
 
     return mainpath
@@ -58,15 +63,20 @@ def datapath(path=None):
     Returns: Selected data directory path.
     '''
 
-    if platform.system() == 'Darwin': defdatapath = '/Users/abelink/Documents/DB/'
-    elif platform.uname().node == 'msi': defdatapath = '/media/abelink/Orange/PhData/DB/'
-    elif platform.uname().node == 'dama.dyn.iac.es':
-        defdatapath= '/net/nas/proyectos/hots/masblue/obs_iac/spec_opt/IACOB_DB/'
+    if path in ['def','default']:
+        if platform.system() == 'Darwin':
+            defdatapath = '/Users/abelink/Documents/DB/'
+        elif platform.uname().node == 'msi':
+            defdatapath = '/media/abelink/Orange/PhData/DB/'
+        elif platform.uname().node == 'dama.dyn.iac.es':
+            defdatapath= '/net/nas/proyectos/hots/masblue/obs_iac/spec_opt/IACOB_DB/'
 
-    if path == 'def' or path == 'default': datapath = defdatapath
+        datapath = defdatapath
+
     elif path == None:
-        datapath = input("Data directory path (default is %s) : " %defdatapath)
+        datapath = input("Data directory path (default is %s) : " % defdatapath)
         if datapath == '': datapath = defdatapath
+
     else: datapath = path
 
     return datapath
