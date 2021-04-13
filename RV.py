@@ -81,7 +81,7 @@ def RV1_cc(spectra1, spectra2,
     windows : list, optional
         List of pairs of wavelengths where the cross correlation is going to be
         computed. If more than one pair, the result is averaged.
-        Default is [(3900,5080)].
+        Default is a set of defautl windows.
 
     '''
 
@@ -94,6 +94,10 @@ def RV1_cc(spectra1, spectra2,
     spec2.resamp(dx=spec1.dx,lwl=spec1.wave[0],rwl=spec1.wave[-1])
     spec1.resamp(dx=spec1.dx)
 
+    mask = [spec2.flux < .998]
+    spec1.wave = spec1.wave[mask]; spec1.flux = spec1.flux[mask]
+    spec2.wave = spec2.wave[mask]; spec2.flux = spec2.flux[mask]
+
     RVs_angs = []; RVs_kms = []
     for win in windows:
         flux2 = spec2.flux[(spec2.wave >= win[0]) & (spec2.wave <= win[1])]
@@ -102,15 +106,21 @@ def RV1_cc(spectra1, spectra2,
 
         corr = correlate(flux2-1,flux1-1)
         corr /= np.max(corr)
-        lags = correlation_lags(len(flux1),len(flux2))
 
-        RVs_angs.append(-lags[np.argmax(corr)]*spec1.dx)
-        RVs_kms.append(round(RVs_angs[-1]/np.mean(wave1)*cte.c/1000,3))
+        # Requires scipy version 1.6.0 or above to run
+        #lags = correlation_lags(len(flux1),len(flux2))
+        #corr_shift = -lags[np.argmax(corr)]
 
-        plt.plot(lags,corr,lw=.5)
+        lags = np.arange(-len(flux1)+1,len(flux1),1)
+        corr_shift = -corr.argmax()+len(flux1)-1
 
-    RV_angs = np.mean(RVs_angs)
-    RV_kms = np.mean(RVs_kms)
+        RVs_angs.append(corr_shift*spec1.dx)
+        RVs_kms.append(RVs_angs[-1]/np.mean(wave1)*cte.c/1000)
+
+        #plt.plot(lags,corr,lw=.5)
+
+    RV_angs = round(np.mean(RVs_angs),8)
+    RV_kms = round(np.mean(RVs_kms),4)
 
     return RV_angs,RV_kms
 

@@ -1,7 +1,7 @@
 from db import *
 
 import matplotlib; matplotlib.use('QT5Agg')
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt # This could be loaded only for the functions which actually plot
 
 from math import fsum
 

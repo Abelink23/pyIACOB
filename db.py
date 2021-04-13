@@ -12,7 +12,8 @@ import pandas as pd # Substitute at some point
 
 import astropy.units as u
 from astropy.io import fits
-from astropy.table import Table, vstack, hstack
+from astropy.table import Table, join, setdiff, vstack, hstack
+
 from astropy.coordinates import SkyCoord
 from astroquery.vizier import Vizier
 from astroquery.simbad import Simbad
@@ -36,7 +37,7 @@ def mainpath(path=None):
             defmainpath = '/Users/abelink/MEGA/PhD/'
         elif platform.uname().node == 'msi':
             defmainpath = '/home/abelink/MEGA/PhD/'
-        elif platform.uname().node == 'dama.dyn.iac.es':
+        elif 'iac.es' in platform.uname().node:
             defmainpath = '/net/nas/proyectos/hots/adeburgos/'
 
         mainpath = defmainpath
@@ -68,7 +69,7 @@ def datapath(path=None):
             defdatapath = '/Users/abelink/Documents/DB/'
         elif platform.uname().node == 'msi':
             defdatapath = '/media/abelink/Orange/PhData/DB/'
-        elif platform.uname().node == 'dama.dyn.iac.es':
+        elif 'iac.es' in platform.uname().node:
             defdatapath= '/net/nas/proyectos/hots/masblue/obs_iac/spec_opt/IACOB_DB/'
 
         datapath = defdatapath
@@ -167,7 +168,7 @@ def findstar(spectra=None,SNR=None):
                     match = 1
         if not match == 1: print('File %s not found.\n' % (spectrum))
 
-    if len(dir_spectra) == 0: quit()
+    if len(dir_spectra) == 0: return None #quit()
 
     # Spectra selection based on selected SNR.
     if SNR == 'best': dir_spectra = snr(dir_spectra)
@@ -294,9 +295,87 @@ def findtable(table,path=None):
 
         data = Table.read(table_dir,format='fits')
 
-    else: data = Table.read(table_dir,format='ascii',delimiter=' ')
+    elif '.csv' in table:
+        data = Table.read(table_dir,format='csv')
+    else:
+        data = Table.read(table_dir,format='ascii',delimiter=' ')
 
     return data
+
+
+def xmatch_table(table1, table2, match_col=None, output_cols=None,
+                 output_name='xmatch_table', format='fits'):
+    '''
+    Function to generate xmatched tables with selected output columns and format.
+
+    Parameters
+    ----------
+    table1 : str
+        Name of the main table.
+
+    table2 : str
+        Name of the second table to cross-match with the first.
+
+    match_col : str, optional
+        Name of the column to be used as anchor for the cross-match.
+        If empty, the user is asked among the colums that are in both tables.
+
+    output_cols : str, optional
+        Coma separated string with the list of column names to be included in
+        the output file. If empty, all the columns are selected.
+
+    output_name : str, optional
+        Name of the output file. Default is 'xmatch_table'.
+        Note: Do not include the extension.
+
+    format : str, optional
+        Enter the output format for the table: 'fits' (default), 'ascii' or 'csv'.
+
+    Returns: Nothing but the output table with cross-match is generated in the
+    same path where the two input tables are located.
+    '''
+
+    table1 = findtable(table1)
+    table2 = findtable(table2)
+
+    # Cross-match column:
+    same_cols = [i for i in table1.colnames if i in table2.colnames]
+    if match_col == None:
+        if same_cols == []:
+            print('No columns found with the same name in both tables. Exiting... \n')
+            return None
+        else:
+            print(same_cols)
+            match_col = input('Select one of the above column names for the cross-match: ')
+
+    # Remove extra columns:
+    if len(same_cols) > 1:
+        print('WARNING: More than one column has the same name.')
+        print('Output table will contain *_1, *_2 for them.')
+        rm = input('Remove repeated columns from second table? [y/n]: ')
+        if rm == 'y':
+            table2.remove_columns(
+            [i for i in table2.colnames if i in table1.colnames and not i == match_col])
+
+    # Cross-match:
+    if table1[match_col].dtype.char == 'S':
+        table1[match_col] = [i.strip() for i in table1[match_col]]
+        table2[match_col] = [i.strip() for i in table2[match_col]]
+
+    table = join(table1,table2,keys=match_col)
+    if len(table) == 0:
+        print('No matches for the joined tables. Exiting... \n'); return None
+
+    # Output columns:
+    if output_cols != None:
+         output_cols = output_cols.split(',')
+         table.remove_columns(
+         [i for i in table.colnames if not i in output_cols])
+
+    # Saving the file:
+    full_path = maindir+'tables/'+output_name+'.'+format
+    if format == 'ascii': format += '.fixed_width_two_line'
+    table.write(full_path,format=format,overwrite=True)
 
 
 def snr(spectra,snrcut=None,get_MF=None):
@@ -744,8 +823,9 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
 
     '''============================ Export table ============================'''
     try:
-        hdu_f = fits.BinTableHDU(data=table.filled(np.nan))
-        hdu_f.writeto(maindir+'tables/tablestars.fits',overwrite=True)
+        table.write(maindir+'tables/tablestars.fits',format='fits',overwrite=True)
+        #hdu_f = fits.BinTableHDU(data=table.filled(np.nan))
+        #hdu_f.writeto(maindir+'tables/tablestars.fits',overwrite=True)
     except: print('Table is empty, no sources were found.'); return None
 
     lst_sources_f = [source for source in lst_sources_f if not source in delete]
@@ -753,7 +833,7 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
     return None
 
 
-def SB(name=None,ra=None,dec=None):
+def SB(name=None,ra=None,dec=None,radius='5s'):
     '''
     Function to query an object in Simbad database.
 
@@ -767,6 +847,9 @@ def SB(name=None,ra=None,dec=None):
 
     dec : float, optional
         Enter the declination of the source, in degrees.
+
+    radius : str, optional
+        Enter a string with the radius for the sky search.
 
     Returns: Queried object in Table format.
     '''
@@ -786,7 +869,7 @@ def SB(name=None,ra=None,dec=None):
         if check == '': print('Skipping source: %s\n' % name); break
 
         elif check == 'sky' and ra != None and dec != None:
-            simbad = Simbad.query_region(SkyCoord(ra,dec,unit='deg'),radius='5s')
+            simbad = Simbad.query_region(SkyCoord(ra,dec,unit='deg'),radius=radius)
             if type(simbad) == type(None): print('No objects found.')
 
         else: simbad = Simbad.query_object(check)
