@@ -268,7 +268,7 @@ def findlist(list):
     return items
 
 
-def findtable(table,path=None):
+def findtable(table,path=None,strip_end=True):
     '''
     Function to get the data from a FITS-format table.
 
@@ -294,6 +294,8 @@ def findtable(table,path=None):
         #except: data = Table.read(table_dir,format='fits')
 
         data = Table.read(table_dir,format='fits')
+        tostrip = [data.colnames[i] for i in range(len(data.dtype)) if data.dtype[i].char == 'S']
+        for col in tostrip: data[col] = [i.strip() for i in data[col]]
 
     elif '.csv' in table:
         data = Table.read(table_dir,format='csv')
@@ -522,7 +524,6 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
     if lc != None:
         lc = re.split(' |,',lc)
 
-
     '''=============================== Queries =============================='''
     columns = ['BPmag','e_BPmag','+Gmag','e_Gmag','RPmag','e_RPmag',\
                'pmRA','e_pmRA','pmDE','e_pmDE','Plx','e_Plx']
@@ -539,17 +540,14 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
 
     v = Vizier(columns=columns); v.ROW_LIMIT = 1
 
-
     '''============================ Progress Bar ============================'''
     bar = pb.ProgressBar(maxval=len(lst_sources_f),
                          widgets=[pb.Bar('=','[',']'),' ',pb.Percentage()])
     bar.start()
 
-
     '''=============================== Sources =============================='''
     delete = []; first = True
     for source,i in zip(lst_sources_f,range(len(lst_sources_f))):
-
 
         '''=========== Retrieve the key values fron the fits header ========='''
         OBJRA = OBJDEC = None
@@ -570,13 +568,11 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
 
             source = source.split('/')[-1].split('_')[0]
 
-
         '''========================= Skip bad sources ======================='''
         if db == 'IACOB':
             if any(bad in source[:3] for bad in ['DO2']): continue
 
         if skip != None and any(bad in source for bad in skip.split(',')): continue
-
 
         '''============= Simbad query by object name/coordinates ============'''
         if type_list == 'names':
@@ -600,7 +596,6 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
 
             source_f = simbad['MAIN_ID'][0].decode()
 
-
         '''======================= Get the coordinates ======================'''
         if coords == 'header':
             RADEC_0 = SkyCoord(ra=header0['RA'],dec=header0['DEC'],unit=(u.deg))
@@ -613,16 +608,15 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
         RADEC_0 = re.sub('[h,d,m]',':',RADEC_0.to_string('hmsdms')).replace('s','')
         RAhms = RADEC_0.split()[0]; DECdms = RADEC_0.split()[1]
 
-
         '''======================= Limit by distance ========================'''
         if limdist != None:
             c1 = SkyCoord(RADEC_0,unit=(u.hourangle,u.deg))
-            if any(i in RADEC for i in [':','h']):
-                  c2 = SkyCoord(RADEC,unit=(u.hourangle,u.deg))
-            else: c2 = SkyCoord(RADEC,unit=u.deg)
+            if any([i in RADEC for i in [':','h']]):
+                c2 = SkyCoord(RADEC,unit=(u.hourangle,u.deg))
+            else:
+                c2 = SkyCoord(RADEC,unit=u.deg)
 
             if c1.separation(c2).deg > dist: delete.append(source); continue
-
 
         '''===================== Get the spectral class ====================='''
         if db == 'IACOB':
@@ -633,7 +627,6 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
                 SpC_0 = simbad['SP_TYPE'][0]; SpC_ref = 'SIMBAD'
         else:
             SpC_0 = simbad['SP_TYPE'][0]; SpC_ref = 'SIMBAD'
-
 
         '''======================= Limit by SpT or LC ======================='''
         spt_0 = []; lc_0 = []
@@ -647,9 +640,8 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
             elif len(re.split(':|pe',SpC_0.strip())[0]) <= 4:
                 spt_0 = SpC_0.strip()
 
-            if spt != None:
-                if any(j in spt_0 for j in spt) == False:
-                    delete.append(source); continue
+            if spt != None and not any([j in spt_0 for j in spt]):
+                delete.append(source); continue
 
             match = False
             if lc != None and lc_0 != []:
@@ -663,44 +655,9 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
                 if 'I' in lc and 'I' in lc_0: match = True
                 if match == False: delete.append(source); continue
 
-
         '''=================== Get the spectral class code =================='''
-        if spccode in ['y','yes'] and SpC_0 != '':
-            spc_c = SpC_0.split('+')[0].split('/')[0].replace(':','')
-
-            if (spc_c in ['~']) or (spc_c.startswith(('WC','WN','WR','C')) == True):
-                spt_c = float('NaN'); lc_c = float('NaN')
-            else:
-                spt_code = {'O': 1, 'B': 2, 'A': 3, 'F': 4, 'G': 5, 'K': 6, 'M': 7}
-                total_spt_c = []
-
-                spt_c = re.findall('[O,B,A,F,G,K,M]',spc_c); num = len(spt_c)
-
-                for spt_c_i in spt_c: total_spt_c.append(spt_code[spt_c_i])
-
-                spt_c = re.findall('[0-9.]+',spc_c)
-
-                for spt_c_i in spt_c: total_spt_c.append(float(spt_c_i)/10)
-
-                try:
-                    # This is for B1-2 in which there is B(1) and 1-2(2)
-                    if num < len(total_spt_c)-num:
-                        spt_c = (sum(total_spt_c[:num])/num + \
-                                 sum(total_spt_c[num:])/len(total_spt_c[num:]))
-                    else: spt_c = sum(total_spt_c)/num
-                except: print(source,total_spt_c,num)
-
-                lc_code = {'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5}
-                total_lc_c = []
-
-                lc_c = re.findall('[I,V]+',spc_c)
-
-                for lc_c_i in lc_c: total_lc_c.append(lc_code[lc_c_i])
-
-                lc_c = np.asarray(total_lc_c).mean()
-
+        if spccode in ['y','yes'] and SpC_0 != '': spc_c,lc_c = spc_code(SpC_0)
         elif spccode in ['y','yes'] and SpC_0 == '': spt_c = lc_c = np.nan
-
 
         '''======================= Limit by magnitude ======================='''
         bmag_0 = simbad['FLUX_B']
@@ -719,7 +676,6 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
                 if vmag_0 > float(vmag[1:]): delete.append(source); continue
             elif vmag[0] == '>':
                 if vmag_0 < float(vmag[1:]): delete.append(source); continue
-
 
         '''======================= Get Gaia DR2 data ========================'''
         if gaia in ['y','yes']:
@@ -757,7 +713,6 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
                 gaiaq = []; print('\n' + str(source_f) + ' could not be queried in Gaia.')
                 #catalog = "/I/311/hip2"
 
-
         '''========================= Calculate RUWE ========================='''
         if gaia in ['y','yes'] and ruwe == 'y' and not gaiaq == []:
 
@@ -772,7 +727,6 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
 
             gaiaq.remove_columns(['NgAL','chi2AL'])
 
-
         '''============= Counting FIES / HERMES / FEROS spectra ============='''
         if db == 'IACOB':
             FIES = 0; HERMES = 0; FEROS = 0
@@ -782,7 +736,6 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
                     elif '_M_' in source_: HERMES = HERMES + 1
                     elif '_F_' in source_: FEROS = FEROS + 1
 
-
         '''=========================== Export row ==========================='''
         output = Table([[source_f],[RAhms],[DECdms],[RAdeg],[DECdeg],[SpC_0],[SpC_ref]],\
          names = ('Name','RA_J2000','DEC_J2000','RAdeg_J2000','DECdeg_J2000','SpC','SpC_ref'))
@@ -791,8 +744,8 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
         output['RAdeg_J2000'].unit = u.deg; output['DECdeg_J2000'].unit = u.deg
 
         if spccode in ['y','yes']:
-            spc_code = Table([[spt_c],[lc_c]],names=('SpT_code','LC_code'))
-            output = hstack([output,spc_code])
+            spccode = Table([[spt_c],[lc_c]],names=('SpT_code','LC_code'))
+            output = hstack([output,spccode])
 
         magnitudes = Table([[bmag_0],[vmag_0]],names=('mag_B','mag_V'))
         magnitudes['mag_B'].unit = magnitudes['mag_V'].unit = u.mag
@@ -820,7 +773,6 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
 
     bar.finish()
 
-
     '''============================ Export table ============================'''
     try:
         table.write(maindir+'tables/tablestars.fits',format='fits',overwrite=True)
@@ -831,6 +783,51 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
     lst_sources_f = [source for source in lst_sources_f if not source in delete]
 
     return None
+
+
+def spc_code(spc):
+    '''
+    Function to translate input SpC (Spectral Class) into SpT and LC codes.
+
+    Parameters
+    ----------
+    spc : str
+        Enter the spectral class to turn into SpT and LC codes.
+
+    Returns: SpT and LC codes.
+    '''
+
+    spt_dic = {'O': 1, 'B': 2, 'A': 3, 'F': 4, 'G': 5, 'K': 6, 'M': 7}
+    lc_dic = {'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5}
+
+    spc_c = spc.split('+')[0].split('/')[0].replace(':','')
+
+    if spc_c in ['~'] or spc_c.startswith(('WC','WN','WR','C')):
+        spt_c = lc_c = np.nan
+    else:
+        # Spectral type
+        spt_c = re.findall('[O,B,A,F,G,K,M]',spc_c); num = len(spt_c)
+        spt_c_lst = [spt_dic[i] for i in spt_c]
+
+        spt_c = re.findall('[0-9.]+',spc_c)
+        spt_c_lst += [float(i)/10 for i in spt_c]
+
+        try:
+            # This is for B1-2 in which there is B(1) and 1-2(2)
+            if num < len(spt_c_lst)-num:
+                spt_c = (sum(spt_c_lst[:num])/num+sum(spt_c_lst[num:])/len(spt_c_lst[num:]))
+            else:
+                spt_c = sum(spt_c_lst)/num
+        except: print(source,spt_c_lst,num)
+
+        # Luminosity class
+        lc_c = re.findall('[I,V]+',spc_c)
+        lc_c_lst = [lc_dic[i] for i in lc_c]
+
+        if len(lc_c_lst) == 0: lc_c = np.nan
+        else: lc_c = np.asarray(lc_c_lst).mean()
+
+    return spt_c,lc_c
 
 
 def SB(name=None,ra=None,dec=None,radius='5s'):
@@ -854,15 +851,16 @@ def SB(name=None,ra=None,dec=None,radius='5s'):
     Returns: Queried object in Table format.
     '''
 
-    if name != None:
+    if name is not None:
         try: simbad = Simbad.query_object(name)
         except: time.sleep(3); simbad = Simbad.query_object(name)
     else: name = 'empty'; simbad = None
 
-    while type(simbad) == type(None):
+    while simbad is None: # type(simbad) == type(None)
         print('Provide alternative name for %s in Simbad.' % name)
         print('In some cases try replacing "HD" by "HD ".')
-        print('Type "sky" to query 5" around the central coordinates (if given).')
+        if ra != None and dec != None:
+            print('Type "sky" to query %s around input ra/dec (if given).' % radius)
         print('Hit return to skip this source.')
         check = input('Name: ')
 
@@ -874,7 +872,7 @@ def SB(name=None,ra=None,dec=None,radius='5s'):
 
         else: simbad = Simbad.query_object(check)
 
-        if type(simbad) != type(None) and len(simbad) > 1:
+        if simbad is not None and len(simbad) > 1:
             print('More than one Simbad result, choosing the brigtest source...')
             simbad.sort('FLUX_V'); simbad = Table(simbad[0])
 

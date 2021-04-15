@@ -229,8 +229,8 @@ class spec():
         tol_aa = tol*(line)*1000/cte.c  # Changes km/s to angstroms
 
         dlamb = line/self.resolution
-        sigma,sig_min,sig_max = [0.2,(1)*dlamb/2*np.sqrt(2*np.log(2)),1]
-        # sig_min is twice the minimum theoretical value
+        sigma,sig_min,sig_max = [0.2,dlamb/2*np.sqrt(2*np.log(2)),1]
+        # sig_min should be larger the minimum theoretical value dlam/2*sqrt(2log2)
 
         '''========= Set initial parameters for the chosen function ========='''
         inf = np.inf
@@ -534,6 +534,18 @@ class spec():
 
         dx : float/int
             New delta lambda to be used for the output spectra.
+
+        lwl : float/int, optional
+            Enter the forced initial wavelenght to be used during interpolation.
+            If None, the original initial wavelenght will be used.
+
+        rwl : float/int, optional
+            Enter the forced final wavelenght to be used during interpolation.
+            If None, the original final wavelenght will be used.
+
+        method : str, optional
+            Enter the interpolation method to be used. See doc for np.interp1d.
+            Default is 'linear'.
 
         Returns: None (but the spectrum (wavelenght,flux) is resampled).
         '''

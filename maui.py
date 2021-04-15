@@ -546,8 +546,8 @@ def gen_gridlim(tables_dir='local'):
                     # NOTE: with this we change from logg to loggf to compare with
                     # the solution files from MAUI.
                     data_row.extend([
-                    5.39-(4*np.log10(idldata.param[0])-idldata.param[idx]-10.61).max(),
-                    5.39-(4*np.log10(idldata.param[0])-idldata.param[idx]-10.61).min()])
+                    5.39-(4*np.log10(idldata.param[0])-idldata.param[idx]-10.61).min(),
+                    5.39-(4*np.log10(idldata.param[0])-idldata.param[idx]-10.61).max()])
 
                 else:
                     data_row.extend([idldata.param[idx].max(),idldata.param[idx].min()])
