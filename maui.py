@@ -33,7 +33,7 @@ def mauipath(path=None):
             defmainpath = '/Users/abelink/Documents/MAUI/'
         elif platform.uname().node == 'msi':
             defmainpath = '/home/abelink/Documents/MAUI/'
-        elif platform.uname().node == 'dardo.ll.iac.es':
+        elif 'iac.es' in platform.uname().node:
             defmainpath = '/net/nas/proyectos/hots/masblue/maui2021/RESULTS_BSGS_202101/'
 
         mainpath = defmainpath
