@@ -108,11 +108,11 @@ def RV1_cc(spectra1, spectra2,
         corr /= np.max(corr)
 
         # Requires scipy version 1.6.0 or above to run
-        #lags = correlation_lags(len(flux1),len(flux2))
-        #corr_shift = -lags[np.argmax(corr)]
+        lags = correlation_lags(len(flux1),len(flux2))
+        corr_shift = -lags[np.argmax(corr)]
 
-        lags = np.arange(-len(flux1)+1,len(flux1),1)
-        corr_shift = -corr.argmax()+len(flux1)-1
+        #lags = np.arange(-len(flux1)+1,len(flux1),1)
+        #corr_shift = -corr.argmax()+len(flux1)-1
 
         RVs_angs.append(corr_shift*spec1.dx)
         RVs_kms.append(RVs_angs[-1]/np.mean(wave1)*cte.c/1000)

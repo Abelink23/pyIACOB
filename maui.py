@@ -68,7 +68,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_verX',RV0tol=200
     Parameters
     ----------
 
-    tables : str, optional
+    table : str, optional
         Enter the input table contaning a column 'Name' with the name of the stars.
 
     output_name : str, optional
@@ -92,8 +92,8 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_verX',RV0tol=200
     maui_txt = open(maindir+'lists/%s.txt' % output_name,'a')
     maui_txt.write(
         "{:<40}".format('starname')+"{:<48}".format('filename')+"{:<6}".format('vrad')+\
-        "{:<8}".format('vsini')+"{:<7}".format('evsini')+"{:<8}".format('rt_mac')+\
-        "{:<7}".format('emac')+"{:<10}".format('R')+"{:<4}".format('SNR')+\
+        "{:<6}".format('vsini')+"{:<7}".format('evsini')+"{:<5}".format('vmac')+\
+        "{:<7}".format('evmac')+"{:<7}".format('R')+"{:<4}".format('SNR')+\
         ' ;# SpC       FW34-14 SiIII SiII l lTef l lgf  Grid\n')
 
     quit = ''
@@ -106,11 +106,12 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_verX',RV0tol=200
         name = row['Name'].strip()
 
         # Filer based on properties from the main table:
-        if 'SB2' in row['SB']: continue
-        if 'Em' in row['CHb']:
-            if not 'Em(p)' in row['CHb']: continue
-        if 'PCyg' in row['CHb']: continue
-        if row['QIB'] < 2: continue
+        if 'SB' in table.columns and 'SB2' in row['SB']: continue
+        if 'CHb' in table.columns:
+            if 'Em' in row['CHb']:
+                if not 'Em(p)' in row['CHb']: continue
+            if 'PCyg' in row['CHb']: continue
+        if 'QIB' in table.columns and row['QIB'] < 2: continue
 
         match_REF = table_REF[[i.strip()==name for i in table_REF['Name']]]
         match_IB = table_IB[table_IB['Name']==name]
@@ -134,7 +135,15 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_verX',RV0tol=200
         if match_IB['filename'][0] != star.file_name:
             print('Warning: Different files from best SNR and from IB results for %s' % name)
             print(star.file_name,' vs ',match_IB['filename'][0])
+            if ascii_0 == True:
+                do_file = input('Which ascii do you want to create 1 or 2: ')
+                if int(do_file) == 1: filename = star.file_name
+                elif int(do_file) == 2: filename = match_IB['filename'][0]
 
+        if ascii_0 == True and not search(filename[:-5]+'_RV.ascii',\
+        os.path.expanduser('~')+'/Documents/MAUI/ASCII/') is None: ascii = False
+
+        # ----------------------------------------------------------------------
         # Extra information appended to the end of each row:
         match_results = results[results['Name']==name]
         if len(match_results) == 0:
@@ -143,10 +152,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_verX',RV0tol=200
             l_Tef = match_results['l_Teff'][0]; logTf = 4+np.log10(match_results['Teff'][0])
             l_lgf = match_results['l_lgf'][0]; loggf = match_results['lgf'][0];
             grid = grids_dic[match_results['Model_name'][0]][0]
-        # --------------------------------------------------------------------------
-
-        if ascii_0 == True and not type(search(match_IB['filename'][0][:-5]+'_RV.ascii',\
-        os.path.expanduser('~')+'/Documents/MAUI/ASCII/')) == type(None): ascii = False
+        # ----------------------------------------------------------------------
 
         if ascii == True:
 
@@ -165,7 +171,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_verX',RV0tol=200
                     skip = input('%s - Hit return to continue, type "s" to skip: ' % name)
                     if skip == 's': break
 
-                    if match_REF['SpT_code']<2.6: star.plotspec(4530,4590)
+                    if match_REF['SpT_code'] <= 2.5: star.plotspec(4530,4590)
                     else: star.plotspec(6337.11,6357.11)
 
                     SpT = '-'
@@ -186,7 +192,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_verX',RV0tol=200
 
                     plt.close()
 
-                    star.offset = RV0(spt_list,star.spectrum,func=fun,ewcut=30,tol=RV0tol)
+                    star.offset = RV0(spt_list,star.spectrum,ewcut=30,width=wid,tol=RV0tol,func=fun)
                     star.waveflux() # Applies the offset
                     #star.cosmic(sigclip=0.005)
 
@@ -206,9 +212,9 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_verX',RV0tol=200
             match_IB['vsini'] = 0
             match_IB['evsini'] = 0
 
-        if match_IB['rt_mac'][0] < 10:
-            match_IB['rt_mac'] = 0
-            match_IB['emac'] = 0
+        if match_IB['vmac'][0] < 10:
+            match_IB['vmac'] = 0
+            match_IB['evmac'] = 0
 
         if match_REF['SNR_B'][0] > 200:
             match_REF['SNR_B'] = 200
@@ -216,11 +222,11 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_verX',RV0tol=200
         maui_txt.write(
             "{:<40}".format(star.file_name[:-5])+\
             "{:<48}".format(star.file_name[:-5]+'_RV.ascii')+"{:<6}".format('0.0d0')+\
-            "{:<8}".format(str(int(round(match_IB['vsini'][0],0))))+\
+            "{:<6}".format(str(int(round(match_IB['vsini'][0],0))))+\
             "{:<7}".format(str(int(round(match_IB['evsini'][0]))))+\
-            "{:<8}".format(str(int(round(match_IB['rt_mac'][0]))))+\
-            "{:<7}".format(str(int(round(match_IB['emac'][0]))))+\
-            "{:<10}".format(str(star.resolution)+'.')+\
+            "{:<5}".format(str(int(round(match_IB['vmac'][0]))))+\
+            "{:<7}".format(str(int(round(match_IB['evmac'][0]))))+\
+            "{:<7}".format(str(star.resolution)+'.')+\
             "{:<5}".format(str(int(round(match_REF['SNR_B'][0],0))))+';# '+\
             "{:<12}".format(row['SpC'].strip().replace(' ',''))+' '+\
             "{:<8}".format(str(round(match_REF['FW34Hb'][0]-match_REF['FW14Hb'][0],1)))+\

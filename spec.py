@@ -250,7 +250,8 @@ class spec():
         elif func == 'vr': fitfunc = f_voigtrot; guess = [-.1,line,sigma,.1,100,0]; \
         bounds = ([-inf,line-tol_aa,0,-inf,0,0],[inf,line+tol_aa,sig_max,inf,350,.1]) # max 600
         elif func == 'dwarf': fitfunc = f_dwarf; guess = [-.1,line,sigma,.1,100,0,-.1,sigma]; \
-        bounds = ([-inf,line-tol_aa,0,-inf,0,0,-inf,0],[inf,line+tol_aa,sig_max,inf,350,.1,inf,sig_max])
+        bounds = ([-inf,line-tol_aa,0,-inf,0,0,-inf,0],
+                   [inf,line+tol_aa,sig_max,inf,350,.1,inf,sig_max])
 
 
         '''========================== Line fitting =========================='''
@@ -587,8 +588,8 @@ class spec():
         width : int, optional
             Sets the width in [AA] where the line fits well in. Default is 10.
 
-        ylim : tuple
-            Sets the y-limits for the plot. Input must be "[ymin,ymax]".
+        ylim : tuple/list, optional
+            Sets the y-limits for the plot. Input must be like "[ymin,ymax]".
 
         Returns: None (but the plots are generated).
         '''
@@ -608,11 +609,10 @@ class spec():
                 plt.xticks([round(line-width/3,1),round(line,1),round(line+width/3,1)])
                 plt.title(element,fontsize=6,pad=1)
 
-            plt.plot(self.wave[mask], self.flux[mask], linewidth = .3,
-                     label = self.name_star + ' ' + self.SpC)
+            plt.plot(self.wave[mask],self.flux[mask],lw=.3,label=self.name_star+' '+self.SpC)
             plt.tick_params(direction='in',top='on')
 
-            if ylim != None and type(ylim) is tuple: plt.ylim(ylim)
+            if ylim is not None and (type(ylim) is list or type(ylim) is tuple): plt.ylim(ylim)
 
             if len(lines) == 1:
                 plt.xlabel('$\lambda$ $[\AA]$',size=13)
@@ -625,7 +625,7 @@ class spec():
         return None
 
 
-    def plotspec(self,lwl=3800,rwl=8000,poslines=None):
+    def plotspec(self,lwl=3800,rwl=8000,poslines=None,ylim=None):
         '''
         Parameters
         ----------
@@ -638,6 +638,9 @@ class spec():
         poslines : str, optional
             If 'all' or 'OB', it will overplot position of spectral lines.
 
+        ylim : tuple/list, optional
+            Sets the y-limits for the plot. Input must be like "[ymin,ymax]".
+
         Returns: None (but the plots are generated).
         '''
 
@@ -647,8 +650,6 @@ class spec():
         if rwl > max(self.wave): rwl = max(self.wave)
 
         mask = (self.wave > lwl) & (self.wave < rwl)
-
-        #plt.subplots(tight_layout=True)
 
         if poslines in ['all','OB']:
             if poslines == 'all': synlines,elements,gfs = findlines('synt_lines.lst')
@@ -663,13 +664,15 @@ class spec():
                     try: depth = max(self.flux[mask]) - min(self.flux[mask]) # or 1-min
                     except: print('Problem finding max/min in masked flux.'); return None
                     # depth line mask = depth deepest line
-                    plt.text(synline-.1, max(self.flux[mask])-.01,element,size=6,rotation=75)
+                    plt.text(synline-.1,1.025,element,size=6,rotation=75)
                     plt.plot([synline,synline],[np.mean(self.flux[mask])-depth,
-                             np.mean(self.flux[mask])],'k',linewidth=10**gf/5)
+                             np.mean(self.flux[mask])],'k',lw=10**gf/5)
                     # 10**gf/5 empiric way to draw thicker lines for instense lines
 
-        plt.plot(self.wave[mask],self.flux[mask],linewidth=.3,label=self.name_star+' '+self.SpC)
+        plt.plot(self.wave[mask],self.flux[mask],lw=.3,label=self.name_star+' '+self.SpC)
         plt.tick_params(direction='in',top='on')
+
+        if ylim is not None and (type(ylim) is list or type(ylim) is tuple): plt.ylim(ylim)
 
         plt.xlabel('$\lambda$ $[\AA]$',size=13)
         plt.ylabel('Normalized flux',size=13)

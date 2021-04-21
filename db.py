@@ -166,7 +166,7 @@ def findstar(spectra=None,SNR=None):
                 elif spectrum + '_' in file and file.endswith('.fits'):
                     dir_spectra.append(os.path.join(root,file))
                     match = 1
-        if not match == 1: print('File %s not found.\n' % (spectrum))
+        if not match == 1: print('File/source %s not found.\n' % (spectrum))
 
     if len(dir_spectra) == 0: return None #quit()
 
@@ -418,8 +418,8 @@ def snr(spectra,snrcut=None,get_MF=None):
                 # Retrieve the key values fron the fits header
                 hdu = fits.open(spectrum)# Open the fits image file
                 hdu0 = hdu[0]            # Load the header list of primary header
-                header0 = hdu0.header    # Read the values of the headers
-                SNR = float(header0['I-SNR'])  # Estimated Signal to Noise Ratio
+                header = hdu0.header    # Read the values of the headers
+                SNR = float(header['I-SNR'])  # Estimated Signal to Noise Ratio
 
                 if snrcut == None:
                     # Date is used for spectra with same SNR choosing the newest one.
@@ -555,16 +555,16 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
             hdu = fits.open(source)  # Open the fits image file
             hdu0 = hdu.verify('fix') # Fix header keywords
             hdu0 = hdu[0]            # Load the header list of primary header
-            header0 = hdu0.header    # Read the values of the headers
+            header = hdu0.header    # Read the values of the headers
             if '_M_' in source:
-                try: OBJRA = header0['OBJ_RA']; OBJDEC = header0['OBJ_DEC']
+                try: OBJRA = header['OBJ_RA']; OBJDEC = header['OBJ_DEC']
                 except: None # Only new fits include it
             elif '_N_' in source:
-                OBJRA = header0['OBJRA']*360/24; OBJDEC = header0['OBJDEC']
+                OBJRA = header['OBJRA']*360/24; OBJDEC = header['OBJDEC']
             elif '_F_' in source:
-                OBJRA = header0['RA']; OBJDEC = header0['DEC']
+                OBJRA = header['RA']; OBJDEC = header['DEC']
 
-            SNR_best = float(header0['I-SNR'])
+            SNR_best = float(header['I-SNR'])
 
             source = source.split('/')[-1].split('_')[0]
 
@@ -598,7 +598,7 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
 
         '''======================= Get the coordinates ======================'''
         if coords == 'header':
-            RADEC_0 = SkyCoord(ra=header0['RA'],dec=header0['DEC'],unit=(u.deg))
+            RADEC_0 = SkyCoord(ra=header['RA'],dec=header['DEC'],unit=(u.deg))
 
         else:
             RADEC_0 = SkyCoord(ra=simbad['RA'],dec=simbad['DEC'],unit=(u.hourangle,u.deg))[0]
@@ -620,8 +620,8 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
 
         '''===================== Get the spectral class ====================='''
         if db == 'IACOB':
-            SpC_0 = header0['I-SPC']
-            try: SpC_ref = header0['I-SPCREF']
+            SpC_0 = header['I-SPC']
+            try: SpC_ref = header['I-SPCREF']
             except: SpC_ref = '-'
             if (not type(SpC_0) == str or SpC_0.strip() == '-'):
                 SpC_0 = simbad['SP_TYPE'][0]; SpC_ref = 'SIMBAD'
@@ -656,21 +656,23 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
                 if match == False: delete.append(source); continue
 
         '''=================== Get the spectral class code =================='''
-        if spccode in ['y','yes'] and SpC_0 != '': spc_c,lc_c = spc_code(SpC_0)
+        if spccode in ['y','yes'] and SpC_0 != '': spt_c,lc_c = spc_code(SpC_0)
         elif spccode in ['y','yes'] and SpC_0 == '': spt_c = lc_c = np.nan
 
         '''======================= Limit by magnitude ======================='''
-        bmag_0 = simbad['FLUX_B']
-        vmag_0 = simbad['FLUX_V']
+        bmag_0 = simbad['FLUX_B'][0]
+        if str(bmag_0) == '--': bmag_0 = np.nan
+        vmag_0 = simbad['FLUX_V'][0]
+        if str(vmag_0) == '--': vmag_0 = np.nan
 
-        if bmag != None and str(bmag_0) != '--':
+        if bmag != None and bmag_0 is not np.nan:
             bmag_0 = round(bmag_0, 2)
             if bmag[0] == '<':
                 if bmag_0 > float(bmag[1:]): delete.append(source); continue
             elif bmag[0] == '>':
                 if bmag_0 < float(bmag[1:]): delete.append(source); continue
 
-        if vmag != None and str(vmag_0) != '--':
+        if vmag != None and vmag_0 is not np.nan:
             vmag_0 = round(vmag_0, 2)
             if vmag[0] == '<':
                 if vmag_0 > float(vmag[1:]): delete.append(source); continue
@@ -744,8 +746,8 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
         output['RAdeg_J2000'].unit = u.deg; output['DECdeg_J2000'].unit = u.deg
 
         if spccode in ['y','yes']:
-            spccode = Table([[spt_c],[lc_c]],names=('SpT_code','LC_code'))
-            output = hstack([output,spccode])
+            spt_lccode = Table([[spt_c],[lc_c]],names=('SpT_code','LC_code'))
+            output = hstack([output,spt_lccode])
 
         magnitudes = Table([[bmag_0],[vmag_0]],names=('mag_B','mag_V'))
         magnitudes['mag_B'].unit = magnitudes['mag_V'].unit = u.mag
@@ -952,25 +954,25 @@ def checknames():
         # Retrieve the key values fron the fits header
         hdu = fits.open(spectrum)# Open the fits image file
         hdu0 = hdu[0]            # Load the header list of primary header
-        header0 = hdu0.header    # Read the values of the headers
+        header = hdu0.header    # Read the values of the headers
 
         filename = spectrum.split('/')[-1]
         namestar = spectrum.split('/')[-1].split('_')[0]
 
         simbad = SB(namestar)
 
-        name_0 = header0['OBJECT'].strip().replace(' ','')
+        name_0 = header['OBJECT'].strip().replace(' ','')
 
         date_filename = spectrum.split('/')[-1].split('_')[1] # date from the filename
         if '_N_' in filename or '_M_' in filename:
-            date_0 = header0['DATE-AVG'] #; print date_0
+            date_0 = header['DATE-AVG'] #; print date_0
             date_0_short = str(date_0[0:4]) + str(date_0[5:7]) + str(date_0[8:10])
         elif '_F_' in filename:
-            date_0 = header0['ARCFILE']
+            date_0 = header['ARCFILE']
             date_0_short = str(date_0[6:10]) + str(date_0[11:13]) + str(date_0[14:16])
 
-        RA_0 = header0['RA']   # 'RA'
-        DEC_0 = header0['DEC'] # 'DEC'
+        RA_0 = header['RA']   # 'RA'
+        DEC_0 = header['DEC'] # 'DEC'
         RADEC_0 = str(RA_0) + ' ' + str(DEC_0)
 
         try:
