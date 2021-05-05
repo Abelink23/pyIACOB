@@ -2,10 +2,9 @@ import re
 import time
 import os.path
 import platform
-import progressbar
+import progressbar as pb
 
-import warnings
-warnings.filterwarnings("ignore")
+import warnings; warnings.filterwarnings("ignore")
 
 import numpy as np
 
@@ -13,7 +12,8 @@ import pandas as pd # Substitute at some point
 
 import astropy.units as u
 from astropy.io import fits
-from astropy.table import Table, vstack, hstack
+from astropy.table import Table, join, setdiff, vstack, hstack
+
 from astropy.coordinates import SkyCoord
 from astroquery.vizier import Vizier
 from astroquery.simbad import Simbad
@@ -32,13 +32,20 @@ def mainpath(path=None):
     Returns: Selected main directory path.
     '''
 
-    if platform.system() == 'Darwin': defmainpath = '/Users/abelink/MEGA/PhD/'
-    elif platform.system() == 'Linux': defmainpath = '/home/abelink/MEGA/PhD/'
+    if path in ['def','default']:
+        if platform.system() == 'Darwin':
+            defmainpath = '/Users/abelink/MEGA/PhD/'
+        elif platform.uname().node == 'msi':
+            defmainpath = '/home/abelink/MEGA/PhD/'
+        elif 'iac.es' in platform.uname().node:
+            defmainpath = '/net/nas/proyectos/hots/adeburgos/'
 
-    if path in ['def','default']: mainpath = defmainpath
+        mainpath = defmainpath
+
     elif path == None:
-        mainpath = input('Working directory path (default is %s) : ' %defmainpath)
+        mainpath = input('Working directory path (default is %s) : ' % defmainpath)
         if mainpath == '': mainpath = defmainpath
+
     else: mainpath = path
 
     return mainpath
@@ -57,13 +64,20 @@ def datapath(path=None):
     Returns: Selected data directory path.
     '''
 
-    if platform.system() == 'Darwin': defdatapath = '/Volumes/Orange/PhData/DB/'
-    elif platform.system() == 'Linux': defdatapath = '/media/abelink/Orange/PhData/DB/'
+    if path in ['def','default']:
+        if platform.system() == 'Darwin':
+            defdatapath = '/Users/abelink/Documents/DB/'
+        elif platform.uname().node == 'msi':
+            defdatapath = '/media/abelink/Orange/PhData/DB/'
+        elif 'iac.es' in platform.uname().node:
+            defdatapath= '/net/nas/proyectos/hots/masblue/obs_iac/spec_opt/IACOB_DB/'
 
-    if path == 'def' or path == 'default': datapath = defdatapath
+        datapath = defdatapath
+
     elif path == None:
-        datapath = input("Data directory path (default is %s) : " %defdatapath)
+        datapath = input("Data directory path (default is %s) : " % defdatapath)
         if datapath == '': datapath = defdatapath
+
     else: datapath = path
 
     return datapath
@@ -89,7 +103,9 @@ def search(myfile,path):
     for root, dirs, files in os.walk(path):
         for file in files:
             if file == myfile: f_dir = os.path.join(root,file)
-    if f_dir == []: print('File %s not found.\nExiting...' % myfile); return None
+    if f_dir == []:
+        print('File %s not found.\n' % myfile)
+        return None
 
     return f_dir
 
@@ -107,7 +123,8 @@ def findstar(spectra=None,SNR=None):
         if you want to select all the fits files inside the working folder.
 
     SNR : str/int, optional
-        If 'best' as input, it finds only the best SNR spectum for each star.
+        If 'best' as input, it finds only the best SNR spectrum for each star.
+        If 'bestMF' same as 'best' but prioritizing spectra from HERMES/FEROS.
         If specified, it returns all the spectra above the chosen SNR.
 
     Returns: Paths to the files found.
@@ -149,10 +166,13 @@ def findstar(spectra=None,SNR=None):
                 elif spectrum + '_' in file and file.endswith('.fits'):
                     dir_spectra.append(os.path.join(root,file))
                     match = 1
-        if not match == 1: print('File %s not found.\n' % (spectrum)); return None
+        if not match == 1: print('File/source %s not found.\n' % (spectrum))
+
+    if len(dir_spectra) == 0: return None #quit()
 
     # Spectra selection based on selected SNR.
     if SNR == 'best': dir_spectra = snr(dir_spectra)
+    elif SNR == 'bestMF': dir_spectra = snr(dir_spectra,get_MF=True)
     elif type(SNR) == int: dir_spectra = snr(dir_spectra,snrcut=SNR)
 
     # Order all spectra from a single target by date.
@@ -161,6 +181,17 @@ def findstar(spectra=None,SNR=None):
         path.split('/')[-1].split('_')[1] + path.split('/')[-1].split('_')[2])
 
     return dir_spectra
+
+
+def searchlines(line,tol=1):
+    line = float(line.replace('?',''))
+    linesdb = findlines('synt_lines_OB.lst')
+    indexes = [linesdb[0].index(i) for i in linesdb[0] if i > line-tol and i < line+tol]
+    print('Nearest lines are:')
+    [print(linesdb[0][idx],linesdb[1][idx],linesdb[2][idx]) for idx in indexes]
+    line = input('Choose a line from the list: ')
+
+    return line
 
 
 def findlines(list):
@@ -198,8 +229,13 @@ def findlines(list):
 
     # String of lines separated by coma:
     else:
-        lines = list.split(','); lines = [float(line) for line in lines]
-        elements = loggf = [None]*len(lines)
+        lines = list.split(','); elements = loggf = [None]*len(lines)
+
+        lines_f = []
+        for n in range(len(lines)):
+            if '?' in lines[n]: lines_f.append(searchlines(lines[n]))
+            else: lines_f.append(lines[n])
+        lines = [float(line) for line in lines_f]
 
     return lines,elements,loggf
 
@@ -232,7 +268,7 @@ def findlist(list):
     return items
 
 
-def findtable(table):
+def findtable(table,path=None,strip_end=True):
     '''
     Function to get the data from a FITS-format table.
 
@@ -241,22 +277,110 @@ def findtable(table):
     table : str
         Enter the fits table containing the data.
 
+    path : str,optional
+        Path where to search for the file.
+
     Returns: Data in table, in table format.
     '''
 
-    path = maindir+'tables'
-
-    if not table.endswith('.fits'): table = table + '.fits'
+    if path == None: path = maindir+'tables'
 
     table_dir = search(table,path)
-    #with fits.open(table_dir,mode='readonly') as hdu_list:
-    #    data = hdu_list[1].data
-    data = Table.read(table_dir)
+
+    if '.fits' in table:
+        #try:
+        #    with fits.open(table_dir,mode='readonly') as hdu_list:
+        #        data = hdu_list[1].data
+        #except: data = Table.read(table_dir,format='fits')
+
+        data = Table.read(table_dir,format='fits')
+        tostrip = [data.colnames[i] for i in range(len(data.dtype)) if data.dtype[i].char == 'S']
+        for col in tostrip: data[col] = [i.strip() for i in data[col]]
+
+    elif '.csv' in table:
+        data = Table.read(table_dir,format='csv')
+    else:
+        data = Table.read(table_dir,format='ascii',delimiter=' ')
 
     return data
 
 
-def snr(spectra,snrcut=None):
+def xmatch_table(table1, table2, match_col=None, output_cols=None,
+                 output_name='xmatch_table', format='fits'):
+    '''
+    Function to generate xmatched tables with selected output columns and format.
+
+    Parameters
+    ----------
+    table1 : str
+        Name of the main table.
+
+    table2 : str
+        Name of the second table to cross-match with the first.
+
+    match_col : str, optional
+        Name of the column to be used as anchor for the cross-match.
+        If empty, the user is asked among the colums that are in both tables.
+
+    output_cols : str, optional
+        Coma separated string with the list of column names to be included in
+        the output file. If empty, all the columns are selected.
+
+    output_name : str, optional
+        Name of the output file. Default is 'xmatch_table'.
+        Note: Do not include the extension.
+
+    format : str, optional
+        Enter the output format for the table: 'fits' (default), 'ascii' or 'csv'.
+
+    Returns: Nothing but the output table with cross-match is generated in the
+    same path where the two input tables are located.
+    '''
+
+    table1 = findtable(table1)
+    table2 = findtable(table2)
+
+    # Cross-match column:
+    same_cols = [i for i in table1.colnames if i in table2.colnames]
+    if match_col == None:
+        if same_cols == []:
+            print('No columns found with the same name in both tables. Exiting... \n')
+            return None
+        else:
+            print(same_cols)
+            match_col = input('Select one of the above column names for the cross-match: ')
+
+    # Remove extra columns:
+    if len(same_cols) > 1:
+        print('WARNING: More than one column has the same name.')
+        print('Output table will contain *_1, *_2 for them.')
+        rm = input('Remove repeated columns from second table? [y/n]: ')
+        if rm == 'y':
+            table2.remove_columns(
+            [i for i in table2.colnames if i in table1.colnames and not i == match_col])
+
+    # Cross-match:
+    if table1[match_col].dtype.char == 'S':
+        table1[match_col] = [i.strip() for i in table1[match_col]]
+        table2[match_col] = [i.strip() for i in table2[match_col]]
+
+    table = join(table1,table2,keys=match_col)
+    if len(table) == 0:
+        print('No matches for the joined tables. Exiting... \n'); return None
+
+    # Output columns:
+    if output_cols != None:
+         output_cols = output_cols.split(',')
+         table.remove_columns(
+         [i for i in table.colnames if not i in output_cols])
+
+    # Saving the file:
+    full_path = maindir+'tables/'+output_name+'.'+format
+    if format == 'ascii': format += '.fixed_width_two_line'
+    table.write(full_path,format=format,overwrite=True)
+
+
+def snr(spectra,snrcut=None,get_MF=None):
     '''
     Function to provide the spectrum with best signal to noise ratio, or all the
     spectra above a given value of signal to noise ratio, taken from the header.
@@ -269,6 +393,10 @@ def snr(spectra,snrcut=None):
     snrcut : int, optional
         If established, it returns all the spectra above the chosen SNR.
 
+    get_MF : Boolean, optional
+        If True, it returns available spectra from either Mercator or Feros with
+        SNR within 15% less than the best SNR spectra taken with FIES.
+
     Returns: Paths to filtered spectrum/spectra.
     '''
 
@@ -279,31 +407,46 @@ def snr(spectra,snrcut=None):
 
     best_spectra = []
     for star in names_stars:
-        i = 0
+        SNR_best = 0; SNR_best_MF = 0
         for spectrum in spectra:
-            if star != spectrum.split('/')[-1].split('_')[0]: continue
+            filename = spectrum.split('/')[-1].split('_')
+            name_star = filename[0]
+            date = int(filename[1]+filename[2])
+            instr = filename[3]
+            if star != name_star: continue
             else:
                 # Retrieve the key values fron the fits header
                 hdu = fits.open(spectrum)# Open the fits image file
                 hdu0 = hdu[0]            # Load the header list of primary header
-                header0 = hdu0.header    # Read the values of the headers
-                SNR = float(header0['I-SNR'])  # Estimated Signal to Noise Ratio
+                header = hdu0.header    # Read the values of the headers
+                SNR = float(header['I-SNR'])  # Estimated Signal to Noise Ratio
 
                 if snrcut == None:
-                    if i == 0: SNR_best = SNR; best_spectrum = spectrum; i = 1
-                    elif SNR > SNR_best: SNR_best = SNR; best_spectrum = spectrum
+                    # Date is used for spectra with same SNR choosing the newest one.
+                    # Instr is used for when get_MF is enabled.
+                    if SNR > SNR_best or (SNR == SNR_best and date > best_spec_date):
+                        SNR_best = SNR; best_spec = spectrum
+                        best_spec_date = date; best_spec_inst = instr
+
+                    if get_MF == True and instr in ['M','F'] and SNR > SNR_best_MF:
+                        SNR_best_MF = SNR; best_spec_MF = spectrum
 
                 elif SNR > int(snrcut): best_spectra.append(spectrum)
 
-        if snrcut == None: best_spectra.append(best_spectrum)
+        if snrcut == None:
+            if get_MF == True and best_spec_inst=='N' and SNR_best-SNR_best_MF<.15*SNR_best:
+                 best_spec = best_spec_MF
+
+            best_spectra.append(best_spec)
+
         elif len(best_spectra) == 0:
             print('No spectra found with SNR higher than %s.' % (snrcut))
 
     return best_spectra
 
 
-def genfits(list,db,coords=None,limdist=None,spt=None,lc=None,snrcut=None,
-    spccode=None,bmag=None,vmag=None,gaia=None,skip=None):
+def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None,
+    spccode=None, bmag=None, vmag=None, gaia=None, skip=None):
     '''
     Function to generate a FITS table with information about sources coming from
     IACOB/FEROS database, a list of names or coordinates, allowing to limitate
@@ -381,7 +524,6 @@ def genfits(list,db,coords=None,limdist=None,spt=None,lc=None,snrcut=None,
     if lc != None:
         lc = re.split(' |,',lc)
 
-
     '''=============================== Queries =============================='''
     columns = ['BPmag','e_BPmag','+Gmag','e_Gmag','RPmag','e_RPmag',\
                'pmRA','e_pmRA','pmDE','e_pmDE','Plx','e_Plx']
@@ -398,17 +540,14 @@ def genfits(list,db,coords=None,limdist=None,spt=None,lc=None,snrcut=None,
 
     v = Vizier(columns=columns); v.ROW_LIMIT = 1
 
-
     '''============================ Progress Bar ============================'''
-    bar = progressbar.ProgressBar(maxval=len(lst_sources_f),widgets=
-         [progressbar.Bar('=','[',']'),' ',progressbar.Percentage()])
+    bar = pb.ProgressBar(maxval=len(lst_sources_f),
+                         widgets=[pb.Bar('=','[',']'),' ',pb.Percentage()])
     bar.start()
-
 
     '''=============================== Sources =============================='''
     delete = []; first = True
     for source,i in zip(lst_sources_f,range(len(lst_sources_f))):
-
 
         '''=========== Retrieve the key values fron the fits header ========='''
         OBJRA = OBJDEC = None
@@ -416,24 +555,24 @@ def genfits(list,db,coords=None,limdist=None,spt=None,lc=None,snrcut=None,
             hdu = fits.open(source)  # Open the fits image file
             hdu0 = hdu.verify('fix') # Fix header keywords
             hdu0 = hdu[0]            # Load the header list of primary header
-            header0 = hdu0.header    # Read the values of the headers
+            header = hdu0.header    # Read the values of the headers
             if '_M_' in source:
-                try: OBJRA = header0['OBJ_RA']; OBJDEC = header0['OBJ_DEC']
+                try: OBJRA = header['OBJ_RA']; OBJDEC = header['OBJ_DEC']
                 except: None # Only new fits include it
             elif '_N_' in source:
-                OBJRA = header0['OBJRA']*360/24; OBJDEC = header0['OBJDEC']
+                OBJRA = header['OBJRA']*360/24; OBJDEC = header['OBJDEC']
             elif '_F_' in source:
-                OBJRA = header0['RA']; OBJDEC = header0['DEC']
+                OBJRA = header['RA']; OBJDEC = header['DEC']
+
+            SNR_best = float(header['I-SNR'])
 
             source = source.split('/')[-1].split('_')[0]
-
 
         '''========================= Skip bad sources ======================='''
         if db == 'IACOB':
             if any(bad in source[:3] for bad in ['DO2']): continue
 
         if skip != None and any(bad in source for bad in skip.split(',')): continue
-
 
         '''============= Simbad query by object name/coordinates ============'''
         if type_list == 'names':
@@ -457,10 +596,9 @@ def genfits(list,db,coords=None,limdist=None,spt=None,lc=None,snrcut=None,
 
             source_f = simbad['MAIN_ID'][0].decode()
 
-
         '''======================= Get the coordinates ======================'''
         if coords == 'header':
-            RADEC_0 = SkyCoord(ra=header0['RA'],dec=header0['DEC'],unit=(u.deg))
+            RADEC_0 = SkyCoord(ra=header['RA'],dec=header['DEC'],unit=(u.deg))
 
         else:
             RADEC_0 = SkyCoord(ra=simbad['RA'],dec=simbad['DEC'],unit=(u.hourangle,u.deg))[0]
@@ -470,25 +608,25 @@ def genfits(list,db,coords=None,limdist=None,spt=None,lc=None,snrcut=None,
         RADEC_0 = re.sub('[h,d,m]',':',RADEC_0.to_string('hmsdms')).replace('s','')
         RAhms = RADEC_0.split()[0]; DECdms = RADEC_0.split()[1]
 
-
         '''======================= Limit by distance ========================'''
         if limdist != None:
             c1 = SkyCoord(RADEC_0,unit=(u.hourangle,u.deg))
-            if any(i in RADEC for i in [':','h']):
-                  c2 = SkyCoord(RADEC,unit=(u.hourangle,u.deg))
-            else: c2 = SkyCoord(RADEC,unit=u.deg)
+            if any([i in RADEC for i in [':','h']]):
+                c2 = SkyCoord(RADEC,unit=(u.hourangle,u.deg))
+            else:
+                c2 = SkyCoord(RADEC,unit=u.deg)
 
             if c1.separation(c2).deg > dist: delete.append(source); continue
 
-
         '''===================== Get the spectral class ====================='''
         if db == 'IACOB':
-            SpC_0 = header0['I-SPC']; SpC_ref = header0['I-SPCREF']
+            SpC_0 = header['I-SPC']
+            try: SpC_ref = header['I-SPCREF']
+            except: SpC_ref = '-'
             if (not type(SpC_0) == str or SpC_0.strip() == '-'):
-                SpC_0 = simbad['SP_TYPE'][0].decode(); SpC_ref = 'SIMBAD'
+                SpC_0 = simbad['SP_TYPE'][0]; SpC_ref = 'SIMBAD'
         else:
-            SpC_0 = simbad['SP_TYPE'][0].decode(); SpC_ref = 'SIMBAD'
-
+            SpC_0 = simbad['SP_TYPE'][0]; SpC_ref = 'SIMBAD'
 
         '''======================= Limit by SpT or LC ======================='''
         spt_0 = []; lc_0 = []
@@ -502,9 +640,8 @@ def genfits(list,db,coords=None,limdist=None,spt=None,lc=None,snrcut=None,
             elif len(re.split(':|pe',SpC_0.strip())[0]) <= 4:
                 spt_0 = SpC_0.strip()
 
-            if spt != None:
-                if any(j in spt_0 for j in spt) == False:
-                    delete.append(source); continue
+            if spt != None and not any([j in spt_0 for j in spt]):
+                delete.append(source); continue
 
             match = False
             if lc != None and lc_0 != []:
@@ -518,48 +655,29 @@ def genfits(list,db,coords=None,limdist=None,spt=None,lc=None,snrcut=None,
                 if 'I' in lc and 'I' in lc_0: match = True
                 if match == False: delete.append(source); continue
 
-
         '''=================== Get the spectral class code =================='''
-        if spccode in ['y','yes'] and SpC_0 != '':
-            spc_c = SpC_0.split('+')[0].split('/')[0].replace(':','')
-
-            if (spc_c in ['~']) or (spc_c.startswith(('WC','WN','WR','C')) == True):
-                spt_c = float('NaN'); lc_c = float('NaN')
-            else:
-                spt_code = {'O': 1, 'B': 2, 'A': 3, 'F': 4, 'G': 5, 'K': 6, 'M': 7}
-                total_spt_c = []; spt_c = re.findall('[O,B,A,F,G,K,M]',spc_c)
-                for spt_c_i in spt_c: total_spt_c.append(spt_code[spt_c_i])
-                num = len(spt_c); spt_c = re.findall('[0-9.]+',spc_c)
-                for spt_c_i in spt_c: total_spt_c.append(float(spt_c_i)/10)
-                try: spt_c = sum(total_spt_c)/num
-                except: print(source,total_spt_c,num)
-
-                lc_code = {'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5}
-                total_lc_c = []; lc_c = re.findall('[I,V]+',spc_c)
-                for lc_c_i in lc_c: total_lc_c.append(lc_code[lc_c_i])
-                lc_c = np.asarray(total_lc_c).mean()
-
+        if spccode in ['y','yes'] and SpC_0 != '': spt_c,lc_c = spc_code(SpC_0)
         elif spccode in ['y','yes'] and SpC_0 == '': spt_c = lc_c = np.nan
 
-
         '''======================= Limit by magnitude ======================='''
-        bmag_0 = simbad['FLUX_B']
-        vmag_0 = simbad['FLUX_V']
+        bmag_0 = simbad['FLUX_B'][0]
+        if str(bmag_0) == '--': bmag_0 = np.nan
+        vmag_0 = simbad['FLUX_V'][0]
+        if str(vmag_0) == '--': vmag_0 = np.nan
 
-        if bmag != None and str(bmag_0) != '--':
+        if bmag != None and bmag_0 is not np.nan:
             bmag_0 = round(bmag_0, 2)
             if bmag[0] == '<':
                 if bmag_0 > float(bmag[1:]): delete.append(source); continue
             elif bmag[0] == '>':
                 if bmag_0 < float(bmag[1:]): delete.append(source); continue
 
-        if vmag != None and str(vmag_0) != '--':
+        if vmag != None and vmag_0 is not np.nan:
             vmag_0 = round(vmag_0, 2)
             if vmag[0] == '<':
                 if vmag_0 > float(vmag[1:]): delete.append(source); continue
             elif vmag[0] == '>':
                 if vmag_0 < float(vmag[1:]): delete.append(source); continue
-
 
         '''======================= Get Gaia DR2 data ========================'''
         if gaia in ['y','yes']:
@@ -597,7 +715,6 @@ def genfits(list,db,coords=None,limdist=None,spt=None,lc=None,snrcut=None,
                 gaiaq = []; print('\n' + str(source_f) + ' could not be queried in Gaia.')
                 #catalog = "/I/311/hip2"
 
-
         '''========================= Calculate RUWE ========================='''
         if gaia in ['y','yes'] and ruwe == 'y' and not gaiaq == []:
 
@@ -612,15 +729,14 @@ def genfits(list,db,coords=None,limdist=None,spt=None,lc=None,snrcut=None,
 
             gaiaq.remove_columns(['NgAL','chi2AL'])
 
-
-        '''================= Counting FIES and HERMES spectra ==============='''
+        '''============= Counting FIES / HERMES / FEROS spectra ============='''
         if db == 'IACOB':
-            FIES = 0; HERMES = 0
+            FIES = 0; HERMES = 0; FEROS = 0
             for source_ in lst_sources_all:
                 if source_f + '_' in source_ and source_.endswith('.fits'):
                     if '_N_' in source_: FIES = FIES + 1
                     elif '_M_' in source_: HERMES = HERMES + 1
-
+                    elif '_F_' in source_: FEROS = FEROS + 1
 
         '''=========================== Export row ==========================='''
         output = Table([[source_f],[RAhms],[DECdms],[RAdeg],[DECdeg],[SpC_0],[SpC_ref]],\
@@ -630,8 +746,8 @@ def genfits(list,db,coords=None,limdist=None,spt=None,lc=None,snrcut=None,
         output['RAdeg_J2000'].unit = u.deg; output['DECdeg_J2000'].unit = u.deg
 
         if spccode in ['y','yes']:
-            spc_code = Table([[spt_c],[lc_c]],names=('SpT_code','LC_code'))
-            output = hstack([output,spc_code])
+            spt_lccode = Table([[spt_c],[lc_c]],names=('SpT_code','LC_code'))
+            output = hstack([output,spt_lccode])
 
         magnitudes = Table([[bmag_0],[vmag_0]],names=('mag_B','mag_V'))
         magnitudes['mag_B'].unit = magnitudes['mag_V'].unit = u.mag
@@ -645,8 +761,11 @@ def genfits(list,db,coords=None,limdist=None,spt=None,lc=None,snrcut=None,
                 output = hstack([output,ruwe_table])
 
         if db == 'IACOB':
-            nspect = Table([[FIES],[HERMES]],names=('FIES','HERMES'))
+            nspect = Table([[FIES],[HERMES],[FEROS]],names=('FIES','HERMES','FEROS'))
             output = hstack([output,nspect])
+
+            SNR_best = Table([[SNR_best]],names=('SNR_best',))
+            output = hstack([output,SNR_best])
 
         if first == True: table = output; first = False
         else: table = vstack([table,output])
@@ -656,23 +775,70 @@ def genfits(list,db,coords=None,limdist=None,spt=None,lc=None,snrcut=None,
 
     bar.finish()
 
-
     '''============================ Export table ============================'''
-    hdu_f = fits.BinTableHDU(data=table.filled(np.nan))
-    hdu_f.writeto(maindir+'tables/tablestars.fits',overwrite=True)
+    try:
+        table.write(maindir+'tables/tablestars.fits',format='fits',overwrite=True)
+        #hdu_f = fits.BinTableHDU(data=table.filled(np.nan))
+        #hdu_f.writeto(maindir+'tables/tablestars.fits',overwrite=True)
+    except: print('Table is empty, no sources were found.'); return None
 
     lst_sources_f = [source for source in lst_sources_f if not source in delete]
 
     return None
 
 
-def SB(name,ra=None,dec=None):
+def spc_code(spc):
+    '''
+    Function to translate input SpC (Spectral Class) into SpT and LC codes.
+
+    Parameters
+    ----------
+    spc : str
+        Enter the spectral class to turn into SpT and LC codes.
+
+    Returns: SpT and LC codes.
+    '''
+
+    spt_dic = {'O': 1, 'B': 2, 'A': 3, 'F': 4, 'G': 5, 'K': 6, 'M': 7}
+    lc_dic = {'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5}
+
+    spc_c = spc.split('+')[0].split('/')[0].replace(':','')
+
+    if spc_c in ['~'] or spc_c.startswith(('WC','WN','WR','C')):
+        spt_c = lc_c = np.nan
+    else:
+        # Spectral type
+        spt_c = re.findall('[O,B,A,F,G,K,M]',spc_c); num = len(spt_c)
+        spt_c_lst = [spt_dic[i] for i in spt_c]
+
+        spt_c = re.findall('[0-9.]+',spc_c)
+        spt_c_lst += [float(i)/10 for i in spt_c]
+
+        try:
+            # This is for B1-2 in which there is B(1) and 1-2(2)
+            if num < len(spt_c_lst)-num:
+                spt_c = (sum(spt_c_lst[:num])/num+sum(spt_c_lst[num:])/len(spt_c_lst[num:]))
+            else:
+                spt_c = sum(spt_c_lst)/num
+        except: print(source,spt_c_lst,num)
+
+        # Luminosity class
+        lc_c = re.findall('[I,V]+',spc_c)
+        lc_c_lst = [lc_dic[i] for i in lc_c]
+
+        if len(lc_c_lst) == 0: lc_c = np.nan
+        else: lc_c = np.asarray(lc_c_lst).mean()
+
+    return spt_c,lc_c
+
+
+def SB(name=None,ra=None,dec=None,radius='5s'):
     '''
     Function to query an object in Simbad database.
 
     Parameters
     ----------
-    name : str
+    name : str, optional
         Enter the name of the source to query.
 
     ra : float, optional
@@ -681,34 +847,83 @@ def SB(name,ra=None,dec=None):
     dec : float, optional
         Enter the declination of the source, in degrees.
 
+    radius : str, optional
+        Enter a string with the radius for the sky search.
+
     Returns: Queried object in Table format.
     '''
 
-    try: simbad = Simbad.query_object(name)
-    except: time.sleep(3); simbad = Simbad.query_object(name)
+    if name is not None:
+        try: simbad = Simbad.query_object(name)
+        except: time.sleep(3); simbad = Simbad.query_object(name)
+    else: name = 'empty'; simbad = None
 
-    while simbad == None:
-        print('Provide alternative name for search in Simbad.')
+    while simbad is None: # type(simbad) == type(None)
+        print('Provide alternative name for %s in Simbad.' % name)
         print('In some cases try replacing "HD" by "HD ".')
-        print('Type "sky" to query 10" around the central coordinates (if given).')
+        if ra != None and dec != None:
+            print('Type "sky" to query %s around input ra/dec (if given).' % radius)
         print('Hit return to skip this source.')
         check = input('Name: ')
 
         if check == '': print('Skipping source: %s\n' % name); break
 
         elif check == 'sky' and ra != None and dec != None:
-            simbad = Simbad.query_region(SkyCoord(ra,dec,unit='deg'),radius='10s')
-            if simbad == None: print('No objects found.')
+            simbad = Simbad.query_region(SkyCoord(ra,dec,unit='deg'),radius=radius)
+            if type(simbad) == type(None): print('No objects found.')
 
         else: simbad = Simbad.query_object(check)
 
-        try:
-            if len(simbad) > 1:
-                print('More than one Simbad result, choosing the brigtest source...')
-                simbad.sort('FLUX_V'); simbad = Table(simbad[0])
-        except: None
+        if simbad is not None and len(simbad) > 1:
+            print('More than one Simbad result, choosing the brigtest source...')
+            simbad.sort('FLUX_V'); simbad = Table(simbad[0])
 
     return simbad
+
+
+def zp_edr3(ra,dec,radius=1):
+    '''
+    Function to obtain avaliable parallax zero-point offsets.
+    Input is a list of coordinates in degrees which are used for the Gaia query.
+
+    Parameters
+    ----------
+    ra : float,list
+        Enter the right ascension of the source, in degrees.
+
+    dec : float,list
+        Enter the declination of the source, in degrees.
+
+    radius : int,float
+        Enter the search radius in arcsec for the Gaia query. Default is 1.
+
+    Returns: Table with the queried sources including the zero-point offset.
+
+    '''
+
+    from astroquery.gaia import Gaia
+
+    radius = radius/60/60
+
+    first = True
+    for ra,dec in zip(ra,dec):
+        job = Gaia.launch_job("select TOP 1 * FROM gaiaedr3.gaia_source "
+                    "WHERE 1=CONTAINS(POINT('ICRS',ra,dec), "
+                    "CIRCLE('ICRS',%f,%f,%f))" % (ra,dec,radius)).get_results()
+        if len(job) == 0: continue
+        elif len(job) > 1: job.sort('phot_g_mean_mag')
+
+        if first == True: table = job; first = False
+        else: table.add_row(job[0])
+
+    table = table[table['astrometric_params_solved']>3]
+    zpvals = zpt.get_zpt(table['phot_g_mean_mag'],table['nu_eff_used_in_astrometry'],\
+           table['pseudocolour'],table['ecl_lat'],table['astrometric_params_solved'])
+    table.add_column(zpvals,name='zp_offset')
+
+    table.remove_column('designation')
+
+    return table
 
 
 def checknames():
@@ -726,8 +941,8 @@ def checknames():
 
     errorslist = open(maindir+'lists/ErrorNames.txt', 'w')
 
-    bar = progressbar.ProgressBar(maxval=len(dir_spectra),widgets=\
-         [progressbar.Bar('=','[',']'),' ',progressbar.Percentage()])
+    bar = pb.ProgressBar(maxval=len(dir_spectra),
+                        widgets=[pb.Bar('=','[',']'),' ',pb.Percentage()])
     bar.start()
 
     date_0_long = []; errors = 0; i = 0
@@ -739,25 +954,25 @@ def checknames():
         # Retrieve the key values fron the fits header
         hdu = fits.open(spectrum)# Open the fits image file
         hdu0 = hdu[0]            # Load the header list of primary header
-        header0 = hdu0.header    # Read the values of the headers
+        header = hdu0.header    # Read the values of the headers
 
         filename = spectrum.split('/')[-1]
         namestar = spectrum.split('/')[-1].split('_')[0]
 
         simbad = SB(namestar)
 
-        name_0 = header0['OBJECT'].strip().replace(' ','')
+        name_0 = header['OBJECT'].strip().replace(' ','')
 
         date_filename = spectrum.split('/')[-1].split('_')[1] # date from the filename
         if '_N_' in filename or '_M_' in filename:
-            date_0 = header0['DATE-AVG'] #; print date_0
+            date_0 = header['DATE-AVG'] #; print date_0
             date_0_short = str(date_0[0:4]) + str(date_0[5:7]) + str(date_0[8:10])
         elif '_F_' in filename:
-            date_0 = header0['ARCFILE']
+            date_0 = header['ARCFILE']
             date_0_short = str(date_0[6:10]) + str(date_0[11:13]) + str(date_0[14:16])
 
-        RA_0 = header0['RA']   # 'RA'
-        DEC_0 = header0['DEC'] # 'DEC'
+        RA_0 = header['RA']   # 'RA'
+        DEC_0 = header['DEC'] # 'DEC'
         RADEC_0 = str(RA_0) + ' ' + str(DEC_0)
 
         try:

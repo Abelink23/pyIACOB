@@ -1,7 +1,7 @@
 from db import *
 
 import matplotlib; matplotlib.use('QT5Agg')
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt # This could be loaded only for the functions which actually plot
 
 from math import fsum
 
@@ -66,8 +66,9 @@ class spec():
             if query == None and 'HD' in self.name_star:
                 new_name_star = self.name_star.replace('HD','HD ')
                 query = Simbad.query_object(new_name_star)
-            self.SpC = query['SP_TYPE'][0].decode()
-        except: self.SpC = ''
+            self.SpC = query['SP_TYPE'][0]
+        except:
+            self.SpC = ''
 
 
     def waveflux(self,lwl=None,rwl=None,width=0,helcorr='hel'):
@@ -148,6 +149,7 @@ class spec():
 
         hdu.close()
 
+        self.wave_0 = wave; self.flux_0 = flux
         self.wave = wave; self.flux = flux
 
         return wave,flux,hjd
@@ -168,19 +170,21 @@ class spec():
         wave = wave - self.offset
 
         if lwl != None and rwl != None:
-            #if wave[0] > lwl+dx or wave[-1] < rwl-dx:
-            #    print('Warning!: Wavelenght limits outside spectrum wavelenght range.')
+            dx = (wave[-1]-wave[0])/(len(wave)-1)
+            if wave[0] > lwl+dx or wave[-1] < rwl-dx:
+                print('Warning!: Wavelenght limits outside spectrum wavelenght range.')
             flux = flux[(wave >= lwl-width/2.)&(wave <= rwl+width/2.)]
             wave = wave[(wave >= lwl-width/2.)&(wave <= rwl+width/2.)]
 
         self.dx = (wave[-1]-wave[0])/len(wave); self.vbar = 0; self.hjd = 0
 
+        self.wave_0 = wave; self.flux_0 = flux
         self.wave = wave; self.flux = flux
 
         return wave,flux,0
 
 
-    def fitline(self,line,width=15,tol=150.,func='g',cosmic='y',iter=3,output=None,outfit=False,plot=None):
+    def fitline(self,line,width=15,tol=150.,func='g',iter=3,output=None,outfit=False,plot=None):
         '''
         Parameters
         ----------
@@ -197,9 +201,6 @@ class spec():
         func : str, optional
             Choose the function to fit the line:
             'g' Gaussian (default); 'l' Lorentzian; 'v' Voigt; 'r' Rotational.
-
-        cosmic : str, optional
-            If 'y' or 'yes' the spectrum is cleaned of cosmic rays. Default is 'y'.
 
         iter : int, optional
             Number of iterations to optimize window width. Default is 3.
@@ -228,8 +229,8 @@ class spec():
         tol_aa = tol*(line)*1000/cte.c  # Changes km/s to angstroms
 
         dlamb = line/self.resolution
-        sigma,sig_min,sig_max = [0.2,(1)*dlamb/2*np.sqrt(2*np.log(2)),1]
-        # sig_min is twice the minimum theoretical value
+        sigma,sig_min,sig_max = [0.2,dlamb/2*np.sqrt(2*np.log(2)),1]
+        # sig_min should be larger the minimum theoretical value dlam/2*sqrt(2log2)
 
         '''========= Set initial parameters for the chosen function ========='''
         inf = np.inf
@@ -249,46 +250,44 @@ class spec():
         elif func == 'vr': fitfunc = f_voigtrot; guess = [-.1,line,sigma,.1,100,0]; \
         bounds = ([-inf,line-tol_aa,0,-inf,0,0],[inf,line+tol_aa,sig_max,inf,350,.1]) # max 600
         elif func == 'dwarf': fitfunc = f_dwarf; guess = [-.1,line,sigma,.1,100,0,-.1,sigma]; \
-        bounds = ([-inf,line-tol_aa,0,-inf,0,0,-inf,0],[inf,line+tol_aa,sig_max,inf,350,.1,inf,sig_max])
+        bounds = ([-inf,line-tol_aa,0,-inf,0,0,-inf,0],
+                   [inf,line+tol_aa,sig_max,inf,350,.1,inf,sig_max])
 
 
         '''========================== Line fitting =========================='''
         iterations = iter; i = 0; width_i = width
         while i < iterations:
 
-            '''================== Extracting the spectrum ==================='''
-            if self.txt == False: self.waveflux(lwl=line,rwl=line,width=width_i)
-            elif self.txt == True: self.txtwaveflux(lwl=line,rwl=line,width=width_i)
-
-            '''==================== Cosmic rays removal ====================='''
-            if cosmic in ['y','yes']: self.cosmic()
+            '''============ Extracting the window of the spectrum ==========='''
+            window = (self.wave >= line-width_i/2.) & (self.wave <= line+width_i/2.)
+            flux = self.flux[window]; wave = self.wave[window]
 
             '''====================== Auto-resampling ======================='''
             #if self.dx >= 0.025 and not 'log' in self.file_name:
             #    factor = self.dx/0.025; self.resamp(factor)
 
             '''======== Find regions to exclude during normalization ========'''
-            iter_norm = 4; mask_i = ~np.isnan(self.flux)
+            iter_norm = 4; mask_i = ~np.isnan(flux)
             for j in range(iter_norm):
-                c0_fit = np.poly1d(np.polyfit(self.wave[mask_i],self.flux[mask_i],1))
-                continuum_i = c0_fit(self.wave)
+                c0_fit = np.poly1d(np.polyfit(wave[mask_i],flux[mask_i],1))
+                continuum_i = c0_fit(wave)
 
-                if j < iter_norm: mask_i = ~sigma_clip(self.flux/continuum_i,\
+                if j < iter_norm: mask_i = ~sigma_clip(flux/continuum_i,\
                     sigma_lower=1.4,sigma_upper=2.5,axis=-1,maxiters=None).mask
 
             '''===================== Final normalization ===================='''
-            flux_norm_i = self.flux / continuum_i
+            flux_norm_i = flux / continuum_i
 
             '''====================== Fitting the line/s ===================='''
             try:
-                popt_i,pcov = curve_fit(fitfunc,self.wave,flux_norm_i,guess,bounds=bounds)
-                flux_fit_i = fitfunc(self.wave,*popt_i)
+                popt_i,pcov = curve_fit(fitfunc,wave,flux_norm_i,guess,bounds=bounds)
+                flux_fit_i = fitfunc(wave,*popt_i)
 
                 '''=================== Calculate the FWHM ==================='''
                 # Empirical approximate FWHM:
                 medval = (max(flux_fit_i) + min(flux_fit_i))/2
                 medpos = [np.where(flux_fit_i <= medval)[0][value] for value in (0,-1)]
-                FWHM = round(self.wave[medpos[1]]-self.wave[medpos[0]],2)
+                FWHM = round(wave[medpos[1]]-wave[medpos[0]],2)
 
                 '''================== Checking step results ================='''
                 if dlamb < FWHM < 13: # Should be up to 15 for H lines
@@ -303,10 +302,9 @@ class spec():
             except: break
 
 
-        '''======================= Checking final results ======================='''
-        if self.txt == False: self.waveflux(lwl=line,rwl=line,width=width)
-        elif self.txt == True: self.txtwaveflux(lwl=line,rwl=line,width=width)
-
+        '''===================== Checking final results ====================='''
+        window = (self.wave >= line-width/2.) & (self.wave <= line+width/2.)
+        flux = self.flux[window]; wave = self.wave[window]
 
         if i == 0:
             if output in ['y','yes']:
@@ -318,7 +316,7 @@ class spec():
         if FWHM >= 2 and not func == 'r':
             print('FWHM > 2, consider switching to rotational model for',line)
 
-        fitted_line = self.wave[np.where(flux_fit==min(flux_fit))][0]
+        fitted_line = wave[np.where(flux_fit==min(flux_fit))][0]
         if abs(line - fitted_line) > tol_aa:
             if output in ['y','yes']: print('Line %sA found outside tolerance.\n' % line)
 
@@ -334,11 +332,11 @@ class spec():
                   'A | RV: ' + str(RV_lamb) + ' [km/s] \n')
 
         if outfit == True:
-            return (self.wave,flux_fit,popt)
+            return (wave,flux_fit,popt)
 
         '''========================= Calculate the EW ======================='''
         # stackoverflow.com/questions/34075111/calculate-equivalent-width-using-python-code
-        EW = .5*abs(fsum((self.wave[wl-1]-self.wave[wl])*((1-flux_fit[wl-1]) \
+        EW = .5*abs(fsum((wave[wl-1]-wave[wl])*((1-flux_fit[wl-1]) \
                     +(1-flux_fit[wl])) for wl in range(1,len(flux_fit))))
         EW = round(1000*EW,2)
 
@@ -347,11 +345,11 @@ class spec():
         medval = (max(flux_fit) + min(flux_fit))/2
         medpos = [np.where(flux_fit <= medval)[0][value] for value in (0,-1)]
         try: l_val = np.interp(medval,[flux_fit[medpos[0]],flux_fit[medpos[0]-1]],
-                                      [self.wave[medpos[0]],self.wave[medpos[0]-1]])
-        except: l_val = self.wave[medpos[0]]
+                                      [wave[medpos[0]],wave[medpos[0]-1]])
+        except: l_val = wave[medpos[0]]
         try: r_val = np.interp(medval,[flux_fit[medpos[1]],flux_fit[medpos[1]+1]],
-                                      [self.wave[medpos[1]],self.wave[medpos[1]+1]])
-        except: r_val = self.wave[medpos[1]]
+                                      [wave[medpos[1]],wave[medpos[1]+1]])
+        except: r_val = wave[medpos[1]]
         FWHM = round(r_val-l_val,2)
 
 
@@ -381,13 +379,13 @@ class spec():
 
             fig, ax = plt.subplots()
 
-            ax.plot(self.wave,self.flux,'orange',lw=.5)
-            ax.plot(self.wave,continuum,'r',lw=.5)
-            ax.plot(self.wave,flux_norm,'b',lw=.5)
+            ax.plot(wave,flux,'orange',lw=.5)
+            ax.plot(wave,continuum,'r',lw=.5)
+            ax.plot(wave,flux_norm,'b',lw=.5)
 
-            ax.plot(self.wave,flux_fit,'g',lw=.5)
+            ax.plot(wave,flux_fit,'g',lw=.5)
 
-            ax.plot(self.wave,np.where(mask==False,1,np.nan)+0.01,'k',lw=.5)
+            ax.plot(wave,np.where(mask==False,1,np.nan)+0.01,'k',lw=.5)
 
             ax.set_title(self.name_star + ' | ' + str(line) + ' | ' + 'RV: ' +
             str(RV_lamb) + ' | ' + 'EW: ' +  str(EW) + ' | ' + 'FWHM: ' + str(FWHM))
@@ -538,6 +536,18 @@ class spec():
         dx : float/int
             New delta lambda to be used for the output spectra.
 
+        lwl : float/int, optional
+            Enter the forced initial wavelenght to be used during interpolation.
+            If None, the original initial wavelenght will be used.
+
+        rwl : float/int, optional
+            Enter the forced final wavelenght to be used during interpolation.
+            If None, the original final wavelenght will be used.
+
+        method : str, optional
+            Enter the interpolation method to be used. See doc for np.interp1d.
+            Default is 'linear'.
+
         Returns: None (but the spectrum (wavelenght,flux) is resampled).
         '''
 
@@ -578,8 +588,8 @@ class spec():
         width : int, optional
             Sets the width in [AA] where the line fits well in. Default is 10.
 
-        ylim : tuple
-            Sets the y-limits for the plot. Input must be "[ymin,ymax]".
+        ylim : tuple/list, optional
+            Sets the y-limits for the plot. Input must be like "[ymin,ymax]".
 
         Returns: None (but the plots are generated).
         '''
@@ -599,11 +609,10 @@ class spec():
                 plt.xticks([round(line-width/3,1),round(line,1),round(line+width/3,1)])
                 plt.title(element,fontsize=6,pad=1)
 
-            plt.plot(self.wave[mask], self.flux[mask], linewidth = .3,
-                     label = self.name_star + ' ' + self.SpC)
+            plt.plot(self.wave[mask],self.flux[mask],lw=.3,label=self.name_star+' '+self.SpC)
             plt.tick_params(direction='in',top='on')
 
-            if ylim != None and type(ylim) is tuple: plt.ylim(ylim)
+            if ylim is not None and (type(ylim) is list or type(ylim) is tuple): plt.ylim(ylim)
 
             if len(lines) == 1:
                 plt.xlabel('$\lambda$ $[\AA]$',size=13)
@@ -616,7 +625,7 @@ class spec():
         return None
 
 
-    def plotspec(self,lwl=3800,rwl=8000,poslines=None):
+    def plotspec(self,lwl=3800,rwl=8000,poslines=None,ylim=None):
         '''
         Parameters
         ----------
@@ -629,6 +638,9 @@ class spec():
         poslines : str, optional
             If 'all' or 'OB', it will overplot position of spectral lines.
 
+        ylim : tuple/list, optional
+            Sets the y-limits for the plot. Input must be like "[ymin,ymax]".
+
         Returns: None (but the plots are generated).
         '''
 
@@ -638,8 +650,6 @@ class spec():
         if rwl > max(self.wave): rwl = max(self.wave)
 
         mask = (self.wave > lwl) & (self.wave < rwl)
-
-        #plt.subplots(tight_layout=True)
 
         if poslines in ['all','OB']:
             if poslines == 'all': synlines,elements,gfs = findlines('synt_lines.lst')
@@ -654,13 +664,15 @@ class spec():
                     try: depth = max(self.flux[mask]) - min(self.flux[mask]) # or 1-min
                     except: print('Problem finding max/min in masked flux.'); return None
                     # depth line mask = depth deepest line
-                    plt.text(synline-.1, max(self.flux[mask])-.01,element,size=6,rotation=75)
+                    plt.text(synline-.1,1.025,element,size=6,rotation=75)
                     plt.plot([synline,synline],[np.mean(self.flux[mask])-depth,
-                             np.mean(self.flux[mask])],'k',linewidth=10**gf/5)
+                             np.mean(self.flux[mask])],'k',lw=10**gf/5)
                     # 10**gf/5 empiric way to draw thicker lines for instense lines
 
-        plt.plot(self.wave[mask],self.flux[mask],linewidth=.3,label=self.name_star+' '+self.SpC)
+        plt.plot(self.wave[mask],self.flux[mask],lw=.3,label=self.name_star+' '+self.SpC)
         plt.tick_params(direction='in',top='on')
+
+        if ylim is not None and (type(ylim) is list or type(ylim) is tuple): plt.ylim(ylim)
 
         plt.xlabel('$\lambda$ $[\AA]$',size=13)
         plt.ylabel('Normalized flux',size=13)

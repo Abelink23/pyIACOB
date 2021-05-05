@@ -2,12 +2,12 @@ from spec import *
 from RV import *
 
 
-def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='O9BAs_RVEWFWs.fits',
-           lines='rv_Bs.lst', RV0tol=150, ewcut=10, tol=100, redo='n'):
+def RVEWFW(table='IACOB_O9BAs_SNR20.fits',output_table='O9BAs_RVEWFWs.fits',
+           RV0lines='rv_Bs.lst',RV0tol=150,ewcut=10,tol=100,redo='n'):
     '''
-    Function to iteratively calculate and store EWs and FWHMs of stars using high-
-    resolution spectra, adjusted to find BSGs (i.e. using SiIII triplet + Hb line)
-
+    Function to interactively calculate and store radial velocity, equivalent
+    width and full width at half maximum of stars for SiIII and Hb lines.
+    Note: input table must contain columns "Name" and "SpC".
 
     Parameters
     ----------
@@ -17,7 +17,7 @@ def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='O9BAs_RVEWFWs.fits',
     output_table : str
         Name of the output (new) table contaning the results.
 
-    lines : str, list
+    RV0lines : str, list
         Enter the wavelenght(s) of the line(s) to fit, either in a coma-separated
         string, or in a .txt/.lst file containing the lines.
 
@@ -35,7 +35,6 @@ def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='O9BAs_RVEWFWs.fits',
     '''
 
     table = findtable(table)
-    #table = findtable('Std_09-B8.fits')
 
     '''===================== Create table if not exist ======================'''
     try: output = findtable(output_table)
@@ -84,16 +83,15 @@ def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='O9BAs_RVEWFWs.fits',
 
             star = spec(name,SNR='best')
 
-            #=======================================================================
             snr_b = int(round(star.snrcalc(zone='B')))
 
             #=======================================================================
             print('\nAnalyzing Si III triplet...\n')
-            star.plotspec(4500,4600)#4650
+            star.plotspec(4500,4600)
 
             fun = '-'
-            while fun not in ['g','l','v','r','vr','dwarf']:
-                fun = input('Choose function to fit between g/l/v/r/vr/dwarf (default is g): ')
+            while fun not in ['g','l','v','r','vr_H','vr_Z','vrg_H','vrg_Z']:
+                fun = input('Choose function to fit between g,l,v,r,vr_H/Z,vrg_H/Z (default is g): ')
                 if fun == '': fun = 'g'
             wid = '-'
             while type(wid) is not float:
@@ -105,22 +103,20 @@ def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='O9BAs_RVEWFWs.fits',
 
             plt.close()
 
-            star.offset = RV0(lines,star.spectrum,func=fun,ewcut=30,tol=RV0tol)
-            star.waveflux() # Applies the offset
-            star.cosmic(sigclip=0.002)
-
+            star.offset = RV0(RV0lines,star.spectrum,func=fun,ewcut=30,tol=RV0tol)
+            star.waveflux(4500,6380); star.cosmic()
             star.plotspec(4500,4600,poslines='OB')
 
             input(); plt.close()
 
             RVSi4,EWSi4,FWSi4,depSi4 = \
-            star.fitline(6347.11,width=wid,tol=tol,func=fun,plot='y')[2:6]
+            star.fitline(6347.11,width=wid,tol=tol,func=fun,plot=True)[2:6]
             RVSi3,EWSi3,FWSi3,depSi3 = \
-            star.fitline(4574.757,width=wid,tol=tol,func=fun,plot='y')[2:6]
+            star.fitline(4574.757,width=wid,tol=tol,func=fun,plot=True)[2:6]
             RVSi2,EWSi2,FWSi2,depSi2 = \
-            star.fitline(4567.84 ,width=wid,tol=tol,func=fun,plot='y')[2:6]
+            star.fitline(4567.84 ,width=wid,tol=tol,func=fun,plot=True)[2:6]
             RVSi1,EWSi1,FWSi1,depSi1 = \
-            star.fitline(4552.622,width=wid,tol=tol,func=fun,plot='y')[2:6]
+            star.fitline(4552.622,width=wid,tol=tol,func=fun,plot=True)[2:6]
 
             if EWSi4 != None:
                 if EWSi4 < ewcut: EWSi4 = FWSi4 = np.nan
@@ -142,13 +138,13 @@ def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='O9BAs_RVEWFWs.fits',
             #=======================================================================
             print('\nAnalyzing H beta line...\n')
 
-            star.waveflux(); star.cosmic()
+            star.waveflux(4801,4921); star.cosmic()
             star.plotspec(4821,4901,poslines='OB')
 
             fun = '-'; iter = 3
-            while fun not in ['vr','dwarf']:
-                fun = input('Choose function to fit between vr/dwarf (default is dwarf): ')
-                if fun == '': fun = 'dwarf'; iter = 1
+            while fun not in ['vr_H','vrg_H']:
+                fun = input('Choose function to fit between vr_H/vrg_H (default is vrg_H): ')
+                if fun == '': fun = 'vrg_H'; iter = 1
 
             wid = '-'
             while type(wid) is not float:
@@ -160,12 +156,11 @@ def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='O9BAs_RVEWFWs.fits',
 
             plt.close()
 
-            RVHb,EWHb,FWHb,depHb =\
-            star.fitline(4861.325,width=wid,func=fun,iter=iter,output='y',plot='y')[2:6]
+            fitting = star.fitline(4861.325,width=wid,func=fun,iter=iter,output=True,plot=True)
+            RVHb,EWHb,FWHb,depHb = fitting[2:6]
 
             try:
-                wave,flux_fit,popt =\
-                star.fitline(4861.325,width=wid,func=fun,iter=iter,output='y',outfit=True)
+                wave,_,_,flux_fit,popt = fitting[-1]
 
                 gamma = round(popt[3],2)
 
@@ -185,7 +180,7 @@ def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='O9BAs_RVEWFWs.fits',
 
             except:
                 print('Line could not be fitted...')
-                FWs = popt = [np.nan,np.nan,np.nan,np.nan,np.nan]; gamma = np.nan
+                FWs = popt = [np.nan]*5; gamma = np.nan
 
             next = input("\nRepeat Hb / continue to the next star / save and exit ['n'/''/'q']: ")
             plt.close()
@@ -207,10 +202,174 @@ def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='O9BAs_RVEWFWs.fits',
 
                 if next == 'q': quit = next
 
-    hdu = fits.BinTableHDU(data=output.filled(np.nan))
-    hdu.writeto(maindir+'tables/'+output_table,overwrite=True)
+    output.write(maindir+'tables/'+output_table,format='fits',overwrite=True)
 
-    return('DONE')
+    return 'DONE'
+
+
+def auto_measure(table='emulated_all.txt',output_table='Emul_RVEWFWs.fits',
+                 lines='emulated.lst',func='vrg_H',width=20,ewcut=10,tol=150,txt=False):
+    '''
+    Function to automatically calculate and store radial velocity, equivalent
+    width and full width at half maximum of stars for input lines.
+
+    Parameters
+    ----------
+    table : str
+        Name of the input table contaning the list of stars to analyze.
+
+    output_table : str
+        Name of the output (new) table contaning the results.
+
+    lines : str, list
+        Enter the name of .txt/.lst file containing the lines and identifiers.
+        (e.g. 4861.325 Hb)
+
+    ewcut : float, optional
+        EW threshold value for a line to be considered as detected. Default is 10.
+
+    txt : bolean, optional
+        If True, it assumes spectrum from a two-columns file with wavelenght and flux.
+
+    Other parameters : optional
+        See help for see spec and spec.fitline
+    '''
+
+    from matplotlib.backends.backend_pdf import PdfPages
+    pp = PdfPages(maindir+'tmp_plots/RVEWFW.pdf')
+
+    table = findtable(table)
+
+    Name = []; A1 = []; x0 = []; sig = []; sig1 = []; gamma = []; vsini = []; A2 = []; sig2 = []
+
+    '''============================ Create table ============================'''
+    lines,elements,_ = findlines(lines)
+
+    columns = ['RV','EW','FW','dep','FW14','FW34']
+
+    names = ['Name']+([j+i for i in elements for j in columns])
+    dtypes =['S%i' % len(sorted(table['Name'],key=len)[-1]+' ')]
+    dtypes += ['float64' for i in elements for j in columns]
+
+    output = Table(names=(names),dtype=(dtypes))
+
+    if func in ['vrg_H','vrg_Z']: iter = 1
+    else: iter = 2
+
+    nrows = int(len(lines)/3)
+    if len(lines) % 3 != 0.0: nrows += 1
+    if len(lines) < 3: ncols = len(lines)
+    else: ncols = 3
+
+    bar = pb.ProgressBar(maxval=len(table),
+                         widgets=[pb.Bar('=','[',']'),' ',pb.Percentage()])
+    bar.start()
+
+    for row,i in zip(table,range(len(table))):
+
+        name = row['Name'].strip()
+
+        #if int(re.findall('[0-9]+',name)[2]) < 100:  # TOREMOVE
+        #    width = 10; func = 'g' # TOREMOVE
+        #if 100<= int(re.findall('[0-9]+',name)[2]) < 175: # TOREMOVE
+        #    width = 15; func = 'vr' # TOREMOVE
+        #if int(re.findall('[0-9]+',name)[2]) >= 175 # TOREMOVE
+        #    width = 15; func = 'r' # TOREMOVE
+        #else: continue
+
+        star = spec(name,SNR='best',txt=txt)
+
+        fig = plt.figure()
+        fig.suptitle(name,fontsize=9)
+
+        row_data = []; nplot = 1
+        for line,element in zip(lines,elements):
+
+            print('\nAnalyzing %s...\n' % element)
+
+            plt.subplot(nrows,ncols,nplot)
+
+            #star.cosmic()
+
+            fitting = star.fitline(line,width=width,func=func,iter=iter,output=True)
+            row_data += fitting[2:6]
+
+            try:
+                wave,flux,flux_norm,flux_fit,popt = fitting[-1]
+
+                Name.append(name)
+                if func in ['vrg_H','vrg_Z']:
+                    A1.append(popt[0]);x0.append(popt[1]);sig1.append(popt[2]);gamma.append(popt[3])
+                    vsini.append(popt[4]);A2.append(popt[5]);sig2.append(popt[6])
+                elif func in ['vr_H','vr_Z']:
+                    A1.append(popt[0]);x0.append(popt[1]);sig.append(popt[2]);gamma.append(popt[3])
+                    vsini.append(popt[4])
+                elif func in ['r']:
+                    A1.append(popt[0]);x0.append(popt[1]);sig.append(popt[2]);vsini.append(popt[3])
+                elif func in ['v']:
+                    A1.append(popt[0]);x0.append(popt[1]);sig.append(popt[2]);gamma.append(popt[3])
+                elif func in ['g']:
+                    A1.append(popt[0]);x0.append(popt[1]);sig.append(popt[2])
+
+
+                lowval = (max(flux_fit) + 3*min(flux_fit))/4
+                uppval = (3*max(flux_fit) + min(flux_fit))/4
+
+                for val in lowval,uppval:
+                    medpos = [np.where(flux_fit <= val)[0][value] for value in (0,-1)]
+                    try: l_val = np.interp(val,[flux_fit[medpos[0]],flux_fit[medpos[0]-1]],
+                                                   [wave[medpos[0]],wave[medpos[0]-1]])
+                    except: l_val = wave[medpos[0]]
+                    try: r_val = np.interp(val,[flux_fit[medpos[1]],flux_fit[medpos[1]+1]],
+                                                  [wave[medpos[1]],wave[medpos[1]+1]])
+                    except: r_val = wave[medpos[1]]
+                    row_data += [round(r_val-l_val,3)]
+
+            except:
+                row_data += [np.nan]*2
+                wave,flux,flux_norm,flux_fit,popt = [np.nan]*5
+
+            plt.plot(wave,flux,'orange',lw=.5)
+            plt.plot(wave,flux_norm,'b',lw=.5)
+            plt.plot(wave,flux_fit,'g',lw=.5)
+
+            plt.title(str(line)+' '+element,size=9,pad=4)
+            plt.tick_params(direction='in',top='on')
+            plt.ylim(ymax=1.03,ymin=0.4)
+            plt.tight_layout()
+
+            plt.close('all')
+            nplot += 1
+
+        pp.savefig(fig); plt.close(fig)
+
+        output.add_row(([name]+row_data))
+
+        bar.update(i)
+
+    pp.close()
+
+    output.write(maindir+'tables/'+output_table,format='fits',overwrite=True)
+
+    bar.finish()
+
+    # TO REMOVE TIL RETURN
+    table = Table(); table['Name'] = Name
+    if func in ['vrg_H','vrg_Z']:
+        table['A1'] = A1; table['x0'] = x0; table['sig1'] = sig1; table['gamma'] = gamma
+        table['vsini'] = vsini; table['A2'] = A2; table['sig2'] = sig2
+    else:
+        table['A1'] = A1; table['x0'] = x0; table['sig'] = sig
+        if func in ['vr_H','vr_Z']:
+            table['gamma'] = gamma; table['vsini'] = vsini
+        elif func == 'r':
+            table['vsini'] = vsini
+        elif func == 'v':
+            table['gamma'] = gamma
+    table.write(maindir+'tables/test_RVEWFW.fits',format='fits',overwrite=True)
+    # # # # # # # #
+
+    return 'DONE'
 
 
 # %% ===========================================================================

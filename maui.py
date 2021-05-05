@@ -384,7 +384,8 @@ def gen_table(tables_dir='server', input_table='MAUI_ver10.txt', check_best=True
     table = findtable(input_table)
     grids = findtable(grids_table)
 
-    param_lst = ['Teff','lgf','He','Micro','logQs','beta','C','N','O','Mg','Si','S','Fe','Ti','fcl','vcl']
+    param_lst = ['Teff','lgf','He','Micro','logQs','beta','C','N','O','Mg','Si',
+                 'S','Fe','Ti','fcl','vcl']
 
     bar = pb.ProgressBar(maxval=len(table),
                          widgets=[pb.Bar('=','[',']'),' ',pb.Percentage()])
@@ -451,10 +452,10 @@ def gen_table(tables_dir='server', input_table='MAUI_ver10.txt', check_best=True
         data_rows.append(tuple(data_row))
 
         bar.update(i)
-        time.sleep(0.1)
 
     bar.finish()
 
+    # Saving the results:
     names = ['Name']
     for i in range(len(param_lst)):
         names += ['l_'+param_lst[i],param_lst[i],param_lst[i]+'_eUP',param_lst[i]+'_eDW']
@@ -462,7 +463,7 @@ def gen_table(tables_dir='server', input_table='MAUI_ver10.txt', check_best=True
 
     output = Table(rows=data_rows,names=(names))
 
-    full_path = tables_dir+'MAUI_results'+'.'+format
+    full_path = tables_dir+'MAUI_results.'+format
     if format == 'ascii': format += '.fixed_width_two_line'
     output.write(full_path,format=format,overwrite=True)
 

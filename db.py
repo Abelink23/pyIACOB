@@ -8,16 +8,14 @@ import warnings; warnings.filterwarnings("ignore")
 
 import numpy as np
 
-import pandas as pd # Substitute at some point
-
 import astropy.units as u
 from astropy.io import fits
 from astropy.table import Table, join, setdiff, vstack, hstack
-
 from astropy.coordinates import SkyCoord
 from astroquery.vizier import Vizier
 from astroquery.simbad import Simbad
 Simbad.add_votable_fields('flux(B)','flux(V)','sptype')
+
 
 def mainpath(path=None):
     '''
@@ -222,10 +220,10 @@ def findlines(list):
         with open(list_dir,'r') as file_lines: lines = file_lines.read().splitlines()
         rows = [line.split(',') for line in lines if not line.startswith('#') and not line == '']
         lines = [float(line[0]) for line in rows]
-        try:
-            elements = [line[1].strip() for line in rows]
-            loggf = [float(line[2].strip()) for line in rows]
-        except: elements = loggf = [None]*len(lines)
+        try: elements = [line[1].strip() for line in rows]
+        except: elements = [None]*len(lines)
+        try: loggf = [float(line[2].strip()) for line in rows]
+        except: loggf = [None]*len(lines)
 
     # String of lines separated by coma:
     else:
@@ -268,7 +266,7 @@ def findlist(list):
     return items
 
 
-def findtable(table,path=None,strip_end=True):
+def findtable(table,path=None,delimiter=' ',strip_end=True):
     '''
     Function to get the data from a FITS-format table.
 
@@ -277,8 +275,14 @@ def findtable(table,path=None,strip_end=True):
     table : str
         Enter the fits table containing the data.
 
-    path : str,optional
+    path : str, optional
         Path where to search for the file.
+
+    delimiter :
+    The string used to separate values. Default is whitespace.
+
+    strip_end : boolean, optional
+        If 'True' it strips all strings within the data.
 
     Returns: Data in table, in table format.
     '''
@@ -300,7 +304,7 @@ def findtable(table,path=None,strip_end=True):
     elif '.csv' in table:
         data = Table.read(table_dir,format='csv')
     else:
-        data = Table.read(table_dir,format='ascii',delimiter=' ')
+        data = Table.read(table_dir,format='ascii',delimiter=delimiter)
 
     return data
 
@@ -533,8 +537,7 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
 
         if ruwe == 'y':
             columns.extend(['astrometric_n_good_obs_al','astrometric_chi2_al'])
-            table_u0 = pd.read_csv('/home/abelink/PhD/tables/Gaia/table_u0_g_col.txt',
-                       delimiter=',',header=1,names=['g_mag','bp_rp','u0'])
+            table_u0 = findtable('table_u0_g_col.txt',delimiter=',')
 
         offset = input('Apply +0.03 mas offset to parallax? [y/n]: ')
 
@@ -555,7 +558,7 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
             hdu = fits.open(source)  # Open the fits image file
             hdu0 = hdu.verify('fix') # Fix header keywords
             hdu0 = hdu[0]            # Load the header list of primary header
-            header = hdu0.header    # Read the values of the headers
+            header = hdu0.header     # Read the values of the headers
             if '_M_' in source:
                 try: OBJRA = header['OBJ_RA']; OBJDEC = header['OBJ_DEC']
                 except: None # Only new fits include it
@@ -926,18 +929,21 @@ def zp_edr3(ra,dec,radius=1):
     return table
 
 
-def checknames():
+def checknames(list=None, max_dist=90):
     '''
     Function to detect errors in the filenames/headers.
 
     Parameters
     ----------
-    (empty)
 
-    Returns: None (Generate output files with the found issues)
+    list : str, optional
+        Enter the input list, either name(s)/FITS of the source(s) separated by coma,
+        or a .txt/.lst file containing the source names or files.
+
+    Returns: None, but a file with the errors found is generated.
     '''
 
-    dir_spectra = findstar()
+    dir_spectra = findstar(list)
 
     errorslist = open(maindir+'lists/ErrorNames.txt', 'w')
 
@@ -952,9 +958,10 @@ def checknames():
         time.sleep(0.1)
 
         # Retrieve the key values fron the fits header
-        hdu = fits.open(spectrum)# Open the fits image file
-        hdu0 = hdu[0]            # Load the header list of primary header
-        header = hdu0.header    # Read the values of the headers
+        hdu = fits.open(spectrum) # Open the fits image file
+        hdu0 = hdu.verify('fix')  # Fix header keywords
+        hdu0 = hdu[0]             # Load the header list of primary header
+        header = hdu0.header      # Read the values of the headers
 
         filename = spectrum.split('/')[-1]
         namestar = spectrum.split('/')[-1].split('_')[0]
@@ -976,7 +983,7 @@ def checknames():
         RADEC_0 = str(RA_0) + ' ' + str(DEC_0)
 
         try:
-            RADEC_sim = str(simbad['RA'][0]).replace(' ',':') + ' ' + \
+            RADEC = str(simbad['RA'][0]).replace(' ',':') + ' ' + \
                         str(simbad['DEC'][0]).replace(' ',':')
         except:
             errorslist.write('Problem quering ' + filename + ' in Simbad' + '\n')
@@ -985,7 +992,7 @@ def checknames():
         c1 = SkyCoord(RADEC_0,unit=u.deg); c2 = SkyCoord(RADEC,unit=(u.hourangle,u.deg))
         difcoord = round(c1.separation(c2).arcsec,3)
 
-        if difcoord > 90:
+        if difcoord > max_dist:
             errorslist.write('Distance from Simbad query is ' + str(difcoord) + \
                             ' arcsec for spectrum ' + filename + '\n')
             errors = errors + 1

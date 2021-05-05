@@ -1,21 +1,26 @@
-import sys
-sys.path.append('../')
+import sys; sys.path.append('../')
 
 from spec import *
 
-width = 60
+width = 15
 offset = 0
 tol = 150
-func = 'r'
-vsini = 100
-cosmic = 'y'; plot = 'y'
+func = 'vr_Z'
+vsini = 120
+plot = 'y'
 iter = 3
 
-line = 6347.11 #Si II 6347.11 | 6371.4 | 6578.3 |Mg 4481 |Hb 4861.325
 
-star = spec('HD69686',SNR='best',offset=offset)
+# SiIII 4552.622 | SiII 6347.11 | SiII 6371.37 | CII 6578.05 | MgII 4481.13 | Hb 4861.325
+line = 4552.622
+
+errors = False
+
+star = spec('maui_T24000lgf130v210_V25000.txt',SNR='best',txt=True)
+#star = spec('HD55857',SNR='best')
 
 
+t0 = time.time()
 '''============================= Parameters ============================='''
 try:
     if len(line.split(',')) > 1:
@@ -28,29 +33,64 @@ tol = float(tol)
 tol_aa = tol*(line)*1000/cte.c  # Changes km/s to angstroms
 
 dlamb = line/star.resolution
-sigma,sig_min,sig_max = [0.2,(2)*dlamb/2*np.sqrt(2*np.log(2)),1]
-# sig_min is twice the minimum theoretical value
+sigma,sig_min,sig_max = [0.8,dlamb/2/np.sqrt(2*np.log(2)),4]
+# sig_min should be larger the minimum theoretical value dlam/2*sqrt(2log2)
+
+# Maximum FWHM allowed (should be ~20 for H lines, ~13 for metalic lines)
+FWHM_max = 20
 
 '''=========== Set initial parameters for the chosen function ==========='''
 inf = np.inf
-# Target fitting function: Gaussian
-if func == 'g': fitfunc = f_gaussian1; guess = [-.1,line,sigma]; \
-bounds = ([-inf,line-tol_aa,sig_min],[0,line+tol_aa,sig_max])
-# Target fitting function: Lorentzian
-elif func == 'l': fitfunc = f_lorentzian; guess = [-.1,line,.5,1]; \
-bounds = ([-inf,line-tol_aa,-inf,1],[0,line+tol_aa,inf,1.1])
-# Target fitting function: Voigt profile
-elif func == 'v': fitfunc = f_voigt; guess = [-.1,line,sigma,.5,1]; \
-bounds = ([-inf,line-tol_aa,sig_min,-inf,1],[0,line+tol_aa,sig_max,inf,1.1])
-# Target fitting function: Rotational profile
-elif func == 'r': fitfunc = f_rot; guess = [-.1,line,sigma,vsini]; \
-bounds = ([-inf,line-tol_aa,0,0],[inf,line+tol_aa,.5,350]) # max 600
-# sig_max (1.0) is replaced with 0.5 for better results
-elif func == 'vr': fitfunc = f_voigtrot; guess = [-.1,line,sigma,.1,vsini,0]; \
-bounds = ([-inf,line-tol_aa,0,-inf,0,0],[inf,line+tol_aa,sig_max,inf,350,.1]) # max 600
-elif func == 'dwarf': fitfunc = f_dwarf; guess = [-.1,line,sigma,.1,vsini,0,-.1,sigma]; \
-bounds = ([-inf,line-tol_aa,0,-inf,0,0,-inf,0],[inf,line+tol_aa,sig_max,inf,350,.1,inf,sig_max])
+# Fitting function: Gaussian | A,x0,sig
+if func == 'g':
+    fitfunc = f_gaussian1
+    guess   =  [-0.1,line       ,sigma  ]
+    bounds  = ([-inf,line-tol_aa,sig_min],
+               [ 0. ,line+tol_aa,sig_max])
 
+# Fitting function: Lorentzian | A,x0,gamma,y
+elif func == 'l':
+    fitfunc = f_lorentzian
+    guess   =  [-0.1,line       , 0.5,1. ]
+    bounds  = ([-inf,line-tol_aa,-inf,1. ],
+               [ 0. ,line+tol_aa, inf,1.01])
+
+# Fitting function: Voigt profile | A,x0,sigma,gamma,y
+elif func == 'v':
+    fitfunc = f_voigt
+    bounds  = ([-.5,line-tol_aa,0,.0,1.  ],
+               [ .0,line+tol_aa,2,.5,1.01])
+
+# Fitting function: Rotational profile | A,x0,sigma,vsini
+elif func == 'r':
+    fitfunc = f_rot
+    bounds  = ([.0,line-tol_aa,0. ,  1],
+               [.3,line+tol_aa,2.5,410])
+
+# Fitting function: Voigt x Rotational profile | A,x0,sigma,gamma,vsini,y
+elif func == 'vr_H':
+    fitfunc = f_voigtrot
+    bounds  = ([-.5,line-tol_aa,  0,  0,  1,.0 ],
+               [ .0,line+tol_aa,1.5,1.5,410,.01])
+elif func == 'vr_Z':
+    fitfunc = f_voigtrot
+    bounds  = ([-.1,line-tol_aa,0. ,0,  1,.0 ],
+               [ .0,line+tol_aa,1.5,1,410,.01])
+
+# Fitting function: Voigt x Rotational + Gaussian profile
+# A1,x0,sigma1,gamma,vsini,A2,sigma2,y
+elif func == 'vrg_H':
+    fitfunc = f_vrg
+    bounds  = ([-.4,line-tol_aa, 0, 0,  1,-.07,0,.0 ],
+               [ .0,line+tol_aa,10,10,410, .0 ,4,.01])
+elif func == 'vrg_Z':
+    fitfunc = f_vrg
+    bounds  = ([-.1,line-tol_aa,0. ,0,  1,-1.3,0,-.01], # y=-.01 = larger EWs
+               [ .0,line+tol_aa,1.5,1,410, 0. ,2, .01])
+    #bounds  = ([-.3,line-tol_aa,0., 0.,  1,-2. ,0.,.0 ],
+    #           [ .0,line+tol_aa,8.,10.,410, 0. ,4.,.01])
+
+#popt
 
 '''========================== Line fitting =========================='''
 iterations = iter; i = 0; width_i = width
@@ -58,6 +98,7 @@ while i < iterations:
 
     '''============ Extracting the window of the spectrum ==========='''
     window = (star.wave >= line-width_i/2.) & (star.wave <= line+width_i/2.)
+    if not any(window): print('Line %sA not in spectra.\n' % line); break
     flux = star.flux[window]; wave = star.wave[window]
 
     '''====================== Auto-resampling ======================='''
@@ -71,15 +112,16 @@ while i < iterations:
         continuum_i = c0_fit(wave)
 
         if j < iter_norm: mask_i = ~sigma_clip(flux/continuum_i,\
-            sigma_lower=1.4,sigma_upper=2.5,axis=-1,maxiters=None).mask
+            sigma_lower=1.4,sigma_upper=2.5,maxiters=None).mask
 
     '''===================== Final normalization ===================='''
     flux_norm_i = flux / continuum_i
 
     '''====================== Fitting the line/s ===================='''
+    popt_i,pcov = curve_fit(fitfunc,wave,flux_norm_i,bounds=bounds)
     try:
-        popt_i,pcov = curve_fit(fitfunc,wave,flux_norm_i,guess,bounds=bounds)
-        flux_fit_i = fitfunc(wave,*popt_i); print(popt_i)
+        popt_i,pcov = curve_fit(fitfunc,wave,flux_norm_i,bounds=bounds)
+        flux_fit_i = fitfunc(wave,*popt_i)
 
         #resid = flux_norm_i/flux_fit_i
         #std = np.std(resid); sigma = 0.6
@@ -89,16 +131,16 @@ while i < iterations:
         #flux_fit_i = fitfunc(wave,*popt_i)
 
         '''======================== Error fittings ======================'''
-        sigma_errEW = abs(np.std(flux_norm_i[mask_i]))
-        # Upper error:
-        try: popt_up,pcov_up = curve_fit(fitfunc,wave,flux_norm_i+sigma_errEW,
-             guess,bounds=bounds); flux_fit_up_i = fitfunc(wave,*popt_up)
-        except: print('Bad up flux')
-        # Lower error:
-        try: popt_dw,pcov_dw = curve_fit(fitfunc,wave,flux_norm_i-sigma_errEW,
-             guess,bounds=bounds); flux_fit_dw_i = fitfunc(wave,*popt_dw)
-        except: print('Bad dw flux')
-
+        if errors is True:
+            sigma_errEW = abs(np.std(flux_norm_i[mask_i]))
+            # Upper error:
+            try: popt_up,pcov_up = curve_fit(fitfunc,wave,flux_norm_i+sigma_errEW,
+                 guess,bounds=bounds); flux_fit_up_i = fitfunc(wave,*popt_up)
+            except: print('Bad up flux')
+            # Lower error:
+            try: popt_dw,pcov_dw = curve_fit(fitfunc,wave,flux_norm_i-sigma_errEW,
+                 guess,bounds=bounds); flux_fit_dw_i = fitfunc(wave,*popt_dw)
+            except: print('Bad dw flux')
 
         '''====================== Calculate the FWHM ===================='''
         # Empirical approximate FWHM:
@@ -106,20 +148,20 @@ while i < iterations:
         medpos = [np.where(flux_fit_i <= medval)[0][value] for value in (0,-1)]
         FWHM = round(wave[medpos[1]]-wave[medpos[0]],2)
 
-
         '''====================== Checking step results ====================='''
-        if dlamb < FWHM < 13: # Should be up to 15 for H lines
+        if dlamb < FWHM < FWHM_max:
 
             flux_norm = flux_norm_i; continuum = continuum_i; mask = mask_i
-            flux_fit = flux_fit_i; width = width_i
+            flux_fit = flux_fit_i; popt = popt_i; width = width_i; print(popt)
 
-            flux_fit_up = flux_fit_up_i; flux_fit_dw = flux_fit_dw_i; popt = popt_i
+            if errors is True:
+                flux_fit_up = flux_fit_up_i; flux_fit_dw = flux_fit_dw_i
 
             width_i = FWHM*7; i = i + 1
 
         else:
-            if FWHM < dlamb: print('FWHM<dlam')
-            if FWHM > 13: print('FWHM>10')
+            if FWHM < dlamb: print('WARNING: FWHM<dlam')
+            if FWHM > FWHM_max: print('WARNING: FWHM>%i' % FWHM_max)
             break
 
     except: break
@@ -133,10 +175,10 @@ if i == 0:
     sys.exit('Problem in spectrum %s\nLine %sA could not be fitted or does not exist.\n'
     % (star.file_name,line))
 
-if FWHM >= 2 and not func == 'r':
-    print('FWHM > 2, consider switching to rotational model for',line)
+if FWHM >= 2 and not func in ['r','vr','vrg_H','vrg_Z']:
+    print('FWHM > 2, consider switching to a model with rotation for',line)
 
-fitted_line = wave[np.where(flux_fit==min(flux_fit))][0]
+fitted_line = wave[np.where(flux_fit == min(flux_fit))][0]
 if abs(line - fitted_line) > tol_aa:
     sys.exit('Line %sA found outside tolerance.\n' % line)
 
@@ -155,16 +197,17 @@ EW = .5*abs(fsum((wave[wl-1]-wave[wl])*((1-flux_fit[wl-1]) \
             +(1-flux_fit[wl])) for wl in range(1,len(flux_fit))))
 EW = round(1000*EW,2)
 
-'''======================= Calculate the EW errors ======================'''
-if i > 0:
- EW_up = .5*abs(fsum((wave[wl-1]-wave[wl])*((1-flux_fit_up[wl-1]) \
-               +(1-flux_fit_up[wl])) for wl in range(1,len(flux_fit_up))))
- EW_up = round(1000*EW_up - EW,2)
 
- EW_dw = .5*abs(fsum((wave[wl-1]-wave[wl])*((1-flux_fit_dw[wl-1]) \
+'''======================= Calculate the EW errors ======================'''
+if i > 0 and errors is True:
+    EW_up = .5*abs(fsum((wave[wl-1]-wave[wl])*((1-flux_fit_up[wl-1]) \
+               +(1-flux_fit_up[wl])) for wl in range(1,len(flux_fit_up))))
+    EW_up = round(1000*EW_up - EW,2)
+
+    EW_dw = .5*abs(fsum((wave[wl-1]-wave[wl])*((1-flux_fit_dw[wl-1]) \
                +(1-flux_fit_dw[wl])) for wl in range(1,len(flux_fit_dw))))
- EW_dw = round(1000*EW_dw - EW,2)
- print('Error in EW is: ' + str(EW_up) + ' / ' + str(EW_dw))
+    EW_dw = round(1000*EW_dw - EW,2)
+    print('Error in EW is: ' + str(EW_up) + ' / ' + str(EW_dw))
 
 
 '''================= Calculate the final FWHM interpolating ================='''
@@ -218,7 +261,7 @@ try:
     print(fitted_line_2,RV_angs_2,'A ',RV_lamb_2,'km/s ',EW_2,'mA')
 except: None
 
-
+print(time.time() - t0)
 '''================================ Plot ================================'''
 if plot in ['y','yes']:
 
@@ -231,23 +274,23 @@ if plot in ['y','yes']:
     ax.plot(wave,flux_norm,'b',lw=.3)
 
     # The three fittings
-    if i > 1:
+    if i > 0 and errors is True:
         ax.plot(wave,flux_fit_up,'k',lw=.3)
         ax.plot(wave,flux_fit_dw,'k',lw=.3)
     ax.plot(wave,flux_fit,'g',lw=1)
 
-    ax.plot(wave,np.where(mask==False,1,np.nan)+0.01,'k',lw=.3)
-    #ax.plot(wave,np.where(mask_l==False,1,np.nan)+0.03,'k',lw=.4)
+    ax.plot(wave,np.where(mask == False,1,np.nan)+0.01,'k',lw=.3)
+    #ax.plot(wave,np.where(mask_l == False,1,np.nan)+0.03,'k',lw=.4)
 
     #For more lines
-    ax.plot(wave,flux_norm/flux_fit,'grey',lw=.3)
-    try: ax.plot(line_fit_2[0],flux_fit_2,'purple',lw=1)
-    except: None
+    #ax.plot(wave,flux_norm/flux_fit,'grey',lw=.3)
+    #try: ax.plot(line_fit_2[0],flux_fit_2,'purple',lw=1)
+    #except: None
 
     ax.set_title(star.name_star + ' | ' + str(line) + ' | ' + 'RV: ' + str(RV_lamb)
      + ' | ' + 'EW: ' + str(EW) + ' | ' + 'FWHM: ' + str(FWHM))
 
-    ax.set_yticks([])
+    #ax.set_yticks([])
     ax.set_xlabel('$\lambda$ $[\AA]$',size=13)
     ax.set_ylabel('Normalized flux',size=13)
     ax.tick_params(direction='in',top='on')
@@ -257,7 +300,9 @@ if plot in ['y','yes']:
     ax.figure.savefig(completeName,format='jpg',dpi=300)
     plt.show(block=False)
 
+
 print(fitted_line,RV_angs,RV_lamb,EW,FWHM,depth,snr,q_fit)
+
 
 # Theorical FHWM:
 #if   func == 'g': FWHM = 2*np.sqrt(2*np.log(2))*popt[2]

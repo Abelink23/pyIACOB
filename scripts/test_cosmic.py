@@ -1,19 +1,24 @@
-import sys
-sys.path.append('../')
+import sys; sys.path.append('../')
 
 from spec import *
 
+plt.close('all')
 plt.figure()
-star = spec('HD13402',best='y')
-wave,flux,_ = star.waveflux(4629,4640)
+star = spec('HD41398',SNR='bestMF')
+wave,flux,_ = star.waveflux(4500,6380)
+
+sigclip = 1.5
 
 sigma = .2
-x = np.arange(-5*sigma,5*sigma,star.dx)
+# OR
+sigma = 2*np.mean(star.wave)/(2.35482*float(star.resolution))
+
+x = np.arange(-5*sigma,5*sigma+star.dx,star.dx)
 gauss = f_gaussian(x,sigma)
 kernel = gauss/np.trapz(gauss)
 
 # computational convolution
-convoluted = 1 + convolve(flux - 1,kernel,mode='same')
+convoluted = 1 + convolve(flux-1,kernel,mode='same')
 
 plt.plot(x,kernel)
 
@@ -26,7 +31,7 @@ flux_norm = flux/convoluted
 
 plt.plot(wave,flux_norm+0.05,'gray',label='ori./conv.')
 
-std = np.std(flux_norm); sigclip = 1.5
+std = np.std(flux_norm)
 flux_cleaned = np.where(flux_norm>1+sigclip*std,np.nan,flux)
 
 nans = np.isnan(flux_cleaned); x = lambda z: z.nonzero()[0]

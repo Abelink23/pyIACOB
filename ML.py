@@ -62,3 +62,48 @@ def gen_ascii_ML(input_table='OBAs_ML_new.fits',not_do=None):
                 star.resamp(10*0.02564975,3800,6900)
 
                 star.export(tail='_RV_ML_%i' % k,extension='.ascii')
+
+
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# Update tables with new data | / IMPLEMENT IN DB AT SOME POINT!!
+#table1,table2 = findtable('OBAs_ML_raw.fits'),findtable('MAUI_results.fits')
+#columns_to_update = table2.colnames[1:-9]+[table2.colnames[-1]]
+#for row,i in zip(table1,range(len(table1))):
+#    updated = False
+#    if row['Name'] not in table2['Name']: continue
+#    if row['Teff'] == table2[table2['Name'] == row['Name']]['Teff'].data[0]: continue
+#    for col_name in columns_to_update:
+#        table1[i][col_name] = table2[table2['Name'] == row['Name']][col_name].data[0]
+#        if updated == False: print(row['Name']); updated = True
+#table1.write(maindir+'tables/table1_updated.fits',format='fits',overwrite=True)
+
+# This one is to empty bad data
+#table1 = findtable('OBAs_ML_raw.fits')
+#columns_to_update = [i for i in table1.columns[36:-1]]
+#for row,i in zip(table1,range(len(table1))):
+#    for col_name in columns_to_update:
+#        if row[col_name] in ['d','<','>']:
+#            for j in columns_to_update[columns_to_update.index(col_name)+1:columns_to_update.index(col_name)+4]:
+#                table1[i][j] = np.nan
+#table1.write(maindir+'tables/OBAs_ML_ver1.fits',format='fits',overwrite=True)
+
+#table1 = findtable('OBAs_ML_ver1b.fits')
+#for row,i in zip(table1,range(len(table1))):
+#    if row['QSiIII'] < 3:
+#        table1[i]['EWSiIII1'] = table1[i]['FWSiIII1'] = table1[i]['depSiIII1'] = np.nan
+#        table1[i]['EWSiIII2'] = table1[i]['FWSiIII2'] = table1[i]['depSiIII2'] = np.nan
+#        table1[i]['EWSiIII3'] = table1[i]['FWSiIII3'] = table1[i]['depSiIII3'] = np.nan
+#    if row['QSiII'] < 3:
+#        table1[i]['EWSiII'] = table1[i]['FWSiII'] = table1[i]['depSiII'] = np.nan
+#    if row['QHb'] < 3:
+#        table1[i]['EWHb'] = table1[i]['FWHb'] = table1[i]['FW14Hb'] = table1[i]['FW34Hb'] = table1[i]['depHb'] = table1[i]['gamma'] = np.nan
+#table1.write(maindir+'tables/OBAs_ML_ver1.fits',format='fits',overwrite=True)
+
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# Replace values in table
+#table = findtable('OBAs_ML_raw.fits')
+#for row,i in zip(table,range(len(table))):
+#    for column,j in zip(row,range(len(row))):
+#        #if column == 'N': table[i][j] = '='
+#        if str(column) == str(1e+20): table[i][j] = np.nan
+#table.write(maindir+'tables/OBAs_ML_raw_.fits',format='fits',overwrite=True)
