@@ -1,9 +1,10 @@
 ================================================================================
 COMMENTS REGARDING THE DIFFERENT FITTING FUNCTIONS:
 
-Find line => 'g'/'r'
-Metallic line => ('g' for speed) 'r' -> 'vr_Z' -> 'vrg_Z'
-Hydrogen/Helium line => ('l' for speed) 'v' -> 'vr_H' -> 'vrg_H'
+Usage:
+ To find line => 'g'/'r'
+ To fit metallic line => ('g' for speed) 'r' -> 'vr_Z' -> 'vrg_Z'*
+ To fit Hydrogen/Helium line => ('l' for speed) 'v' -> 'vr_H' -> 'vrg_H'
 
 Note: functions with lorentzians are defined with a variable "y" value for a
       better fitting with the continuum.
@@ -12,39 +13,40 @@ Pure gaussian profile ----------------------------------------------------------
   - Name  -> f_gaussian1(x,A,x0,sigma)
   - Alias -> 'g'
   - Lines -> + Z lines | - H/He lines
-  - Range vsini/FWHM -> ~<60????/????A
+  - Range vsini/FWHM -> ~<60kms/2.5A for R ~< 20000
+  - Note: Good for first rough estimation of the FWHM in metallic lines
 
 Pure lorentzian profile --------------------------------------------------------
   - Name  -> f_lorentzian(x,A,x0,gamma)
   - Alias -> 'l'
   - Lines -> - Z lines | + H/He lines
-
-  - Note: Very good for H/He lines with moderate rotation 100-250kms
+  - Range vsini/FWHM -> (~>100kms/3.5 for any R) - depends on the range
+  - Note: Ok for first rough estimation of the FWHM in metallic lines
+          Good for H/He lines with moderate rotation 100-200kms
+          Good for H/He at lgf<2 + <100kms + R<5000 or lgf>2 + >250kms
 
 Voigt profile (g x l) ----------------------------------------------------------
   - Name  -> f_voigt(x,A,x0,sigma,gamma,y)
   - Alias -> 'v'
-  - Lines -> + Z lines | - H/He lines
-  - Range vsini/FWHM -> ~< 150kms/3.8A for R ~   2500
-                        ~<  60kms/2.0A for R ~< 15000
-                       (~<  30kms/1.0A for R  > 15000)
-  - Note: Ok for first rough estimation of the FWHM
+  - Lines -> - Z lines | ++ H/He lines
+  - Range vsini/FWHM -> ~>100kms/3.5 for any R
+  - Note: Good for first rough estimation of the FWHM in H/He lines
+          Very good for lgf<2 + >100kms
+          For metallic lines better use the 'r' profile.
 
 Rotational profile (g x r) -----------------------------------------------------
   - Name  -> f_rot(x,A,x0,sigma,vsini)
   - Alias -> 'r'
-  - Lines -> +++ Z lines | + H/He lines
+  - Lines -> +++ Z lines | - H/He lines
   - Range vsini/FWHM -> ~<410kms/10A for any R
-  - Note: Very good for metallic lines at any rotation
-          Useful for first rough estimation of the FWHM
+  - Note: Very good for first rough estimation of the FWHM in metallic lines
+          Very good for metallic lines at any rotation
 
 Voigt with rotation profile (g x l x r) ----------------------------------------
   - Name  -> f_voigtrot(x,A,x0,sigma,gamma,vsini,y)
-UNIFICAR
-
   - Alias -> 'vr_Z' // 'vr_H'
   - Lines -> ++ Z lines | - H/He lines // - Z lines | ++ H/He lines
-  - Range vsini/FWHM -> ~<160kms/4A for any R // ~>160kms/4A for any R
+  - Range vsini/FWHM -> ~<160kms/4A for any R // ~>160kms/4.5A for any R
   - Note: Good for metallic lines with low-moderate rotation //
           Good for H/He lines with moderate-high rotation
 
@@ -55,7 +57,7 @@ Voigt with rotation profile plus gaussian (g x l x r + g) ----------------------
   - Range vsini/FWHM -> ~<410kms/10A for any R // ~>410kms/15A for any R
   - Note: Good for metallic lines with any rotation //
           Very good for H/He lines with any rotation
-  - Note2: 'vrg_Z' should only be used if the line is complex and somehow
+  - *Note: 'vrg_Z' should only be used if the line is complex and somehow
            improves 'vr/r'. The lower limit for 'y' parameter is set to -0.1
            and therefore could produce larger EWs then other functions.
 

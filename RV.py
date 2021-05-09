@@ -7,15 +7,15 @@ Program to calculate the radial velocities for a given spectra/spectrum via
 lists of individual lines or via cross correlation using synthetic spectra.
 ============================================================================='''
 
-def RV_cc(name_star, windows=[(3950,4160),(4310,4360),(4370,4490),(4540,4690),(4840,4950)]):
-    spectra = findstar(name_star)
+def RV_cc(id_star,windows=[(3950,4160),(4310,4360),(4370,4490),(4540,4690),(4840,4950)]):
+    spectra = findstar(id_star)
 
     synthetic = []
     for file in os.listdir(datadir+'ASCII/Synthetic_MAUI/'):
-        if name_star+'_' in file: synthetic.append(file)
+        if id_star+'_' in file: synthetic.append(file)
 
     if len(synthetic) == 0:
-        print('No files found for %s.\n' % (name_star))
+        print('No files found for %s.\n' % (id_star))
     elif len(synthetic) == 1:
         synthetic = synthetic[0]
     else:
@@ -30,8 +30,8 @@ def RV_cc(name_star, windows=[(3950,4160),(4310,4360),(4370,4490),(4540,4690),(4
 
         print('Analyzing spectrum: ' + spectrum.split('/')[-1])
 
-        RV_angs_i,RV_kms_i = RV1_cc(spectrum,synthetic,windows=windows)
-        RVs_angs.append(RV_angs_i); RVs_kms.append(RV_kms_i)
+        RV_A_i,RV_kms_i = RV1_cc(spectrum,synthetic,windows=windows)
+        RVs_angs.append(RV_A_i); RVs_kms.append(RV_kms_i)
 
         date_obs = spec(spectrum).hjd - 2400000.5
         if spectrum == spectra[0]: date_obs_0 = date_obs
@@ -47,20 +47,20 @@ def RV_cc(name_star, windows=[(3950,4160),(4310,4360),(4370,4490),(4540,4690),(4
 
     '''============================== Output ================================'''
     print('====================================================')
-    print('Results for '+ name_star)
+    print('Results for '+ id_star)
     print('The mean radial velocity is: ' + str(round(np.mean(RVs_kms), 4)))
     print('The peak to peak value is: ' + str(round(peak_to_peak, 4)))
     print('The time span of the spectra is: ' + str(round(date_obs-date_obs_0, 2)))
     print('The number of spectra used is: ' + str(len(RVs_kms)))
     print('====================================================')
 
-    ax.set_title(name_star)
+    ax.set_title(id_star)
     ax.set_xlabel('MBJD',size=13)
     ax.set_ylabel('V$_{r}$ [km/s]',size=13)
     ax.tick_params(direction='in',top='on')
     ax.figure.subplots_adjust(top=.9,bottom=.1,right=.95,left=.15)
 
-    completeName = os.path.join(maindir+'tmp_plots/','RVCC_%s.eps' % name_star)
+    completeName = os.path.join(maindir+'tmp_plots/','RVCC_%s.eps' % id_star)
     ax.figure.savefig(completeName,dpi=300)
 
     plt.show(block=False)
@@ -119,13 +119,13 @@ def RV1_cc(spectra1, spectra2,
 
         #plt.plot(lags,corr,lw=.5)
 
-    RV_angs = round(np.mean(RVs_angs),8)
+    RV_A = round(np.mean(RVs_angs),8)
     RV_kms = round(np.mean(RVs_kms),4)
 
-    return RV_angs,RV_kms
+    return RV_A,RV_kms
 
 
-def RV0(lines,spectrum,ewcut=30,width=20,tol=150,func='g',output=None,plot=None):
+def RV0(lines,spectrum,ewcut=30,width=20,tol=150,func='g',info=False,plot=False):
     '''
     Parameters
     ----------
@@ -142,31 +142,29 @@ def RV0(lines,spectrum,ewcut=30,width=20,tol=150,func='g',output=None,plot=None)
     Returns: Mean radial velocity in angstroms.
     '''
 
-    lines,_,_ = findlines(lines)
+    lines = findlines(lines)[0]
 
     RVs = []
     for line in lines:
 
-        (fitted_line,RV_angs,RV,EW,FWHM,depth,snr,q_fit) = spec(spectrum).fitline\
-        (line,width=width,tol=tol,func=func,output=output,plot=plot)
+        fit = spec(spectrum).fitline(line,width=width,tol=tol,func=func,info=info,plot=plot)
 
-        if RV_angs == None: continue
-        elif EW < ewcut: continue
-        else: RVs.append(RV_angs)
+        if np.isnan(fit['RV_A']): continue
+        elif fit['EW'] < ewcut: continue
+        else: RVs.append(fit['RV_A'])
 
     if len(RVs) == 0:
-        print('\t!WARNING NO LINES WERE FITTED FOR RV0 CALCULATION.\n')
+        print('\tWARNING: No lines were fitted for RV0 calculation.\n')
         return 0
 
-    print('\nStd before clipping is: ' + str(round(np.std(RVs),3)) + \
-          ' using ' + str(len(RVs)) + ' lines.')
+    try:
+        RVs = sigma_clip(RVs,sigma_lower=1.7,sigma_upper=1.7,masked=False)
+        #print(RVs)
+    except:
+        print('Not enought values for sigma clipping. Skipping... ')
+        return 0
 
-    try: RVs = sigma_clip(RVs,sigma_lower=1.7,sigma_upper=1.7,masked=False,axis=None);\
-         print(RVs)
-    except: print('Not enought values for sigma clipping. Skipping... '); return 0
-
-    print('Std after clipping is: ' + str(round(np.std(RVs),3)) + \
-          ' using ' + str(len(RVs)) + ' lines.\n')
+    print('\nStd after clipping is: %s using %s lines.\n' % (round(np.std(RVs),3),len(RVs)))
 
     RV_0 = np.mean(RVs)
 
@@ -174,7 +172,7 @@ def RV0(lines,spectrum,ewcut=30,width=20,tol=150,func='g',output=None,plot=None)
 
 
 def RV(lines,spectra,SNR=None,linesRV0=None,linecut=1,ewcut=25,width=None,tol=50,\
-       func='g',output=None,plot=None):
+       func='g',info=False,plot=False):
     '''
 
     Parameters
@@ -229,31 +227,30 @@ def RV(lines,spectra,SNR=None,linesRV0=None,linecut=1,ewcut=25,width=None,tol=50
         date_obs = spectrum.hjd - 2400000.5
         if i == 0:
             date_obs_0 = date_obs
-            out_f1 = open(maindir+'radial_velocity/%s.csv' % (spectrum.name_star+'_RV'),'a')
+            out_f1 = open(maindir+'radial_velocity/%s.csv' % (spectrum.id_star+'_RV'),'a')
             out_f1.write('mean_rv, mean_rv_error, mbjd, num_lines, spectrum\n')
 
-        out_f2 = open(maindir+'radial_velocity/%s.csv' % (spectrum.name_star+'_lines'),'a')
-        out_f2.write(spectrum.name_star +' | '+ spectrum.file_name +'\n')
+        out_f2 = open(maindir+'radial_velocity/%s.csv' % (spectrum.id_star+'_lines'),'a')
+        out_f2.write(spectrum.id_star +' | '+ spectrum.filename +'\n')
         out_f2.write('target_line, fitted_line, RV, EW, FWHM, q_fit\n')
 
         RVs = []
         for line in lines:
 
-            fitted_line,RV_angs,RV,EW,FWHM,depth,snr,q_fit = spectrum.fitline\
-            (line,width=width,tol=tol,func=func,output=output,plot=plot)
+            fit = spectrum.fitline(line,width=width,tol=tol,func=func,info=info,plot=plot)
 
-            if RV == None: continue
-            elif EW < ewcut: continue
+            if np.isnan(fit['RV_kms']): continue
+            elif fit['EW'] < ewcut: continue
             else:
-                RVs.append(RV)
-                out_f2.write(str(line) +', '+ str(fitted_line) +', '+ str(RV) +\
-                ', '+ str(round(EW,2)) +', '+ str(FWHM) +', '+ str(q_fit) +'\n')
+                RVs.append(fit['RV_kms'])
+                out_f2.write('%.3f, %.3f, %d, %d, %.2f, %.3f\n' %
+                line,fit['line'],fit['RV_kms'],fit['EW'],fit['FWHM'],fit['q_fit'])
 
         if RVs == []:
-            print('No lines were found for spectrum: %s\n' % spectrum.file_name)
+            print('No lines were found for spectrum: %s\n' % spectrum.filename)
             continue
         if len(RVs) < linecut:
-            print('Only %d line found for: %s\n' % (len(RVs),spectrum.file_name))
+            print('Only %d line found for: %s\n' % (len(RVs),spectrum.filename))
             continue
 
 
@@ -276,7 +273,7 @@ def RV(lines,spectra,SNR=None,linesRV0=None,linecut=1,ewcut=25,width=None,tol=50
         out_f1.write(
                str(round(RVs_mean, 4)) + ', ' + str(round(std, 4)) + ', ' + \
                str(round(date_obs,4)) + ', ' + str(len(RVs[0])) + ', ' + \
-               spectrum.file_name.split('.')[0] + '\n')
+               spectrum.filename.split('.')[0] + '\n')
 
 
         '''============================== Plot =============================='''
@@ -303,7 +300,7 @@ def RV(lines,spectra,SNR=None,linesRV0=None,linecut=1,ewcut=25,width=None,tol=50
 
     '''============================== Output ================================'''
     print('====================================================')
-    print('Results for '+ spectrum.name_star)
+    print('Results for '+ spectrum.id_star)
     if i == 1:
         print('The mean RV of the spectrum is: ' + str(round(RVs_mean,4)) + \
         ' +/- ' + str(round(std,4)))
@@ -319,13 +316,13 @@ def RV(lines,spectra,SNR=None,linesRV0=None,linecut=1,ewcut=25,width=None,tol=50
 
 
     '''================================ Plot ================================'''
-    ax.set_title(spectrum.name_star)
+    ax.set_title(spectrum.id_star)
     ax.set_xlabel('MBJD',size=13)
     ax.set_ylabel('V$_{r}$ [km/s]',size=13)
     ax.tick_params(direction='in',top='on')
     ax.figure.subplots_adjust(top=.9,bottom=.1,right=.95,left=.15)
 
-    completeName = os.path.join(maindir+'tmp_plots/','%s.eps' % ('RV_'+spectrum.name_star))
+    completeName = os.path.join(maindir+'tmp_plots/','%s.eps' % ('RV_'+spectrum.id_star))
     ax.figure.savefig(completeName,dpi=300)
 
     plt.show(block=False)

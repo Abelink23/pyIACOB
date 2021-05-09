@@ -2,11 +2,12 @@ from spec import *
 from RV import *
 from tools import *
 
+
 #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 #table_selection = findtable('table_selection.fits')
 #for i in table_selection:
 #    plt.figure()
-#    spec(i['Name'],SNR='bestMF').plotspec(4000,5000)
+#    spec(i['ID'],SNR='bestMF').plotspec(4000,5000)
 #    plt.show(block='False')
 
 #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
@@ -16,7 +17,7 @@ from tools import *
 #    x.waveflux(3900,6800)
 #    x.degrade(20000)
 #    x.resamp(5*x.dx)
-#    print('\n',x.file_name,x.snr)
+#    print('\n',x.filename,x.snr)
 #    x.flux = x.flux+j*0.05
 #    x.plotspec()
 #    x.plotline(4552.622,width=8)

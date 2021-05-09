@@ -263,6 +263,8 @@ def findlist(list):
 
         items = [row.split(',')[0] for row in list if not row.startswith('#') and not row == '']
 
+    else: items = list.replace(' ','').split(',') # This catches 'HDXXXX, HDYYYY'
+
     return items
 
 
@@ -406,18 +408,18 @@ def snr(spectra,snrcut=None,get_MF=None):
 
     names_stars = []
     for spectrum in spectra:
-        name_star = spectrum.split('/')[-1].split('_')[0]
-        if name_star not in names_stars: names_stars.append(name_star)
+        id_star = spectrum.split('/')[-1].split('_')[0]
+        if id_star not in names_stars: names_stars.append(id_star)
 
     best_spectra = []
     for star in names_stars:
         SNR_best = 0; SNR_best_MF = 0
         for spectrum in spectra:
             filename = spectrum.split('/')[-1].split('_')
-            name_star = filename[0]
+            id_star = filename[0]
             date = int(filename[1]+filename[2])
             instr = filename[3]
-            if star != name_star: continue
+            if star != id_star: continue
             else:
                 # Retrieve the key values fron the fits header
                 hdu = fits.open(spectrum)# Open the fits image file
@@ -450,7 +452,7 @@ def snr(spectra,snrcut=None,get_MF=None):
 
 
 def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None,
-    spccode=None, bmag=None, vmag=None, gaia=None, skip=None):
+    spccode=False, bmag=None, vmag=None, gaia=False, skip=None):
     '''
     Function to generate a FITS table with information about sources coming from
     IACOB/FEROS database, a list of names or coordinates, allowing to limitate
@@ -486,7 +488,8 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
         If specified, it returns all the spectra above the chosen SNR.
 
     spccode : str, optional
-        If 'y' or 'yes', it will create separate columns with SpT and LC numbers.
+        If True, it will create separate columns with SpT and LC numbers.
+        Default is False.
 
     bmag : str, optional
         Enter a desired bmag to cut the results e.g. '<6'.
@@ -495,7 +498,8 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
         Enter a desired vmag to cut the results e.g. '>8.5'.
 
     gaia : str, optional
-        If 'y' or 'yes', it will create separate columns with Gaia data.
+        If True, it will create separate columns with Gaia data.
+        Default is False.
 
     skip : str, optional
         Enter a coma separated list of targets to exclude in the table.
@@ -505,133 +509,153 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
 
     if db == 'IACOB':
         lst_sources_all = findstar(spectra=list,SNR=snrcut)
-        lst_sources_f = snr(lst_sources_all)
-        #lst_sources_f.sort()
+        # For each source, the best available SNR is picked
+        lst_sources_f = snr(lst_sources_all,get_MF=True)
         type_list = 'names'
-
     elif db == 'Simbad':
         lst_sources_f = findlist(list)
         type_list = input('The list contains names or coordinates? [names/coords]: ')
         if not type_list in ['names','coords']:
-             print('Input answer is not valid. Exiting... \n'); return None
-
-    else: print('Database not recognised. Exiting... \n'); return None
+             print('Input answer is not valid. Exiting... \n')
+             return None
+    else:
+        print('Database not recognised. Exiting... \n')
+        return None
 
     # Tuning the format of the input variables
     if limdist != None:
         RADEC = limdist[0]
         dist = float(limdist[1])
 
-    if spt != None:
-        spt = re.split(' |,',spt)
+    if spt != None: spt = re.split(' |,',spt)
 
-    if lc != None:
-        lc = re.split(' |,',lc)
+    if lc != None: lc = re.split(' |,',lc)
 
-    '''=============================== Queries =============================='''
-    columns = ['BPmag','e_BPmag','+Gmag','e_Gmag','RPmag','e_RPmag',\
+    #===========================================================================
+    #=============================== Query Gaia ================================
+    gaia_columns = ['BPmag','e_BPmag','+Gmag','e_Gmag','RPmag','e_RPmag',\
                'pmRA','e_pmRA','pmDE','e_pmDE','Plx','e_Plx']
 
-    if gaia in ['y','yes']:
-        ruwe = input('Calculate RUWE? [y/n]: ')
-
-        if ruwe == 'y':
-            columns.extend(['astrometric_n_good_obs_al','astrometric_chi2_al'])
-            table_u0 = findtable('table_u0_g_col.txt',delimiter=',')
-
+    if gaia == True:
+        gaia_columns.extend(['astrometric_n_good_obs_al','astrometric_chi2_al'])
+        table_u0 = findtable('table_u0_g_col.txt',delimiter=',')
         offset = input('Apply +0.03 mas offset to parallax? [y/n]: ')
 
-    v = Vizier(columns=columns); v.ROW_LIMIT = 1
+    v = Vizier(columns=gaia_columns); v.ROW_LIMIT = 1
 
-    '''============================ Progress Bar ============================'''
+    #===========================================================================
+    #============================== Progress Bar ===============================
     bar = pb.ProgressBar(maxval=len(lst_sources_f),
                          widgets=[pb.Bar('=','[',']'),' ',pb.Percentage()])
     bar.start()
 
-    '''=============================== Sources =============================='''
-    delete = []; first = True
+    #===========================================================================
+    #================================= Sources =================================
     for source,i in zip(lst_sources_f,range(len(lst_sources_f))):
-
-        '''=========== Retrieve the key values fron the fits header ========='''
+        row = Table()
+        #=======================================================================
+        #============= Retrieve the key values fron the fits header ============
         OBJRA = OBJDEC = None
         if db == 'IACOB':
             hdu = fits.open(source)  # Open the fits image file
             hdu0 = hdu.verify('fix') # Fix header keywords
             hdu0 = hdu[0]            # Load the header list of primary header
             header = hdu0.header     # Read the values of the headers
-            if '_M_' in source:
+
+            row['ID'] = [source.split('/')[-1].split('_')[0]]
+
+            # Official name (not implemented yet)
+            try: row['Name'] = header['I-Name']
+            except: row['Name'] = '-'
+
+            # Reference spectrum (added at the end)
+            filename = source.split('/')[-1][:-5]
+
+            # Gather the coordinates:
+            if '_M_' in filename:
                 try: OBJRA = header['OBJ_RA']; OBJDEC = header['OBJ_DEC']
-                except: None # Only new fits include it
-            elif '_N_' in source:
+                except: pass # Only new fits include it
+            elif '_N_' in filename:
                 OBJRA = header['OBJRA']*360/24; OBJDEC = header['OBJDEC']
-            elif '_F_' in source:
+            elif '_F_' in filename:
                 OBJRA = header['RA']; OBJDEC = header['DEC']
 
-            SNR_best = float(header['I-SNR'])
+            source = row['ID'][0]
 
-            source = source.split('/')[-1].split('_')[0]
+        elif db == 'Simbad':
+            row['ID'] = [source]
 
-        '''========================= Skip bad sources ======================='''
-        if db == 'IACOB':
-            if any(bad in source[:3] for bad in ['DO2']): continue
+        #=======================================================================
+        #=========================== Skip bad sources ==========================
+        if db == 'IACOB' and any(bad in source[:3] for bad in ['DO2']): continue
 
         if skip != None and any(bad in source for bad in skip.split(',')): continue
 
-        '''============= Simbad query by object name/coordinates ============'''
+        #=======================================================================
+        #=============== Simbad query by object name/coordinates ===============
         if type_list == 'names':
-
             simbad = SB(source,OBJRA,OBJDEC)
-
             if simbad == None: continue
 
-            source_f = source
-
         elif type_list == 'coords':
-
             if ':' in source: c = SkyCoord(source,unit=(u.hourangle,u.deg))
             else: c = SkyCoord(source,unit=u.deg)
-            try: simbad = Simbad.query_region(c,radius=2*u.arcsec)
-            except: time.sleep(3); simbad = Simbad.query_region(c,radius=2*u.arcsec)
 
-            try:
+            try: # The actual query
+                simbad = Simbad.query_region(c,radius=2*u.arcsec)
+            except: # Retry after 2 seconds
+                time.sleep(2)
+                simbad = Simbad.query_region(c,radius=2*u.arcsec)
+
+            try: # For more than one result, takes the first one
                 if len(simbad) > 1: simbad = Table(simbad[0])
-            except: print('Source %s not found in Simbad' % (source)); continue
+            except:
+                print('Source %s not found in Simbad' % source)
+                continue
 
-            source_f = simbad['MAIN_ID'][0].decode()
+            source = simbad['MAIN_ID'][0].decode()
 
-        '''======================= Get the coordinates ======================'''
+            row['ID'] = row['Name'] = [source]
+
+        #=======================================================================
+        #========================= Get the coordinates =========================
         if coords == 'header':
             RADEC_0 = SkyCoord(ra=header['RA'],dec=header['DEC'],unit=(u.deg))
-
         else:
             RADEC_0 = SkyCoord(ra=simbad['RA'],dec=simbad['DEC'],unit=(u.hourangle,u.deg))[0]
 
-        RAdeg = RADEC_0.ra.deg; DECdeg = RADEC_0.dec.deg
+        row['RA_J2000']  = RADEC_0.ra.to_string(unit=u.hourangle,sep=':')
+        row['DEC_J2000'] = RADEC_0.dec.to_string(unit=u.deg,sep=':')
+        row['RAdeg_J2000']  = RADEC_0.ra.deg; row['RAdeg_J2000'].unit = u.deg
+        row['DECdeg_J2000'] = RADEC_0.dec.deg; row['DECdeg_J2000'].unit = u.deg
 
-        RADEC_0 = re.sub('[h,d,m]',':',RADEC_0.to_string('hmsdms')).replace('s','')
-        RAhms = RADEC_0.split()[0]; DECdms = RADEC_0.split()[1]
-
-        '''======================= Limit by distance ========================'''
+        #=======================================================================
+        #========================= Limit by distance ===========================
         if limdist != None:
-            c1 = SkyCoord(RADEC_0,unit=(u.hourangle,u.deg))
-            if any([i in RADEC for i in [':','h']]):
-                c2 = SkyCoord(RADEC,unit=(u.hourangle,u.deg))
+            if any([j in RADEC for j in [':','h']]):
+                RADEC_f = SkyCoord(RADEC,unit=(u.hourangle,u.deg))
             else:
-                c2 = SkyCoord(RADEC,unit=u.deg)
+                RADEC_f = SkyCoord(RADEC,unit=u.deg)
 
-            if c1.separation(c2).deg > dist: delete.append(source); continue
+            if RADEC_0.separation(c2).deg > dist: continue
 
-        '''===================== Get the spectral class ====================='''
+        #=======================================================================
+        #======================= Get the spectral class ========================
         if db == 'IACOB':
             SpC_0 = header['I-SPC']
-            try: SpC_ref = header['I-SPCREF']
-            except: SpC_ref = '-'
             if (not type(SpC_0) == str or SpC_0.strip() == '-'):
-                SpC_0 = simbad['SP_TYPE'][0]; SpC_ref = 'SIMBAD'
-        else:
-            SpC_0 = simbad['SP_TYPE'][0]; SpC_ref = 'SIMBAD'
+                row['SpC'] = SpC_0 = simbad['SP_TYPE'][0]
+                row['SpC_ref'] = 'SIMBAD'
+            else:
+                row['SpC'] = SpC_0
+                row['SpC_ref'] = header['I-SPCREF']
 
-        '''======================= Limit by SpT or LC ======================='''
+        else:
+            row['SpC'] = SpC_0 = simbad['SP_TYPE'][0]
+            row['SpC_ref'] = 'SIMBAD'
+
+        #=======================================================================
+        #========================= Limit by SpT or LC ==========================
         spt_0 = []; lc_0 = []
         if spt != None or lc != None:
             if 'I' in SpC_0:
@@ -643,8 +667,7 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
             elif len(re.split(':|pe',SpC_0.strip())[0]) <= 4:
                 spt_0 = SpC_0.strip()
 
-            if spt != None and not any([j in spt_0 for j in spt]):
-                delete.append(source); continue
+            if spt != None and not any([j in spt_0 for j in spt]): continue
 
             match = False
             if lc != None and lc_0 != []:
@@ -656,41 +679,73 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
                 if 'II' in lc and 'II' in lc_0: match = True
                 lc_0 = lc_0.replace('II','')
                 if 'I' in lc and 'I' in lc_0: match = True
-                if match == False: delete.append(source); continue
+                if match == False: continue
 
-        '''=================== Get the spectral class code =================='''
-        if spccode in ['y','yes'] and SpC_0 != '': spt_c,lc_c = spc_code(SpC_0)
-        elif spccode in ['y','yes'] and SpC_0 == '': spt_c = lc_c = np.nan
+        #=======================================================================
+        #===================== Get the spectral class code =====================
+        if spccode == True and SpC_0 != '':
+            row['SpT_code'],row['LC_code'] = spc_code(SpC_0)
+        elif spccode == True and SpC_0 == '':
+            row['SpT_code'] = row['LC_code'] = np.nan
 
-        '''======================= Limit by magnitude ======================='''
+        #=======================================================================
+        #========================= Limit by magnitude ==========================
         bmag_0 = simbad['FLUX_B'][0]
         if str(bmag_0) == '--': bmag_0 = np.nan
+
+        if bmag != None and ~np.isnan(bmag_0):
+            bmag_0 = round(bmag_0,2)
+            if bmag[0] == '<' and float(bmag[1:]) < bmag_0: continue
+            elif bmag[0] == '>' and float(bmag[1:]) > bmag_0: continue
+
+        row['mag_B'] = bmag_0; row['mag_B'].unit = u.mag
+
         vmag_0 = simbad['FLUX_V'][0]
         if str(vmag_0) == '--': vmag_0 = np.nan
 
-        if bmag != None and bmag_0 is not np.nan:
-            bmag_0 = round(bmag_0, 2)
-            if bmag[0] == '<':
-                if bmag_0 > float(bmag[1:]): delete.append(source); continue
-            elif bmag[0] == '>':
-                if bmag_0 < float(bmag[1:]): delete.append(source); continue
-
-        if vmag != None and vmag_0 is not np.nan:
+        if vmag != None and ~np.isnan(vmag_0):
             vmag_0 = round(vmag_0, 2)
-            if vmag[0] == '<':
-                if vmag_0 > float(vmag[1:]): delete.append(source); continue
-            elif vmag[0] == '>':
-                if vmag_0 < float(vmag[1:]): delete.append(source); continue
+            if vmag[0] == '<' and float(vmag[1:]) < vmag_0: continue
+            elif vmag[0] == '>' and float(vmag[1:]) > vmag_0: continue
 
-        '''======================= Get Gaia DR2 data ========================'''
-        if gaia in ['y','yes']:
+        row['mag_V'] = vmag_0; row['mag_V'].unit = u.mag
+
+        #=======================================================================
+        #============== Add extra columns from header or database ==============
+        # Counting FIES / HERMES / FEROS spectra
+        if db == 'IACOB':
+            FIES = 0; HERMES = 0; FEROS = 0
+            for j in lst_sources_all:
+                if source + '_' in j and j.endswith('.fits'):
+                    if '_N_' in j: FIES = FIES + 1
+                    elif '_M_' in j: HERMES = HERMES + 1
+                    elif '_F_' in j: FEROS = FEROS + 1
+
+            row['FIES'] = FIES; row['HERMES'] = HERMES; row['FEROS'] = FEROS
+
+            row['Ref_file'] = filename
+
+            # SNR of the best spectra (prioritizing for M or F)
+            row['SNR_best'] = float(header['I-SNR'])
+
+            # SB feature of the star (added at the end)
+            try: row['SB'] = header['I-SB']
+            except: row['SB'] = '-'
+
+            # Comments in the header (added at the end)
+            try: row['Comments'] = header['I-commen']
+            except: row['Comments'] = '-'
+
+        #=======================================================================
+        #========================= Get Gaia DR2 data ===========================
+        if gaia == True:
             gFlag = True; catalog = "I/345/gaia2"
 
             if vmag_0 != '' and float(vmag_0) < 5:
-                print('\nWARNING: '+str(source_f)+' is too bright (Vmag = %r)' %vmag_0)
+                print('\nWARNING: '+str(source)+' is too bright (Vmag = %r)' %vmag_0)
 
             try:
-                gaiaq = v.query_object(source_f,catalog=catalog,radius=2*u.arcsec)[0]
+                gaiaq = v.query_object(source,catalog=catalog,radius=2*u.arcsec)[0]
 
                 # Correct Gaia photometry:
                 if str(gaiaq['Gmag'][0]) != '--' or str(gaiaq['e_Gmag'][0]) != '--':
@@ -700,92 +755,47 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
                     if gaiaq['Gmag'] < 6:
                         gaiaq['Gmag'] = gaiaq['Gmag'] + 0.0271*(6-gaiaq['Gmag'])
                     gaiaq['Gmag'].unit = u.mag
-                else: gFlag = False; print(str(source_f) + ' has missing Gaia G photometry.')
+                else: gFlag = False; print(str(source),'has missing Gaia G photometry.')
 
                 if str(gaiaq['e_BPmag'][0]) != '--':
                     if gaiaq['e_BPmag'] < 9e-3:  gaiaq['e_BPmag'] = 9e-3
-                else: gFlag = False; print(str(source_f) + ' has missing Gaia B photometry.')
+                else: gFlag = False; print(str(source),'has missing Gaia B photometry.')
                 if str(gaiaq['e_RPmag'][0]) != '--':
                     if gaiaq['e_RPmag'] < 10e-3: gaiaq['e_RPmag'] = 10e-3
-                else: gFlag = False; print(str(source_f) + ' has missing Gaia R photometry.')
+                else: gFlag = False; print(str(source),'has missing Gaia R photometry.')
 
                 # Correct Gaia astrometry:
                 try:
-                    if offset == 'y': gaiaq['Plx'] = gaiaq['Plx'] + 0.03
-                except: print(str(source_f) + ' has missing Gaia parallax.')
+                    if offset == 'y': gaiaq['Plx'] = round(gaiaq['Plx']+0.03,6)
+                except: print(str(source),'has missing Gaia parallax.')
 
             except:
-                gaiaq = []; print('\n' + str(source_f) + ' could not be queried in Gaia.')
-                #catalog = "/I/311/hip2"
+                gaiaq = []; print('\n%s could not be queried in Gaia.' % source)
 
-        '''========================= Calculate RUWE ========================='''
-        if gaia in ['y','yes'] and ruwe == 'y' and not gaiaq == []:
+            if not gaiaq == []:
+                if gFlag == True:
+                    UWE = np.sqrt(float(gaiaq['chi2AL'])/(float(gaiaq['NgAL']) - 5))
 
-            if gFlag == True:
-                UWE = np.sqrt(float(gaiaq['chi2AL'])/(float(gaiaq['NgAL']) - 5))
+                    diff = abs(gaiaq['Gmag'][0] - table_u0['g_mag']) + \
+                           abs(gaiaq['BPmag'][0] - gaiaq['RPmag'][0] - table_u0['bp_rp'])
+                    diff = diff.tolist()
 
-                diff = abs(gaiaq['Gmag'][0] - table_u0['g_mag']) + \
-                       abs(gaiaq['BPmag'][0] - gaiaq['RPmag'][0] - table_u0['bp_rp'])
-                diff = diff.tolist()
+                    gaiaq['RUWE'] = round(UWE/table_u0['u0'][diff.index(min(diff))],4)
 
-                RUWE = round(UWE/table_u0['u0'][diff.index(min(diff))],4)
+                gaiaq.remove_columns(['NgAL','chi2AL'])
 
-            gaiaq.remove_columns(['NgAL','chi2AL'])
+                row = hstack([row,gaiaq])
 
-        '''============= Counting FIES / HERMES / FEROS spectra ============='''
-        if db == 'IACOB':
-            FIES = 0; HERMES = 0; FEROS = 0
-            for source_ in lst_sources_all:
-                if source_f + '_' in source_ and source_.endswith('.fits'):
-                    if '_N_' in source_: FIES = FIES + 1
-                    elif '_M_' in source_: HERMES = HERMES + 1
-                    elif '_F_' in source_: FEROS = FEROS + 1
+        try: table = vstack([table,row])
+        except: table = row
 
-        '''=========================== Export row ==========================='''
-        output = Table([[source_f],[RAhms],[DECdms],[RAdeg],[DECdeg],[SpC_0],[SpC_ref]],\
-         names = ('Name','RA_J2000','DEC_J2000','RAdeg_J2000','DECdeg_J2000','SpC','SpC_ref'))
-
-        #output['RA_J2000'].unit = u.hourangle; output['DEC_J2000'].unit = u.deg
-        output['RAdeg_J2000'].unit = u.deg; output['DECdeg_J2000'].unit = u.deg
-
-        if spccode in ['y','yes']:
-            spt_lccode = Table([[spt_c],[lc_c]],names=('SpT_code','LC_code'))
-            output = hstack([output,spt_lccode])
-
-        magnitudes = Table([[bmag_0],[vmag_0]],names=('mag_B','mag_V'))
-        magnitudes['mag_B'].unit = magnitudes['mag_V'].unit = u.mag
-        output = hstack([output,magnitudes])
-
-        if gaia in ['y','yes'] and not gaiaq == []:
-            output = hstack([output,gaiaq])
-
-            if ruwe == 'y' and gFlag == True:
-                ruwe_table = Table([[RUWE]],names=['RUWE'])
-                output = hstack([output,ruwe_table])
-
-        if db == 'IACOB':
-            nspect = Table([[FIES],[HERMES],[FEROS]],names=('FIES','HERMES','FEROS'))
-            output = hstack([output,nspect])
-
-            SNR_best = Table([[SNR_best]],names=('SNR_best',))
-            output = hstack([output,SNR_best])
-
-        if first == True: table = output; first = False
-        else: table = vstack([table,output])
-
-        bar.update(i)#; print(' ')
-        time.sleep(0.1)
+        bar.update(i)
 
     bar.finish()
 
-    '''============================ Export table ============================'''
-    try:
-        table.write(maindir+'tables/tablestars.fits',format='fits',overwrite=True)
-        #hdu_f = fits.BinTableHDU(data=table.filled(np.nan))
-        #hdu_f.writeto(maindir+'tables/tablestars.fits',overwrite=True)
-    except: print('Table is empty, no sources were found.'); return None
-
-    lst_sources_f = [source for source in lst_sources_f if not source in delete]
+    # Export table
+    try: table.write(maindir+'tables/tablestars.fits',format='fits',overwrite=True)
+    except: print('Table is empty, no sources were found.')
 
     return None
 
@@ -964,9 +974,9 @@ def checknames(list=None, max_dist=90):
         header = hdu0.header      # Read the values of the headers
 
         filename = spectrum.split('/')[-1]
-        namestar = spectrum.split('/')[-1].split('_')[0]
+        id_star = spectrum.split('/')[-1].split('_')[0]
 
-        simbad = SB(namestar)
+        simbad = SB(id_star)
 
         name_0 = header['OBJECT'].strip().replace(' ','')
 
@@ -998,7 +1008,7 @@ def checknames(list=None, max_dist=90):
             errors = errors + 1
 
         # Catch files with wrong object name comparing filename and header
-        if namestar != name_0.upper():
+        if id_star != name_0.upper():
             errorslist.write(filename + ' has a wrong object file name!' + '\n')
             errors = errors + 1
 

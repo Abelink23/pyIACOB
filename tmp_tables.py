@@ -12,9 +12,9 @@ from tools import *
 #results = findtable('MAUI_results.fits')
 #gonzalo_raw = findtable('Gon_results.fits')
 #
-#table_f = join(table,table_REF,keys='Name')
-#table_f = join(table_f,table_IB,keys='Name')
-#table_f = join(table_f,results,keys='Name')
+#table_f = join(table,table_REF,keys='ID')
+#table_f = join(table_f,table_IB,keys='ID')
+#table_f = join(table_f,results,keys='ID')
 #
 #table_f = table_f[[i in ['d','<','>'] or j in ['d','<','>'] for i,j in table_f['l_Teff','l_lgf']]]
 #
@@ -28,11 +28,11 @@ from tools import *
 
 #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 #for row in table:
-#    if row['FIES'] > 0 and '_N_' in findstar(row['Name'],'best')[0] and (row['mag_B']+row['mag_V'])/2 < 8.5:
-#        if row['HERMES']+row['FEROS'] == 0: print('Check',row['Name']); continue
-#        spectra = findstar(row['Name']); best_SNR = row['SNR_best']
+#    if row['FIES'] > 0 and '_N_' in findstar(row['ID'],'best')[0] and (row['mag_B']+row['mag_V'])/2 < 8.5:
+#        if row['HERMES']+row['FEROS'] == 0: print('Check',row['ID']); continue
+#        spectra = findstar(row['ID']); best_SNR = row['SNR_best']
 #        check = True
 #        for spectrum in spectra:
 #            if spec(spectrum).snr > 100 and '_N_' not in spec(spectrum).file_name:
 #                check = False
-#        if check == True: print('Check',row['Name'])
+#        if check == True: print('Check',row['ID'])

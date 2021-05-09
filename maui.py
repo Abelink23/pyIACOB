@@ -34,7 +34,7 @@ def mauipath(path=None):
         elif platform.uname().node == 'msi':
             defmainpath = '/home/abelink/Documents/MAUI/'
         elif 'iac.es' in platform.uname().node:
-            defmainpath = '/net/nas/proyectos/hots/masblue/maui2021/RESULTS_BSGS_202101/'
+            defmainpath = '/net/nas/proyectos/hots/masblue/maui2021/'
 
         mainpath = defmainpath
 
@@ -49,7 +49,7 @@ def mauipath(path=None):
 mauidir = mauipath('def')
 
 
-def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_verX',RV0tol=200,ascii_0=False):
+def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_input',RV0tol=200,ascii_0=False):
     '''
     Function to generate the input table for MAUI given an input table with the
     target stars and quality flags for the line fittings.
@@ -69,7 +69,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_verX',RV0tol=200
     ----------
 
     table : str, optional
-        Enter the input table contaning a column 'Name' with the name of the stars.
+        Enter the input table contaning a column 'ID' with the name of the stars.
 
     output_name : str, optional
         Enter the name for the output table. Default is 'MAUI_verX'.
@@ -91,7 +91,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_verX',RV0tol=200
 
     maui_txt = open(maindir+'lists/%s.txt' % output_name,'a')
     maui_txt.write(
-        "{:<40}".format('starname')+"{:<48}".format('filename')+"{:<6}".format('vrad')+\
+        "{:<40}".format('fullname')+"{:<48}".format('filename')+"{:<6}".format('vrad')+\
         "{:<6}".format('vsini')+"{:<7}".format('evsini')+"{:<5}".format('vmac')+\
         "{:<7}".format('evmac')+"{:<7}".format('R')+"{:<4}".format('SNR')+\
         ' ;# SpC       FW34-14 SiIII SiII l lTef l lgf  Grid\n')
@@ -103,7 +103,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_verX',RV0tol=200
 
         if quit == 'quit': break
 
-        name = row['Name'].strip()
+        id = row['ID'].strip()
 
         # Filer based on properties from the main table:
         if 'SB' in table.columns and 'SB2' in row['SB']: continue
@@ -113,8 +113,8 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_verX',RV0tol=200
             if 'PCyg' in row['CHb']: continue
         if 'QIB' in table.columns and row['QIB'] < 2: continue
 
-        match_REF = table_REF[[i.strip()==name for i in table_REF['Name']]]
-        match_IB = table_IB[table_IB['Name']==name]
+        match_REF = table_REF[[i.strip()==id for i in table_REF['ID']]]
+        match_IB = table_IB[table_IB['ID']==id]
 
         if len(match_REF) == 0 or len(match_IB) == 0: continue
 
@@ -128,16 +128,16 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_verX',RV0tol=200
         else: SiIIIFG = 1
 
         if SiIIIFG == 0 and SiIIFG == 0:
-            print('No SiIII/SiII found for %s\n' % name); continue
+            print('No SiIII/SiII found for %s\n' % id); continue
 
-        star = spec(name,SNR='best')
+        star = spec(id,SNR='best')
 
-        if match_IB['filename'][0] != star.file_name:
+        if match_IB['filename'][0] != star.filename:
             print('Warning: Different files from best SNR and from IB results for %s' % name)
-            print(star.file_name,' vs ',match_IB['filename'][0])
+            print(star.filename,' vs ',match_IB['filename'][0])
             if ascii_0 == True:
                 do_file = input('Which ascii do you want to create 1 or 2: ')
-                if int(do_file) == 1: filename = star.file_name
+                if int(do_file) == 1: filename = star.filename
                 elif int(do_file) == 2: filename = match_IB['filename'][0]
 
         if ascii_0 == True and not search(filename[:-5]+'_RV.ascii',\
@@ -145,7 +145,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_verX',RV0tol=200
 
         # ----------------------------------------------------------------------
         # Extra information appended to the end of each row:
-        match_results = results[results['Name']==name]
+        match_results = results[results['ID']==id]
         if len(match_results) == 0:
             l_Tef = logTf = l_lgf = loggf = grid = 0
         else:
@@ -168,7 +168,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_verX',RV0tol=200
                 next = 'n'
                 while next == 'n':
 
-                    skip = input('%s - Hit return to continue, type "s" to skip: ' % name)
+                    skip = input('%s - Hit return to continue, type "s" to skip: ' % id)
                     if skip == 's': break
 
                     if match_REF['SpT_code'] <= 2.5: star.plotspec(4530,4590)
@@ -220,8 +220,8 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_verX',RV0tol=200
             match_REF['SNR_B'] = 200
 
         maui_txt.write(
-            "{:<40}".format(star.file_name[:-5])+\
-            "{:<48}".format(star.file_name[:-5]+'_RV.ascii')+"{:<6}".format('0.0d0')+\
+            "{:<40}".format(star.filename[:-5])+\
+            "{:<48}".format(star.filename[:-5]+'_RV.ascii')+"{:<6}".format('0.0d0')+\
             "{:<6}".format(str(int(round(match_IB['vsini'][0],0))))+\
             "{:<7}".format(str(int(round(match_IB['evsini'][0]))))+\
             "{:<5}".format(str(int(round(match_IB['vmac'][0]))))+\
@@ -259,8 +259,8 @@ def gen_stars_in_grids(table='IACOB_O9BAs_SNR20.fits'):
         inout = path.contains_points(points)
         log_Teff_in,log_LLsol_in = points[inout].T
 
-        results_in = results[path.contains_points(points)]['Name']
-        table_red = table[[i['Name'].strip() in results_in for i in table]]
+        results_in = results[path.contains_points(points)]['ID']
+        table_red = table[[i['ID'] in results_in for i in table]]
 
         maui_input(table=table_red,output_name=name,ascii_0=False)
 
@@ -280,9 +280,9 @@ class idl():
         #    try: print(i,len(idldata[i]))
         #    except: print(i)
 
-        self.file_name = idldata.aa[0][3].decode()
-        self.name_star = self.file_name.split('_')[0]
-        self.resolution = int(self.file_name.split('_V')[-1][0:5])
+        self.filename = idldata.aa[0][3].decode()
+        self.id = self.filename.split('_')[0]
+        self.resolution = int(self.filename.split('_V')[-1][0:5])
         self.gridname = idldata.modelgridname.decode()
         self.synwave = idldata.xx_mod
         self.synflux = idldata.spec_prim
@@ -312,7 +312,7 @@ def gen_synthetic(save_dir='server', lwl=3900, rwl=5080):
     Returns: Nothing but the ascii .dat files are generated.
     '''
 
-    solution_dir = mauidir+'SOLUTION/'
+    solution_dir = mauidir+'RESULTS_BSGS_202101/SOLUTION/'
 
     if save_dir == 'local':
         save_dir = datadir+'ASCII/Synthetic_MAUI/'
@@ -323,15 +323,15 @@ def gen_synthetic(save_dir='server', lwl=3900, rwl=5080):
         if not file.startswith('._') and file.endswith('.idl'):
             idlspec = idl(solution_dir+file)
 
-            star_db = spec(idlspec.name_star,SNR='best')
+            star_db = spec(idlspec.id,SNR='best')
 
-            if idlspec.file_name != star_db.file_name[:-5]:
+            if idlspec.filename != star_db.filename[:-5]:
                 print('\nWARNING: %s does not match with best spectrum available.'
-                % idlspec.file_name[:-5])
+                % idlspec.filename[:-5])
 
             else:
-                #idlspec.file_name = idlspec.file_name.replace(str(idlspec.resolution),'85000')
-                new_idlspec = '%s_red%i.dat' % (idlspec.file_name,grids_dic[idlspec.gridname][2])
+                #idlspec.filename = idlspec.filename.replace(str(idlspec.resolution),'85000')
+                new_idlspec = '%s_red%i.dat' % (idlspec.filename,grids_dic[idlspec.gridname][2])
                 np.savetxt(save_dir+new_idlspec,np.c_[idlspec.synwave,idlspec.synflux],
                            fmt=('%.4f','%.6f'))
 
@@ -345,11 +345,11 @@ def gen_synthetic(save_dir='server', lwl=3900, rwl=5080):
                            fmt=('%.4f','%.6f'))
 
 
-def gen_table(tables_dir='server', input_table='MAUI_ver10.txt', check_best=True,
+def gen_table(tables_dir='server', input_table='MAUI_ver11.txt', check_best=True,
               grids_table='MAUI_grid_limits.fits', format='fits'):
     '''
     Function to generate a table with the results from MAUI given an input table
-    containing the name of the stars and filename to search in the MAUI-SOLUTION
+    containing the ID of the stars and filename to search in the MAUI-SOLUTION
     directory.
 
     Parameters
@@ -374,7 +374,7 @@ def gen_table(tables_dir='server', input_table='MAUI_ver10.txt', check_best=True
     Returns: Nothing but the output table with the MAUI results is generated.
     '''
 
-    solution_dir = mauidir+'SOLUTION/'
+    solution_dir = mauidir+'RESULTS_BSGS_202101/SOLUTION/'
 
     if tables_dir == 'local':
         tables_dir = maindir+'tables/'
@@ -393,16 +393,16 @@ def gen_table(tables_dir='server', input_table='MAUI_ver10.txt', check_best=True
 
     data_rows = []
     for row,i in zip(table,range(len(table))):
-        file_name = row['filename']
+        filename = row['filename']
 
         match = []
         for file in os.listdir(solution_dir):
             if file.endswith('.idl') and \
-               file.split('_sqexp_mat1_')[1][:-14]+'RV.ascii' == file_name:
+               file.split('_sqexp_mat1_')[1][:-14]+'RV.ascii' == filename:
                    match.append(solution_dir+file)
 
         if len(match) == 0:
-            print('\nWARNING: No .idl file found for %s. Continuing...' % file_name)
+            print('\nWARNING: No .idl file found for %s. Continuing...' % filename)
             continue
 
         elif len(match) > 1:
@@ -410,15 +410,15 @@ def gen_table(tables_dir='server', input_table='MAUI_ver10.txt', check_best=True
 
         idldata = readsav(match[0])
 
-        file_name = idldata.aa[0][3].decode()
-        name_star = file_name.split('_')[0]
+        filename = idldata.aa[0][3].decode()
+        id = filename.split('_')[0]
         grid  = grids[grids['Model_name'] == idldata.modelgridname.decode()]
 
-        if check_best == True and file_name != spec(name_star,SNR='best').file_name[:-5]:
+        if check_best == True and filename != spec(id,SNR='best').filename[:-5]:
             print('\nWARNING: %s does not match with best spectrum available.'
-            % file_name[:-5])
+            % filename[:-5])
 
-        data_row = []; data_row.extend([name_star])
+        data_row = []; data_row.extend([id])
         parameters = [j.decode() for j in idldata.solution.var_label[0]] # 11/13 parameters
         for par_name in param_lst:
 
@@ -456,7 +456,7 @@ def gen_table(tables_dir='server', input_table='MAUI_ver10.txt', check_best=True
     bar.finish()
 
     # Saving the results:
-    names = ['Name']
+    names = ['ID']
     for i in range(len(param_lst)):
         names += ['l_'+param_lst[i],param_lst[i],param_lst[i]+'_eUP',param_lst[i]+'_eDW']
     names += ['Model_name']

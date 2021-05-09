@@ -7,15 +7,15 @@ def gen_ascii_ML(input_table='OBAs_ML_new.fits',not_do=None):
 
     for row in table:
 
-        if not_do is not None and row['Name'] in not_do: continue
+        if not_do is not None and row['ID'] in not_do: continue
         if row['SNR_best'] > 90: continue
 
         next = 'n'
         while next == 'n':
 
-            best_star = spec(row['Name'],SNR='bestMF')
+            best_star = spec(row['ID'],SNR='bestMF')
 
-            skip = input("%s - Hit return to continue, type 's' to skip: " % row['Name'])
+            skip = input("%s - Hit return to continue, type 's' to skip: " % row['ID'])
             if skip == 's': break
 
             if row['SpT_code'] <= 2.5: best_star.plotspec(4500,4600)
@@ -49,7 +49,7 @@ def gen_ascii_ML(input_table='OBAs_ML_new.fits',not_do=None):
             plt.close('all')
 
         if next == '':
-            goodspec = findstar(row['Name'],SNR=30) #90/30
+            goodspec = findstar(row['ID'],SNR=30) #90/30
             try: goodspec = random.sample(goodspec,4) #25/4
             except: pass
 
@@ -70,11 +70,11 @@ def gen_ascii_ML(input_table='OBAs_ML_new.fits',not_do=None):
 #columns_to_update = table2.colnames[1:-9]+[table2.colnames[-1]]
 #for row,i in zip(table1,range(len(table1))):
 #    updated = False
-#    if row['Name'] not in table2['Name']: continue
-#    if row['Teff'] == table2[table2['Name'] == row['Name']]['Teff'].data[0]: continue
+#    if row['ID'] not in table2['ID']: continue
+#    if row['Teff'] == table2[table2['ID'] == row['ID']]['Teff'].data[0]: continue
 #    for col_name in columns_to_update:
-#        table1[i][col_name] = table2[table2['Name'] == row['Name']][col_name].data[0]
-#        if updated == False: print(row['Name']); updated = True
+#        table1[i][col_name] = table2[table2['ID'] == row['ID']][col_name].data[0]
+#        if updated == False: print(row['ID']); updated = True
 #table1.write(maindir+'tables/table1_updated.fits',format='fits',overwrite=True)
 
 # This one is to empty bad data

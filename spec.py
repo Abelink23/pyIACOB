@@ -48,8 +48,8 @@ class spec():
             except: self.spectrum = None
         else: self.spectrum = spectrum
 
-        self.file_name = self.spectrum.split('/')[-1]
-        self.name_star = self.spectrum.split('/')[-1].split('_')[0]
+        self.filename = self.spectrum.split('/')[-1]
+        self.id_star = self.spectrum.split('/')[-1].split('_')[0]
         self.resolution = int(re.split('(\d*\d+)',self.spectrum)[-2])
         self.offset = offset # Note, run self.waveflux to apply offset.
         if txt == False: self.waveflux()
@@ -59,11 +59,11 @@ class spec():
 
     def spc(self):
         try:
-            query = Simbad.query_object(self.name_star)
+            query = Simbad.query_object(self.id_star)
 
-            if query == None and 'HD' in self.name_star:
-                new_name_star = self.name_star.replace('HD','HD ')
-                query = Simbad.query_object(new_name_star)
+            if query == None and 'HD' in self.id_star:
+                new_id_star = self.id_star.replace('HD','HD ')
+                query = Simbad.query_object(new_id_star)
             self.SpC = query['SP_TYPE'][0]
         except:
             self.SpC = ''
@@ -122,7 +122,7 @@ class spec():
 
         # Make lists with wavelenght and flux for each spectrum
         if width >= 200: width = 200; \
-            print('\nWarning!: Width value %f is too large, setting it to 200. ' %width)
+            print('\nWARNING: Width value %f is too large, setting it to 200. ' %width)
 
         wave = x0 + dx*(np.arange(spec_length) - pix0 + 1)
         if '_log' in self.spectrum: wave = np.exp(wave)
@@ -137,7 +137,7 @@ class spec():
 
         if lwl != None and rwl != None:
             if wave[0] > lwl+dx or wave[-1] < rwl-dx:
-                print('Warning!: Wavelenght limits outside spectrum wavelenght range.')
+                print('WARNING: Wavelenght limits outside spectrum wavelenght range.')
             flux = flux[(wave >= lwl-width/2.)&(wave <= rwl+width/2.)]
             wave = wave[(wave >= lwl-width/2.)&(wave <= rwl+width/2.)]
 
@@ -170,7 +170,7 @@ class spec():
         if lwl != None and rwl != None:
             dx = (wave[-1]-wave[0])/(len(wave)-1)
             if wave[0] > lwl+dx or wave[-1] < rwl-dx:
-                print('Warning!: Wavelenght limits outside spectrum wavelenght range.')
+                print('WARNING: Wavelenght limits outside spectrum wavelenght range.')
             flux = flux[(wave >= lwl-width/2.)&(wave <= rwl+width/2.)]
             wave = wave[(wave >= lwl-width/2.)&(wave <= rwl+width/2.)]
 
@@ -182,11 +182,10 @@ class spec():
         return wave,flux,0
 
 
-    def fitline(self,line,width=15,tol=150.,func='g',iter=3,output=False,outfit=False,plot=False):
+    def fitline(self,line,width=15,tol=150.,func='g',iter=3,info=False,outfit=False,plot=False):
         '''
         Parameters
         ----------
-
         line : float
             Sets the central wavelenght of the line to search and fit.
 
@@ -203,58 +202,70 @@ class spec():
         iter : int, optional
             Number of iterations to optimize window width. Default is 3.
 
-        output : boolean, optional
+        info : boolean, optional
             If 'True', it will print information for each line fitting.
 
         plot : boolean, optional
             If 'True', it will create and show the plots.
 
-        Note: emission lines are excluded, see "Filtering emission lines" section.
+        Returns
+        -------
+        Dictionary containing the results, fitting parameters and optionally the
+        original line, normalized flux and fitted flux.
+
+        Notes
+        -----
+        Emission lines are excluded, see "Filtering emission lines" section.
         Returns: Parameters from the fitted line and a last value containing data
         with input wavelenght and flux, plus the flux normalized, the flux of the
         fitted line, and the fitting parameters.
         '''
 
-        if type(line) == str:
-            if len(line.split(',')) > 1:
-                print('Error: More than one line selected.\nExitting...'); return None
-            else: line = float(line)
+        fitsol = {'sol': 0, 'line': np.nan, 'RV_A': np.nan, 'RV_kms': np.nan,
+                  'EW': np.nan, 'FWHM': np.nan, 'depth': np.nan, 'q_fit': np.nan}
 
         '''============================ Parameters =========================='''
-        # Maximum shift between the minimum of the fitted line and the tabulated value
-        tol = float(tol)
-        tol_aa = tol*(line)*1000/cte.c  # Changes km/s to angstroms
+        # Catch line input containing more than one line
+        if type(line) == str and (',' in line or ' ' in line.strip()):
+            print('Error: More than one line selected.\nExitting...')
+            return fitsol
+
+        line = float(line)
 
         dlamb = line/self.resolution
-        sigma,sig_min,sig_max = [0.8,dlamb/2/np.sqrt(2*np.log(2)),4]
-        # sig_min should be larger the minimum theoretical value dlam/2*sqrt(2log2)
 
-        # Maximum FWHM allowed (should be up to 20 for H lines)
-        FWHM_max = 20
+        # Maximum shift between the minimum of the fitted line and the tabulated value
+        tol_aa = float(tol)*(line)*1000/cte.c  # Changes km/s to angstroms
 
-        # Maximum vsini set to 410 (should be up to 600 in extreme cases)
+        # Maximum FWHM allowed (should be up to 18 for H lines)
+        FWHM_max = 17
 
-        '''========= Set initial parameters for the chosen function ========='''
-        inf = np.inf
+        #=======================================================================
+        #=========== Dictionary and boundary limits for the functions ==========
+        fit_dic = {'g': ('A','x0','sigma'),
+                   'l': ('A','x0','gamma','y'),
+                   'v': ('A','x0','sigma','gamma','y'),
+                   'r': ('A','x0','sigma','vsini'),
+                  'vr': ('A','x0','sigma','gamma','vsini','y'),
+                 'vrg': ('A','x0','sigma','gamma','vsini','A2','sigma2','y')}
+
         # Fitting function: Gaussian | A,x0,sig
         if func == 'g':
             fitfunc = f_gaussian1
-            guess   =  [-0.1,line       ,sigma  ]
-            bounds  = ([-inf,line-tol_aa,sig_min],
-                       [ 0. ,line+tol_aa,sig_max])
+            bounds  = ([-1,line-tol_aa,0],
+                       [ 0,line+tol_aa,6])
 
         # Fitting function: Lorentzian | A,x0,gamma,y
         elif func == 'l':
             fitfunc = f_lorentzian
-            guess   =  [-0.1,line       , 0.5,1. ]
-            bounds  = ([-inf,line-tol_aa,-inf,1. ],
-                       [ 0. ,line+tol_aa, inf,1.01])
+            bounds  = ([-1,line-tol_aa, 0,1. ],
+                       [ 0,line+tol_aa,10,1.01])
 
         # Fitting function: Voigt profile | A,x0,sigma,gamma,y
         elif func == 'v':
             fitfunc = f_voigt
-            bounds  = ([-.5,line-tol_aa,0,.0,1.  ],
-                       [ .0,line+tol_aa,2,.5,1.01])
+            bounds  = ([-10,line-tol_aa,0. ,0. ,1.  ], #'A' ~15 for As
+                       [  0,line+tol_aa,7.5,8.5,1.01])
 
         # Fitting function: Rotational profile | A,x0,sigma,vsini
         elif func == 'r':
@@ -265,118 +276,116 @@ class spec():
         # Fitting function: Voigt x Rotational profile | A,x0,sigma,gamma,vsini,y
         elif func == 'vr_H':
             fitfunc = f_voigtrot
-            bounds  = ([-.5,line-tol_aa,0. ,0. ,  1,.0 ],
-                       [ .0,line+tol_aa,1.5,1.5,410,.01])
+            bounds  = ([-.3,line-tol_aa,0. ,0,  1,.0 ],
+                       [ .0,line+tol_aa,4.5,8,410,.01])
         elif func == 'vr_Z':
             fitfunc = f_voigtrot
-            bounds  = ([-.1,line-tol_aa,0. ,0,  1,.0 ],
+            bounds  = ([-.3,line-tol_aa,0. ,0,  1,.0 ],
                        [ .0,line+tol_aa,1.5,1,410,.01])
 
         # Fitting function: Voigt x Rotational + Gaussian profile
-        # A1,x0,sigma1,gamma,vsini,A2,sigma2,y
+        # A,x0,sigma,gamma,vsini,A2,sigma2,y
         elif func == 'vrg_H':
             fitfunc = f_vrg
-            bounds  = ([-.4,line-tol_aa, 0, 0,  1,-.07,0,.0 ],
+            bounds  = ([-.5,line-tol_aa, 0, 0,  1,-.07,0,.0 ],
                        [ .0,line+tol_aa,10,10,410, .0 ,4,.01])
         elif func == 'vrg_Z':
             fitfunc = f_vrg
             bounds  = ([-.1,line-tol_aa,0. ,0,  1,-1.3,0,-.01], # y=-.01 = larger EWs
                        [ .0,line+tol_aa,1.5,1,410, 0. ,2, .01])
 
+        #=======================================================================
+        #============================= Line fitting ============================
+        i = 0; width_i = width
+        while i < iter:
 
-        '''========================== Line fitting =========================='''
-        iterations = iter; i = 0; width_i = width
-        while i < iterations:
-
-            '''============ Extracting the window of the spectrum ==========='''
-            window = (self.wave >= line-width_i/2.) & (self.wave <= line+width_i/2.)
-            if not any(window): print('Line %sA not in spectra.\n' % line); break
+            # Extracting the window of the spectrum
+            window = (self.wave >= line-width_i/2) & (self.wave <= line+width_i/2)
+            if not any(window):
+                print('Line %sA not in spectra.\n' % line)
+                return fitsol
             flux = self.flux[window]; wave = self.wave[window]
 
-            '''====================== Auto-resampling ======================='''
-            #if self.dx >= 0.025 and not 'log' in self.file_name:
-            #    factor = self.dx/0.025; self.resamp(factor)
+            dx_mean = (wave[-1]-wave[0])/(len(wave)-1)
+            # Auto-resampling
+            #if dx_mean >= 0.025 and not 'log' in star.filename:
+            #    factor = dx_mean/0.025; star.resamp(factor)
 
-            '''======== Find regions to exclude during normalization ========'''
-            iter_norm = 4; mask_i = ~np.isnan(flux)
-            for j in range(iter_norm):
-                c0_fit = np.poly1d(np.polyfit(wave[mask_i],flux[mask_i],1))
-                continuum_i = c0_fit(wave)
+            # Find regions of the continuum to use during normalization (4 iter)
+            for j in range(4):
+                if j == 0:
+                    mask_i = ~np.isnan(flux)
+                else:
+                    mask_i = ~sigma_clip(flux/continuum_i,maxiters=None,
+                              sigma_lower=1.5,sigma_upper=2.5).mask #1.4 before
 
-                if j < iter_norm: mask_i = ~sigma_clip(flux/continuum_i,\
-                    sigma_lower=1.4,sigma_upper=2.5,axis=-1,maxiters=None).mask
+                c_fit = np.poly1d(np.polyfit(wave[mask_i],flux[mask_i],1))
+                continuum_i = c_fit(wave)
 
-            '''===================== Final normalization ===================='''
+            # Final normalization of the iteration
             flux_norm_i = flux / continuum_i
 
-            '''====================== Fitting the line/s ===================='''
+
+            #===================================================================
+            #========================= Fitting the line ========================
             try:
-                popt_i,pcov = curve_fit(fitfunc,wave,flux_norm_i,bounds=bounds)
+                popt_i = curve_fit(fitfunc,wave,flux_norm_i,bounds=bounds)[0]
                 flux_fit_i = fitfunc(wave,*popt_i)
 
-                '''=================== Calculate the FWHM ==================='''
-                # Empirical approximate FWHM:
+                # Calculate the empirical approximate FWHM
                 medval = (max(flux_fit_i) + min(flux_fit_i))/2
                 medpos = [np.where(flux_fit_i <= medval)[0][value] for value in (0,-1)]
                 FWHM = round(wave[medpos[1]]-wave[medpos[0]],2)
 
-                '''================== Checking step results ================='''
-                if dlamb < FWHM < FWHM_max:
-
+                # Checking step results
+                # The min FWHM will be defined by either 3 times the dx, or 3/4 of the
+                # minimum theoretical FWHM given the input line and resolution
+                FWHM_min = np.max([3*dx_mean,3/4*dlamb])
+                if FWHM_min < FWHM < FWHM_max:
                     flux_norm = flux_norm_i; continuum = continuum_i; mask = mask_i
                     flux_fit = flux_fit_i; popt = popt_i; width = width_i
-
-                    width_i = FWHM*7; i = i + 1
-
-                else:
-                    if FWHM < dlamb: print('WARNING: FWHM<dlam')
-                    if FWHM > FWHM_max: print('WARNING: FWHM>%i' % FWHM_max)
-                    break
+                    i = i + 1; width_i = FWHM*7
+                elif FWHM < FWHM_min:
+                    print('WARNING: FWHM(%d) < minimum FWHM.' % FWHM); break
+                elif FWHM > FWHM_max:
+                    print('WARNING: FWHM(%d) < maximum FWHM.' % FWHM); break
 
             except: break
 
-
-        '''===================== Checking final results ====================='''
+        #=======================================================================
+        #======================== Checking final results =======================
         window = (self.wave >= line-width/2.) & (self.wave <= line+width/2.)
         flux = self.flux[window]; wave = self.wave[window]
 
         if i == 0:
-            if output is True:
-                print('Problem in spectrum %s' % self.file_name)
+            if info is True:
+                print('Problem in spectrum %s' % self.filename)
                 print('Line %sA could not be fitted or does not exist.\n' % line)
+            return fitsol
 
-            return [np.nan]*9
-
-        if FWHM >= 2 and not func in ['r','vr_H','vr_Z','vrg_H','vrg_Z']:
-            print('FWHM > 2, consider switching to a model with rotation for',line)
-
-        fitted_line = wave[np.where(flux_fit == min(flux_fit))][0]
-        if abs(line - fitted_line) > tol_aa:
-            if output is True:
+        line_f = wave[flux_fit == min(flux_fit)][0]
+        if abs(line - line_f) > tol_aa:
+            if info is True:
                 print('Line %sA found outside tolerance.\n' % line)
+            return fitsol
 
-            return [np.nan]*9
+        line_f = line_f + self.offset
+        RV_A   = round((line_f - line),3)
+        RV_kms = round(((line_f - line)/line)*cte.c/1000,1)
+        line_f = round(line_f,3)
 
-        fitted_line = fitted_line + self.offset
-        RV_angs = round((fitted_line - line),3)
-        RV_lamb = round(((fitted_line - line)/line)*cte.c/1000,3)
-        fitted_line = round(fitted_line,3)
+        if info is True:
+            print('Line %sA found at %.3fA -> RV: %.1fkm/s\n' % (line,line_f,RV_kms))
 
-        if output is True:
-            print('Line %sA found at ' % (line) + str(round(fitted_line,2)) + \
-                  'A | RV: ' + str(RV_lamb) + ' [km/s] \n')
-
-        data = [wave,flux,flux_norm,flux_fit,popt]
-
-
-        '''========================= Calculate the EW ======================='''
+        #=======================================================================
+        #=========================== Calculate the EW ==========================
         # stackoverflow.com/questions/34075111/calculate-equivalent-width-using-python-code
-        EW = .5*abs(fsum((wave[wl-1]-wave[wl])*((1-flux_fit[wl-1]) \
-                    +(1-flux_fit[wl])) for wl in range(1,len(flux_fit))))
-        EW = round(1000*EW,2)
+        EW = .5*abs(fsum((wave[wl-1]-wave[wl])*((1-flux_fit[wl-1]) +
+             (1-flux_fit[wl])) for wl in range(1,len(flux_fit))))
+        EW = round(1000*EW)
 
-
-        '''======================== Calculate the FWHM ======================'''
+        #=======================================================================
+        #====================== Calculate the final FWHM =======================
         medval = (max(flux_fit) + min(flux_fit))/2
         medpos = [np.where(flux_fit <= medval)[0][value] for value in (0,-1)]
         try: l_val = np.interp(medval,[flux_fit[medpos[0]],flux_fit[medpos[0]-1]],
@@ -387,51 +396,58 @@ class spec():
         except: r_val = wave[medpos[1]]
         FWHM = round(r_val-l_val,2)
 
-
-        '''===================== Calculate the line depth ==================='''
+        #=======================================================================
+        #======================= Calculate the line depth ======================
         depth = round(1-min(flux_fit),2)
 
 
-        '''=================== Calculate the SNR continuum =================='''
+        #=======================================================================
+        #===================== Calculate the SNR continuum =====================
         sigma_cont = np.std(flux_norm[mask])
         snr = int(1/sigma_cont)
 
-
-        '''=========================== Quality value ========================'''
-        #q_fit = np.std(flux_norm[flux_fit<.995]/flux_fit[flux_fit<.995]) #simple
-        q_fit = np.std(flux_norm[flux_fit<.995]/flux_fit[flux_fit<.995])/sigma_cont
+        #=======================================================================
+        #============================= Quality value ===========================
+        q_fit = 1/np.std(flux_norm[flux_fit<.995]/flux_fit[flux_fit<.995]) #simple
         q_fit = round(q_fit,3)
 
-
-        #'''========================== Find more lines ======================='''
-        #flux_new = flux_norm_f/flux_fit
-        #popt, pcov = curve_fit(fitfunc, self.wave-tol_aa, flux_new, guess, bounds = bounds)
-        #line_fit_new = fitfunc(self.wave-tol_aa, *popt)
-
-
-        '''============================== Plot =============================='''
+        #=======================================================================
+        #================================ Plot =================================
         if plot is True:
 
-            plt.plot(wave,flux,'orange',lw=.5)
-            plt.plot(wave,continuum,'r',lw=.5)
-            plt.plot(wave,flux_norm,'b',lw=.5)
+            fig, ax = plt.subplots()
 
-            plt.plot(wave,flux_fit,'g',lw=.5)
+            ax.plot(wave,flux,'orange',lw=.5)
+            ax.plot(wave,continuum,'r',lw=.5)
+            ax.plot(wave,flux_norm,'b',lw=.5)
 
-            plt.plot(wave,np.where(mask==False,1,np.nan)+0.01,'k',lw=.5)
+            ax.plot(wave,flux_fit,'g',lw=.5)
 
-            plt.title(self.name_star + ' | ' + str(line) + ' | ' + 'RV: ' +
-            str(RV_lamb) + ' | ' + 'EW: ' +  str(EW) + ' | ' + 'FWHM: ' + str(FWHM))
+            ax.plot(wave,np.where(mask==False,1,np.nan)+0.01,'k',lw=.5)
 
-            plt.yticks([])
-            plt.xlabel('$\lambda$ $[\AA]$',size=13)
-            plt.ylabel('Normalized flux',size=13)
-            plt.tick_params(direction='in',top='on')
-            plt.subplots_adjust(top=.9,bottom=.12,right=.88,left=.08)
+            ax.set_title('%s | %.2f | RV: %d | EW: %d | FWHM: %.2f' %
+                     (self.id_star,line_f,RV_kms,EW,FWHM))
+
+            ax.set_yticks([])
+            ax.set_xlabel('$\lambda$ $[\AA]$',size=13)
+            ax.set_ylabel('Normalized flux',size=13)
+            ax.tick_params(direction='in',top='on')
+            ax.figure.subplots_adjust(top=.9,bottom=.12,right=.88,left=.08)
 
         plt.show(block=False)
 
-        return fitted_line,RV_angs,RV_lamb,EW,FWHM,depth,snr,q_fit,data
+        #=======================================================================
+        #================= Packing the results in a dictionary =================
+        fitsol = {'sol': 1, 'line': line_f, 'RV_A': RV_A, 'RV_kms': RV_kms,
+                   'EW': EW, 'FWHM': FWHM, 'depth': depth, 'q_fit': q_fit}
+        for f_par,par in zip(fit_dic[func.split('_')[0]],popt):
+            fitsol[f_par] = round(par,3)
+
+        if outfit == True:
+            fitsol['wave'] = wave; fitsol['flux'] = flux
+            fitsol['flux_norm'] = flux_norm; fitsol['flux_fit'] = flux_fit
+
+        return fitsol
 
         # Theorerical FWHM:
         #if   func == 'g': jFWHM = 2*np.sqrt(2*np.log(2))*popt[2]
@@ -447,35 +463,39 @@ class spec():
         ----------
         zone : str, optional
             Select the zone to calculate the spectra.
-                'b'   -> 4000-5000 A
-                'v'   -> 5000-6000 A
-                'r'   -> 6000-7000 A
-                'all' -> 4000-7000 A
+                'b'/'B'     -> 4000-5000 A
+                'v'/'V'     -> 5000-6000 A
+                'r'/'R'     -> 6000-7000 A
+                'all'/'ALL' -> 4000-7000 A
 
         Returns: Measured signal-to-noise ratio value.
         '''
 
-        if zone in ['b','B']: self.waveflux(lwl=4000,rwl=5000)
-        elif zone in ['v','V']: self.waveflux(lwl=5000,rwl=6000)
-        elif zone in ['r','R']: self.waveflux(lwl=6000,rwl=7000)
-        elif zone in ['all','ALL']: self.waveflux(lwl=4000,rwl=7000)
+        if zone in ['b','B']:
+            mask = (self.wave > 4000) & (self.wave < 5000)
+        elif zone in ['v','V']:
+            mask = (self.wave > 5000) & (self.wave < 6000)
+        elif zone in ['r','R']:
+            mask = (self.wave > 6000) & (self.wave < 7000)
+        elif zone in ['all','ALL']:
+            mask = (self.wave > 4000) & (self.wave < 7000)
 
-        lambda0 = np.mean(self.wave); resol = 10000
+        lambda0 = np.mean(self.wave[mask]); resol = 10000
 
         sigma = lambda0/(2.35482*float(resol))
 
         gauss = f_gaussian(np.arange(-5*sigma,5*sigma,self.dx),sigma)
         kernel = gauss/np.trapz(gauss)
 
-        convoluted = 1 + convolve(self.flux-1,kernel,mode='same')
+        convoluted = 1 + convolve(self.flux[mask]-1,kernel,mode='same')
 
-        flux_norm = self.flux/convoluted
+        flux_norm = self.flux[mask]/convoluted
 
         snr_all = []
         for gap in findlist('snr_gaps.txt'):
             lwl,rwl = [float(i) for i in gap.split('-')]
 
-            flux_norm_i = flux_norm[(self.wave >= lwl)&(self.wave <= rwl)]
+            flux_norm_i = flux_norm[(self.wave[mask] >= lwl) & (self.wave[mask] <= rwl)]
 
             std = np.std(flux_norm_i); sig_clip = 3
             flux_cleaned = np.where(abs(flux_norm_i-1) > sig_clip*std,np.nan,flux_norm_i)
@@ -484,7 +504,7 @@ class spec():
 
         self.snr = np.nanmean(snr_all)
 
-        return np.nanmean(snr_all)
+        return int(round(np.nanmean(snr_all)))
 
 
     def cosmic(self,sigclip=1.5):
@@ -592,7 +612,7 @@ class spec():
 
         if dx > np.mean(self.wave)/self.resolution/3:
             # It is divided by 3 to at least have 3 pixels in a gaussian
-            print('Warning!: The new delta lambda implies lossing information...')
+            print('WARNING: The new delta lambda implies lossing information...')
 
         if lwl == None and rwl == None:
             lwl = self.wave[0]; rwl = self.wave[-1]
@@ -605,8 +625,8 @@ class spec():
 
 
     def export(self,tail='',extension='.dat'):
-        file_name = self.file_name.replace('.fits','')
-        np.savetxt(maindir+'tmp/%s' % (file_name + tail + extension),
+        filename = self.filename.replace('.fits','')
+        np.savetxt(maindir+'tmp/%s' % (filename + tail + extension),
                    np.c_[self.wave,self.flux],fmt=('%.4f','%.6f'))
 
 
@@ -643,7 +663,7 @@ class spec():
                 plt.xticks([round(line-width/3,1),round(line,1),round(line+width/3,1)])
                 plt.title(element,fontsize=6,pad=1)
 
-            plt.plot(self.wave[mask],self.flux[mask],lw=.3,label=self.name_star+' '+self.SpC)
+            plt.plot(self.wave[mask],self.flux[mask],lw=.3,label=self.id_star+' '+self.SpC)
             plt.tick_params(direction='in',top='on')
 
             if ylim is not None and (type(ylim) is list or type(ylim) is tuple): plt.ylim(ylim)
@@ -703,7 +723,7 @@ class spec():
                              np.mean(self.flux[mask])],'k',lw=10**gf/5)
                     # 10**gf/5 empiric way to draw thicker lines for instense lines
 
-        plt.plot(self.wave[mask],self.flux[mask],lw=.3,label=self.name_star+' '+self.SpC)
+        plt.plot(self.wave[mask],self.flux[mask],lw=.3,label=self.id_star+' '+self.SpC)
         plt.tick_params(direction='in',top='on')
 
         if ylim is not None and (type(ylim) is list or type(ylim) is tuple): plt.ylim(ylim)
@@ -750,12 +770,12 @@ def f_voigtrot(x,A,x0,sigma,gamma,vsini,y):
 
     return 1-convolve(V,R,mode='same')
 
-def f_vrg(x,A1,x0,sig1,gamma,vsini,A2,sig2,y):
-    VG = A1*np.real(wofz((x-x0+1j*gamma)/sig1/np.sqrt(2)))/sig1/np.sqrt(2*np.pi) + y\
-        +A2*np.exp(-(x-x0)**2/(2*sig2**2))
+def f_vrg(x,A,x0,sigma,gamma,vsini,A2,sigma2,y):
+    VG = A*np.real(wofz((x-x0+1j*gamma)/sigma/np.sqrt(2)))/sigma/np.sqrt(2*np.pi) + y\
+         + A2*np.exp(-(x-x0)**2/(2*sigma2**2))
 
     eps = 0.6; delta = 1000*x0*vsini/cte.c; doppl = 1-((x-x0)/delta)**2
-    R = A1*(2*(1-eps)*np.sqrt(doppl)+np.pi*eps/2.*doppl)/(np.pi*delta*(1-eps/3))
+    R = A*(2*(1-eps)*np.sqrt(doppl)+np.pi*eps/2.*doppl)/(np.pi*delta*(1-eps/3))
     R = np.nan_to_num(R)
 
     return 1-convolve(VG,R,mode='same')
