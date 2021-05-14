@@ -1,60 +1,61 @@
 '''=============================================================================
-Script to make different plots for paper PerOB1: Kinematics
+Script to make different plots for the PhD thesis
 ============================================================================='''
-import sys
-sys.path.append('../')
+import sys; sys.path.append('../')
 
 import matplotlib.path as mpath
 from matplotlib.ticker import AutoMinorLocator
-from astropy.table import join, setdiff
 from scipy.stats import gaussian_kde
 
 from spec import *
-from RV import *
 from mist import *
-
 from tools_plt import *
 
 
 '''======================== Find and load the tables ========================'''
 table = findtable('IACOB_O9BAs_SNR20.fits') # file where quality flags are
-table_REF = findtable('O9BAs_RVEWFWs.fits') # file where RVs, EWs and FWs are
-table_REF.remove_columns(['mySpC','SpC','SpT_code','LC_code'])
+table_REF = findtable('RVEWFWs_O9BAs.fits') # file where RVs, EWs and FWs are
 table_IB = findtable('IB_results_ver5.txt') # file where vsini and vmac are
 table_IB.remove_columns(['filename','line','snr'])
 results = findtable('MAUI_results.fits')
-gonzalo_raw = findtable('table_gon_vsini_paper.txt')
-gaia = findtable('zsummary_results_Gaia.txt') # file Gaia for stars from MAUI
 
-table['Name'] = [i.strip() for i in table['Name']]
-table_REF['Name'] = [i.strip() for i in table_REF['Name']]
+results_2 = findtable('MAUI_results_2.fits')
+results = setdiff(results,results_2,keys='ID')
+results = join(results,results_2,join_type='outer')
 
-table_f = join(table,table_REF,keys='Name')
-table_f = join(table_f,table_IB,keys='Name')
-table_f = join(table_f,results,keys='Name')
-table_gaia = join(table_f,gaia,keys='Name')
-gonzalo = setdiff(gonzalo_raw,table_f,keys='Name')
+gonzalo_raw = findtable('Gon_results.fits')
+
+table_f = join(table,table_REF,keys='ID')
+table_f = join(table_f,table_IB,keys='ID')
+table_f = join(table_f,results,keys='ID')
+table_f = table_f[[str(i['Teff'])!='nan' and str(i['lgf'])!='nan' for i in table_f]]
+gonzalo = setdiff(gonzalo_raw,table_f,keys='ID')
+
+#gaia = findtable('zsummary_results_Gaia.txt') # file Gaia for stars from MAUI
+#table_gaia = join(table_f,gaia,keys='ID')
 
 #table_f['FIES'].sum()+table_f['HERMES'].sum()+table_f['FEROS'].sum()
 #table['FIES'].sum()+table['HERMES'].sum()+table['FEROS'].sum()
 
 '''=============================== Grids MAUI ==============================='''
-names = ['Grids coverage','BSgs_CNOSiMg_old','BDws_CNOSIMg_old','OBSgs_hot_NOSi_new','BSgs_cool_NOSi_new']
-box_all = [[4.543,4.290,4.290,4.146,4.146,4.543,4.543],
-[2.391,2.391,3.092,3.092,4.391,4.391,2.391]]
-# nlte_10.1.6_SOLAR_expoclump_2019-10-24.idl
-box1 = [[4.190,4.477,4.477,4.190,4.190],[3.785,3.785,4.391,4.391,3.785]]
-# nlte_10.1.6_bdwarfs_SOLAR_2020-01-29.idl
-box2 = [[4.290,4.543,4.543,4.290,4.290],[2.391,2.391,3.889,3.889,2.391]]
-# nlte_10.4.7_OB.Sg_SOLAR_2021-01-23.idl
-box3 = [[4.399,4.544,4.544,4.399,4.399],[3.488,3.488,4.386,4.386,3.488]]
-# nlte_10.4.7_late.bsgs_SOLAR_expoclump_NOSi.djl_2021-02-06.idl
-box4 = [[4.146,4.322,4.322,4.146,4.146],[3.092,3.092,4.391,4.391,3.092]]
-grids = [box_all,box1,box2,box3,box4]
+grids_dic = {
+'all': ('Grids coverage','dodgerblue',
+[[4.543,4.290,4.290,4.146,4.146,4.543,4.543],[2.391,2.391,3.092,3.092,4.391,4.391,2.391]]),
+'nlte_10.1.6_SOLAR_expoclump_2019-10-24': ('BSgs_CNOSiMg_old','b',
+[[4.190,4.477,4.477,4.190,4.190],[3.785,3.785,4.391,4.391,3.785]]),
+'nlte_10.1.6_bdwarfs_SOLAR_2020-01-29': ('BDws_CNOSIMg_old','orange',
+[[4.290,4.543,4.543,4.290,4.290],[2.391,2.391,3.889,3.889,2.391]]),
+'nlte_10.4.7_OB.Sg_SOLAR_2021-01-23': ('OBSgs_hot_NOSi_new','g',
+[[4.399,4.544,4.544,4.399,4.399],[3.488,3.488,4.386,4.386,3.488]]),
+'nlte_10.4.7_late.bsgs_SOLAR_expoclump_NOSi.djl_2021-02-06': ('BSgs_cool_NOSi_new','r',
+[[4.146,4.322,4.322,4.146,4.146],[3.092,3.092,4.391,4.391,3.092]]),
+'astar2013_SOLAR_2_LMC_4_grid_2019-10-24_2019-10-24': ('ASgs_new','purple',
+[[3.900,4.114,4.114,3.900,3.900],[3.142,3.142,4.292,4.292,3.142]]),
+'nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1_2021-05-05.idl': ('BSg_CNOSiMg_prelast','DeepPink',
+[[4.148,4.477,4.477,4.148,4.148],[3.392,3.392,4.386,4.386,3.392]])
+}
 
 '''=============================== Parameters ==============================='''
-units = {'pc' : u.pc, 'kpc' : u.kpc, 'au' : u.au, 'lyr' : u.lyr, 'deg' : u.deg}
-
 #mass_list = [.8,.9,1.0,1.1,1.2,1.3,1.5,1.7,2,2.5,3,4,5,7,9,12,15,20,25,32,40,60,85,120]
 #mass_list = [.8,.9,1.,1.1,1.2,1.3,1.5,1.7,2,2.5,3,4,5,7,9,12,15,20,25,32,40,60,85]
 mass_list = [7,9,12,15,20,25,32,40,60,85]
@@ -68,7 +69,10 @@ ax1_top = ax1.twiny(); ax1_right = ax1.twinx()
 xlim = [4.78,3.90]; ylim = [2.2,4.49]
 
 # this, gon, subgroup, grids, masses, density
-show = 'density'
+show = 'masses'
+
+# Remove those stars for which the solution is degenerated 'd' in Teff or lgf:
+table_f = table_f[[i not in ['d','<','>'] and j not in ['d','<','>'] for i,j in table_f['l_Teff','l_lgf']]]
 
 # Plot the tracks first:
 for i in mass_list:
@@ -82,23 +86,30 @@ for i in mass_list:
     #ax1.scatter(log_Teff,log_LLsol,s=.3,c=mist['surface_he4'],cmap='gnuplot')
     ax1.text(log_Teff[0]+.03,log_LLsol[0]-.04,str(i),c=c[1],fontsize=9)
 
-# Plot the TAMS/ZAMS:
+# Plot the ZAMS/TAMS (N. Castro 2014):
 zams = np.arange(2.62,4.19,0.1); tams = np.arange(2.84,3.88,0.1)
 polyzams = np.poly1d([-.080,.743,2.973]); polytams = np.poly1d([-.144,.982,2.618])
 ax1.plot(polyzams(zams),zams,'--',c='white',alpha=.5)
 ax1.plot(polytams(tams),tams,'--',c='white',alpha=.5)
+
+# Plot the TAMS (MIST):
+tams = [3.00,3.28,3.47,3.68,3.82,3.96,4.06,4.35],[4.284,4.336,4.370,4.402,4.420,4.423,4.419,4.409]
+polytams = np.polyfit(tams[0],tams[1],2)
+polytams = np.poly1d(polytams)
+ax1.plot(polytams(tams[0]),tams[0],'--',lw=1.5,c='orange',zorder=2)
 
 # Plot the results from MAUI creating the sub-tables:
 log_Teff = np.asarray(4+np.log10(table_f['Teff']))
 log_LLsol = np.asarray(5.39-table_f['lgf'])
 points = np.column_stack([log_Teff,log_LLsol])
 
+# Results from Gonzalo:
+log_Teff_G = np.asarray(4+np.log10(gonzalo['Teff']))
+log_LLsol_G = np.asarray(gonzalo['logL'])
+
 if show == 'this':
     ax1.scatter(log_Teff,log_LLsol,s=6,c='b',label='This work')
-    ax1.scatter(3+np.log10(gonzalo['Teff']),gonzalo['logL'],s=6,c='purple',label='Holgado,G. thesis 2019')
-
-if show == 'gon':
-    ax1.scatter(3+np.log10(gonzalo_raw['Teff']),gonzalo_raw['logL'],s=6,c='purple',label='Holgado,G. thesis 2019')
+    ax1.scatter(4+np.log10(gonzalo['Teff']),gonzalo['logL'],s=6,c='purple',label='Holgado,G. thesis 2019')
 
 if show == 'subgroup':
     table_i = table_f[(table_f['LC_code']>0) & (table_f['LC_code']<3)]
@@ -117,21 +128,21 @@ if show == 'subgroup':
 
 if show == 'grids':
 
-    ax1.scatter(3+np.log10(gonzalo['Teff']),gonzalo['logL'],s=6,c='purple',label='Holgado,G. thesis 2019')
+    ax1.scatter(4+np.log10(gonzalo['Teff']),gonzalo['logL'],s=6,c='purple',label='Holgado,G. thesis 2019')
 
-    # Change names[1:],grids[1:] for individual grids
-    for name,grid in zip(names[:1],grids[:1]):
-        ax1.plot(grid[0],grid[1],lw=.8,ls='--')
-        verts = np.array([grid[0],grid[1]]).T
-        path = mpath.Path(verts)
-        inout = path.contains_points(points)
-        log_Teff_in,log_LLsol_in = points[inout].T
+    # Change ...grids_dic][1:] for individual grids
+    for name,color,box in [grids_dic[i] for i in grids_dic][1:]:
+        ax1.plot(box[0],box[1],lw=.8,ls='--',c=color,label=name)
 
-        ax1.scatter(log_Teff_in,log_LLsol_in,s=6,label=name)
+    for i in table_f:
+        log_Teff_i = np.asarray(4+np.log10(i['Teff']))
+        log_LLsol_i = np.asarray(5.39-i['lgf'])
+
+        ax1.scatter(log_Teff_i,log_LLsol_i,s=6,c=grids_dic[i['Model_name']][1])
 
 elif show == 'masses':
 
-    ax1.scatter(3+np.log10(gonzalo['Teff']),gonzalo['logL'],s=6,c='purple',label='Holgado,G. thesis 2019')
+    ax1.scatter(4+np.log10(gonzalo['Teff']),gonzalo['logL'],s=6,c='purple',label='Holgado,G. thesis 2019')
     ax1.scatter(log_Teff,log_LLsol,s=6,c='b',label='This work (M<15Msol)')
 
     # Create a table and plot only the stars above a 15Msol
@@ -143,8 +154,8 @@ elif show == 'masses':
     log_Teff_in,log_LLsol_in = points[inout].T
     ax1.scatter(log_Teff_in,log_LLsol_in,s=6,c='limegreen',label='This work (M>15Msol)')
     #ax1.plot(verts.T[0],verts.T[1],c='k')
-    results_in = table_f[path.contains_points(points)]['Name']
-    table_15 = table_f[[i['Name'].strip() in results_in for i in table_f]]
+    results_in = table_f[path.contains_points(points)]['ID']
+    table_15 = table_f[[i['ID'] in results_in for i in table_f]]
 
     # Create a table with only the stars above a centain mass
     mist = trackmist(mass=32,vr=0.0)
@@ -155,8 +166,8 @@ elif show == 'masses':
     log_Teff_in,log_LLsol_in = points[inout].T
     ax1.scatter(log_Teff_in,log_LLsol_in,s=6,c='orange',label='This work (M>30Msol)')
     #ax1.plot(verts.T[0],verts.T[1],c='k')
-    results_in = table_f[path.contains_points(points)]['Name']
-    table_30 = table_f[[i['Name'].strip() in results_in for i in table_f]]
+    results_in = table_f[path.contains_points(points)]['ID']
+    table_30 = table_f[[i['ID'] in results_in for i in table_f]]
 
 elif show == 'density':
 
@@ -164,15 +175,15 @@ elif show == 'density':
     ax1.plot([4.29,4.29,4.146,4.146],[2.391,3.092,3.092,4.391],c='white',lw=.5)
 
     # Plot Gonzalo's sample
-    ax1.scatter(3+np.log10(gonzalo['Teff']),gonzalo['logL'],s=6,
+    ax1.scatter(4+np.log10(gonzalo['Teff']),gonzalo['logL'],s=6,
                 c='white',label='Holgado,G. thesis 2019')
 
     # Plot all stars from MAUI
     ax1.scatter(log_Teff,log_LLsol,s=6,c='white',label='This work')
 
     nbins = 50
-    x = np.concatenate((log_Teff,np.asarray(3+np.log10(gonzalo['Teff']))))
-    y = np.concatenate((log_LLsol,gonzalo['logL']))
+    x = np.concatenate((log_Teff,log_Teff_G))
+    y = np.concatenate((log_LLsol,log_LLsol_G))
     xy = np.vstack([x,y]); k = gaussian_kde(xy)
     xi, yi = np.mgrid[xlim[0]:xlim[1]:nbins*1j,ylim[0]:ylim[1]:nbins*1j]
     zi = k(np.vstack([xi.flatten(), yi.flatten()]))
@@ -195,7 +206,7 @@ ax1.invert_xaxis()
 ax1.set_xlabel(r"log(T$_{eff})\,$[K]",size=13)
 ax1.set_ylabel(r"log($\mathcal{L}$/$\mathcal{L}_{\odot}$)",size=13)
 ax1.set_xlim(xlim); ax1.set_ylim(ylim)
-ax1.legend(ncol=1,loc=3,fontsize=9,borderaxespad=1.5)
+ax1.legend(ncol=1,loc=4,fontsize=9,borderaxespad=1.5)
 
 ax1_top.tick_params(direction='in',top='off',color=c)
 ax1_top.set_xlim(ax1.get_xlim())
@@ -217,10 +228,10 @@ plt.show(block=False)
 '''================================= Fig. 2 ================================='''
 fig_2, ax2 = plt.subplots(figsize=(7,6),tight_layout=True) # 7,6 9,3
 
-ax2.scatter(3+np.log10(gonzalo['Teff']),gonzalo['vsini(GOF)'],s=25,ec='k',fc='none',marker='+')
+ax2.scatter(4+np.log10(gonzalo['Teff']),gonzalo['vsini(GOF)'],s=25,ec='k',fc='none',marker='+')
 
-table_i = table_f
-all_Teff = (4+np.log10(table_i['Teff'])).tolist()+(3+np.log10(gonzalo['Teff'])).tolist()
+table_i = table_15
+all_Teff = (4+np.log10(table_i['Teff'])).tolist()+(4+np.log10(gonzalo['Teff'])).tolist()
 all_vsin = table_i['vsini'].tolist()+gonzalo['vsini(GOF)'].tolist()
 
 color = (5.39-table_i['lgf']).tolist()+gonzalo['logL'].tolist()
@@ -231,8 +242,8 @@ cax = fig_2.add_axes([0.86,0.33,0.02,0.55])
 fig_2.colorbar(im,cax=cax,label=r"log($\mathcal{L}$/$\mathcal{L}_{\odot}$)",aspect=50)
 
 # Enable next 4 for only the colors without bar
-#table_15d = setdiff(table_15,table_30,keys='Name')
-#ax2.scatter(3+np.log10(gonzalo['Teff']),gonzalo['vsini(GOF)'],c='purple',lw=.2,ec='k',s=25,label='Holgado,G. thesis 2019')
+#table_15d = setdiff(table_15,table_30,keys='ID')
+#ax2.scatter(4+np.log10(gonzalo['Teff']),gonzalo['vsini(GOF)'],c='purple',lw=.2,ec='k',s=25,label='Holgado,G. thesis 2019')
 #ax2.scatter(4+np.log10(table_15d['Teff']),table_15d['vsini'],c='limegreen',lw=.2,ec='k',s=25,label='M > 15Msol')
 #ax2.scatter(4+np.log10(table_30['Teff']),table_30['vsini'],c='orange',lw=.2,ec='k',s=25,label='M > 30Msol')
 #ax2.legend(ncol=1,loc=1,fontsize=9,borderaxespad=1.5)
@@ -241,7 +252,7 @@ ax2.tick_params(direction='in',top='on',right='on',which='both')
 ax2.xaxis.set_minor_locator(AutoMinorLocator())
 ax2.yaxis.set_minor_locator(AutoMinorLocator())
 ax2.invert_xaxis()
-ax2.set_xlim(4.72,4.14)
+ax2.set_xlim(4.72,3.90)
 ax2.set_xlabel(r"log(T$_{eff})\,$[K]",size=13)
 ax2.set_ylabel(r"vsin($i$) [km/s]",size=13)
 ax2.set_ylim([-20,480])
@@ -302,10 +313,10 @@ table_i = table_f
 for i in mass_list:
     mist = trackmist(mass=i,vr=0.0)
     mist = mist[mist['phase']<=4]
-    log_Teff = mist['log_Teff'][(mist['log_Teff']>4.15) & (mist['log_Teff']<4.55)]
-    log_LLsol = (4*mist['log_Teff']-mist['log_g']-10.61)[(mist['log_Teff']>4.15) & (mist['log_Teff']<4.55)]
+    log_Teff = mist['log_Teff'][(mist['log_Teff']>3.9) & (mist['log_Teff']<4.55)]
+    log_LLsol = (4*mist['log_Teff']-mist['log_g']-10.61)[(mist['log_Teff']>3.9) & (mist['log_Teff']<4.55)]
     ax4.scatter(log_Teff,log_LLsol,s=.3,c='gray')
-    ax4.text(log_Teff[0]+.01,log_LLsol[0]-.04,str(i),fontsize=7,clip_on=True)
+    ax4.text(log_Teff[0]+.02,log_LLsol[0]-.05,str(i),fontsize=9,clip_on=True)
 
 log_Teff = np.asarray(4+np.log10(table_i['Teff']))
 log_LLsol = np.asarray(5.39-table_i['lgf'])
@@ -335,10 +346,10 @@ table_i = table_f
 for i in mass_list:
     mist = trackmist(mass=i,vr=0.0)
     mist = mist[mist['phase']<=4]
-    log_Teff = mist['log_Teff'][(mist['log_Teff']>4.15) & (mist['log_Teff']<4.55)]
-    log_LLsol = (4*mist['log_Teff']-mist['log_g']-10.61)[(mist['log_Teff']>4.15) & (mist['log_Teff']<4.55)]
+    log_Teff = mist['log_Teff'][(mist['log_Teff']>3.9) & (mist['log_Teff']<4.55)]
+    log_LLsol = (4*mist['log_Teff']-mist['log_g']-10.61)[(mist['log_Teff']>3.9) & (mist['log_Teff']<4.55)]
     ax4.scatter(log_Teff,log_LLsol,s=.3,c='gray')
-    ax4.text(log_Teff[0]+.01,log_LLsol[0]-.04,str(i),fontsize=7,clip_on=True)
+    ax4.text(log_Teff[0]+.02,log_LLsol[0]-.05,str(i),fontsize=9,clip_on=True)
 
 log_Teff = np.asarray(4+np.log10(table_i['Teff']))
 log_LLsol = np.asarray(5.39-table_i['lgf'])
@@ -368,10 +379,10 @@ table_i = table_f
 for i in mass_list:
     mist = trackmist(mass=i,vr=0.0)
     mist = mist[mist['phase']<=4]
-    log_Teff = mist['log_Teff'][(mist['log_Teff']>4.15) & (mist['log_Teff']<4.55)]
-    log_LLsol = (4*mist['log_Teff']-mist['log_g']-10.61)[(mist['log_Teff']>4.15) & (mist['log_Teff']<4.55)]
+    log_Teff = mist['log_Teff'][(mist['log_Teff']>3.9) & (mist['log_Teff']<4.55)]
+    log_LLsol = (4*mist['log_Teff']-mist['log_g']-10.61)[(mist['log_Teff']>3.9) & (mist['log_Teff']<4.55)]
     ax4.scatter(log_Teff,log_LLsol,s=.3,c='gray')
-    ax4.text(log_Teff[0]+.01,log_LLsol[0]-.04,str(i),fontsize=7,clip_on=True)
+    ax4.text(log_Teff[0]+.02,log_LLsol[0]-.05,str(i),fontsize=9,clip_on=True)
 
 log_Teff = np.asarray(4+np.log10(table_i['Teff']))
 log_LLsol = np.asarray(5.39-table_i['lgf'])
@@ -396,30 +407,32 @@ fig_4, ax4 = plt.subplots(figsize=(6,6),tight_layout=True)
 
 table_i = table_f
 
+abund = 'Si'
+
 # Plot the tracks first:
 for i in mass_list:
     mist = trackmist(mass=i,vr=0.0)
     mist = mist[mist['phase']<=4]
-    log_Teff = mist['log_Teff'][(mist['log_Teff']>4.15) & (mist['log_Teff']<4.55)]
-    log_LLsol = (4*mist['log_Teff']-mist['log_g']-10.61)[(mist['log_Teff']>4.15) & (mist['log_Teff']<4.55)]
+    log_Teff = mist['log_Teff'][(mist['log_Teff']>3.9) & (mist['log_Teff']<4.55)]
+    log_LLsol = (4*mist['log_Teff']-mist['log_g']-10.61)[(mist['log_Teff']>3.9) & (mist['log_Teff']<4.55)]
     ax4.scatter(log_Teff,log_LLsol,s=.3,c='gray')
-    ax4.text(log_Teff[0]+.01,log_LLsol[0]-.04,str(i),fontsize=7,clip_on=True)
+    ax4.text(log_Teff[0]+.02,log_LLsol[0]-.05,str(i),fontsize=9,clip_on=True)
 
 log_Teff = np.asarray(4+np.log10(table_i['Teff']))
 log_LLsol = np.asarray(5.39-table_i['lgf'])
 
-color = table_i['He']
+color = table_i[abund]
 im = ax4.scatter(log_Teff,log_LLsol,c=color,s=100,cmap='gnuplot',alpha=0.7)
 cax = fig_4.add_axes([0.8,0.12,0.03,0.4])
 
-fig_4.colorbar(im,cax=cax,label='He')
+fig_4.colorbar(im,cax=cax,label=abund)
 
 ax4.tick_params(direction='in',top='on')
 ax4.invert_xaxis()
 ax4.set_xlabel(r"log(T$_{eff})\,$[K]",size=13)
 ax4.set_ylabel(r"log($\mathcal{L}$/$\mathcal{L}_{\odot}$)",size=13)
 ax4.set_ylim(top=4.49)
-ax4.figure.savefig(maindir+'tmp_plots/Bs_Fig4d.png',format='png',dpi=300)
+ax4.figure.savefig(maindir+'tmp_plots/Bs_Fig4d.png',format='png',dpi=300,fc='white',edgecolor='w')
 
 
 '''============================== Micro & Macro ============================='''
@@ -447,9 +460,9 @@ ax5.figure.savefig(maindir+'tmp_plots/Bs_Fig5.png',format='png',dpi=300)
 '''================================= Fig. 6 ================================='''
 fig_6, ax6 = plt.subplots(figsize=(9,3),tight_layout=True)
 
-table_i = setdiff(table_f,table_15,keys='Name')
+table_i = setdiff(table_f,table_15,keys='ID')
 
-N,bins,groups = ax6.hist([3+np.log10(gonzalo['Teff']),4+np.log10(table_15['Teff']),
+N,bins,groups = ax6.hist([4+np.log10(gonzalo['Teff']),4+np.log10(table_15['Teff']),
 4+np.log10(table_i['Teff'])],
 ec = 'k',lw=.2,stacked=True,bins=np.arange(4.16,4.70,0.02),
 label=['Holgado,G. thesis 2019','M > 15Msol','M < 15Msol'])
@@ -470,7 +483,7 @@ ax6.figure.savefig(maindir+'tmp_plots/Bs_Fig6.png',format='png',dpi=300)
 '''================================= Fig. 7 ================================='''
 fig_7, ax7 = plt.subplots(figsize=(7,6),tight_layout=True)
 
-table_i = join(table_f,gonzalo_raw,keys='Name')
+table_i = join(table_f,gonzalo_raw,keys='ID')
 
 ax7.scatter(table_i['Teff_1']*1e4,table_i['Teff_2']*1e3,c='b')
 
@@ -490,7 +503,7 @@ ax7.figure.savefig(maindir+'tmp_plots/Bs_Fig7.png',format='png',dpi=300)
 '''================================= Fig. 8 ================================='''
 fig_8, ax8 = plt.subplots(figsize=(7,6),tight_layout=True)
 
-table_i = join(table_f,gonzalo_raw,keys='Name')
+table_i = join(table_f,gonzalo_raw,keys='ID')
 
 #ax8.scatter(table_i['lgf'],table_i['logg'],c='b')
 ax8.scatter(table_i['lgf'],16+table_i['logg']-4*np.log10(table_i['Teff_2']*1e3),c='b')
@@ -501,8 +514,8 @@ ax8.scatter(table_i['lgf'],16+table_i['logg']-4*np.log10(table_i['Teff_2']*1e3),
 
 ax8.tick_params(direction='in',top='on')
 ax8.set_xlim(1.01,2.3);ax8.set_ylim(1.01,2.3)
-ax8.set_xlabel(r"$log(g)\,[m/s^{2}]$ (this work)",size=13)
-ax8.set_ylabel(r"$log(g)\,[m/s^{2}]$ (Holgado,G. thesis 2019)",size=13)
+ax8.set_xlabel(r"$log(gF)$ (this work)",size=13)
+ax8.set_ylabel(r"$log(gF)$ (Holgado,G. thesis 2019)",size=13)
 ax8.figure.savefig(maindir+'tmp_plots/Bs_Fig8.png',format='png',dpi=300)
 
 
@@ -589,7 +602,6 @@ for g in np.arange(4.3,1,-0.3):
     g_y = 4*g_x-g-10.61
     ax.plot(g_x,g_y,'--',c='white',alpha=.5,lw=.3)
 
-
 # Right limit of MAUI grid
 ax.plot([4.29,4.29,4.146,4.146],[2.391,3.092,3.092,4.391],c='white',lw=.5)
 
@@ -597,8 +609,8 @@ log_Teff = np.asarray(4+np.log10(table_f['Teff']))
 log_LLsol = np.asarray(5.39-table_f['lgf'])
 
 nbins = 50
-x = np.concatenate((log_Teff,np.asarray(3+np.log10(gonzalo['Teff']))))
-y = np.concatenate((log_LLsol,gonzalo['logL']))
+x = log_Teff
+y = log_LLsol
 xy = np.vstack([x,y]); k = gaussian_kde(xy)
 xi, yi = np.mgrid[xlim[0]:xlim[1]:nbins*1j,ylim[0]:ylim[1]:nbins*1j]
 zi = k(np.vstack([xi.flatten(), yi.flatten()]))
@@ -616,22 +628,27 @@ ax.set_ylabel(r"log($\mathcal{L}$/$\mathcal{L}_{\odot}$)",size=13)
 ax.set_xlim(xlim); ax.set_ylim(ylim)
 ax.legend(ncol=1,loc=3,fontsize=9,borderaxespad=1.5)
 
-#af =  AnnoteFinder(x,y,table_f['Name'].tolist()+gonzalo['Name'].tolist(),ax=ax,xtol=.05,ytol=.05)
-#fig.canvas.mpl_connect('button_press_event', af)
-#plt.show(block=False)
-
-table_i = join(table_f,gonzalo,keys='Name',join_type='outer')
-
-selector = SelectFromCollection(ax, pts)
-def accept(event):
-    if event.key == "enter":
-        selector.disconnect()
-        fig.canvas.draw()
-        accept.table_selction = table_i[selector.mask]
-
-fig.canvas.mpl_connect("key_press_event", accept)
-
+x = np.concatenate((log_Teff,np.asarray(4+np.log10(gonzalo['Teff']))))
+y = np.concatenate((log_LLsol,gonzalo['logL']))
+af =  AnnoteFinder(x,y,table_f['ID'].tolist()+gonzalo['ID'].tolist(),ax=ax,xtol=.05,ytol=.05)
+fig.canvas.mpl_connect('button_press_event', af)
 plt.show(block=False)
+
+table_f[0]
+gonzalo[0]
+table_i = join(table_f,gonzalo,keys='ID',join_type='outer')
+
+#selector = SelectFromCollection(ax, pts)
+#def accept(event):
+#    if event.key == "enter":
+#        selector.disconnect()
+#        fig.canvas.draw()
+#        accept.table_selction = table_f[selector.mask]
+#        print(table_f[selector.mask]['ID'])
+#
+#fig.canvas.mpl_connect("key_press_event", accept)
+#
+#plt.show(block=False)
 
 hdu = fits.BinTableHDU(data=accept.table_selction.filled(0))
 hdu.writeto(maindir+'tables/table_selection.fits',overwrite=True)

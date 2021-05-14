@@ -1,9 +1,7 @@
-import sys
-sys.path.append('../')
+import sys; sys.path.append('../')
 
 from spec import *
 
-import matplotlib; matplotlib.use('QT5Agg')
 
 lwl = 4510; rwl = 4600
 
@@ -34,7 +32,7 @@ else: ncols = 3
 
 for star,nplot in zip(stars,range(len(stars))):
 
-    star = spec(star,best='y'); star.spc()
+    star = spec(star,SNR='best'); star.spc()
 
     star.cosmic()
     star.degrade(resol=50)
