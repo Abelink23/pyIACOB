@@ -12,7 +12,7 @@ from astropy.coordinates import EarthLocation
 #===============================================================================
 # Generate table with Gaia eDR3 data plus corrected parallax zero point offset.
 #===============================================================================
-def zp_edr3(table, ra, dec, search_radius=0.5):
+def table_zp_edr3(table, ra, dec, search_radius=0.5):
     '''
     Function to query input list of RA/DEC coordinates in Gaia eDR3 and for the
     output sources adds a column with the corrected parallax zero point offset.
@@ -35,8 +35,10 @@ def zp_edr3(table, ra, dec, search_radius=0.5):
     corrected parallax offset.
     '''
 
-    import sys; sys.path.append(os.path.expanduser('~')+'/MEGA/PhD/programs/python/edr3_zp')
-    import zpt; zpt.load_tables()
+    import sys
+    sys.path.append(os.path.expanduser('~')+'/MEGA/PhD/programs/python/edr3_zp')
+    import zpt
+    zpt.load_tables()
     from astroquery.gaia import Gaia
 
     sr = round(search_radius/60/60,7)
@@ -54,6 +56,10 @@ def zp_edr3(table, ra, dec, search_radius=0.5):
         if first == True: table = job; first = False
         else: table.add_row(job[0])
 
+    if first == True:
+        print('No objects were found for the input coordinates.')
+        return None
+
     table = table[table['astrometric_params_solved']>3]
     zpvals = zpt.get_zpt(table['phot_g_mean_mag'],table['nu_eff_used_in_astrometry'],\
            table['pseudocolour'],table['ecl_lat'],table['astrometric_params_solved'])
@@ -61,8 +67,7 @@ def zp_edr3(table, ra, dec, search_radius=0.5):
 
     table.remove_column('designation')
 
-    hdu = fits.BinTableHDU(data=table)
-    hdu.writeto(maindir+'tables/zp_offset_eDR3.fits',overwrite=True)
+    table.write(maindir+'tables/zp_offset_eDR3.fits',format='fits',overwrite=True)
 
     return table
 

@@ -706,8 +706,10 @@ class spec():
         mask = (self.wave > lwl) & (self.wave < rwl)
 
         if poslines in ['all','OB']:
-            if poslines == 'all': synlines,elements,gfs = findlines('synt_lines.lst')
-            elif poslines == 'OB': synlines,elements,gfs = findlines('synt_lines_OB.lst')
+            if poslines == 'all': table = findtable('ALL_all.txt',delimiter=',')
+            elif poslines == 'OB': table = findtable('ALL_OBs_n4+.txt',delimiter=',')
+
+            synlines = table['wl_air']; elements = table['spc']; gfs = table['-lg(gf)']
 
             # Aqui falta definir mejor los constrains para plotear lineas loggf por ejemplo
             for synline,element,gf in zip(synlines,elements,gfs):

@@ -12,8 +12,10 @@ grids_dic = {
 [[4.399,4.544,4.544,4.399,4.399],[3.488,3.488,4.386,4.386,3.488]]),
 'nlte_10.4.7_late.bsgs_SOLAR_expoclump_NOSi.djl_2021-02-06': ('BSgs_cool_NOSi_new','r',4,
 [[4.146,4.322,4.322,4.146,4.146],[3.092,3.092,4.391,4.391,3.092]]),
-'astar2013_SOLAR_2_LMC_4_grid_2019-10-24_2019-10-24' : ('ASgs_new','purple',5,
-[[3.900,4.114,4.114,3.900,3.900],[3.142,3.142,4.292,4.292,3.142]])
+'astar2013_SOLAR_2_LMC_4_grid_2019-10-24_2019-10-24': ('ASgs_new','purple',5,
+[[3.900,4.114,4.114,3.900,3.900],[3.142,3.142,4.292,4.292,3.142]]),
+'nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1_2021-05-05.idl': ('BSg_CNOSiMg_prelast','DeepPink',6,
+[[4.148,4.477,4.477,4.148,4.148],[3.392,3.392,4.386,4.386,3.392]])
 }
 
 def mauipath(path=None):
@@ -84,7 +86,8 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_input',RV0tol=20
     Returns: Nothing but the MAUI input file is generated.
     '''
 
-    table = findtable(table) # file where star names and quality flags are
+    if type(table) is type(Table()): pass # In case the input table is already a table
+    else: table = findtable(table) # file where star names and quality flags are
     table_REF = findtable('RVEWFWs_O9BAs.fits') # file where RVs, EWs and FWs are
     table_IB = findtable('IB_results_ver5.txt') # file where vsini and vmac are
     results = findtable('MAUI_results.fits') # file with output from MAUI
@@ -243,9 +246,12 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_input',RV0tol=20
     return 'DONE'
 
 
-def gen_stars_in_grids(table='IACOB_O9BAs_SNR20.fits'):
+def gen_stars_in_grids(table='IACOB_O9BAs_SNR20.fits',table_results='MAUI_results.fits'):
 
     import matplotlib.path as mpath
+
+    table = findtable(table)
+    results = findtable(table_results)
 
     log_Teff = np.asarray(4+np.log10(results['Teff']))
     log_LLsol = np.asarray(5.39-results['lgf'])
@@ -261,6 +267,13 @@ def gen_stars_in_grids(table='IACOB_O9BAs_SNR20.fits'):
 
         results_in = results[path.contains_points(points)]['ID']
         table_red = table[[i['ID'] in results_in for i in table]]
+
+        # QUITAR, ES SOLO PARA SERGIO DE CARA A ORDENAR POR FWHM Hb
+        RVEW = findtable('RVEWFWs_O9BAs.fits')
+        table_red=join(table_red,RVEW,keys='ID')
+        table_red['3414'] = table_red['FW34Hb']-table_red['FW14Hb']
+        table_red.sort('3414')
+        table_red.reverse()
 
         maui_input(table=table_red,output_name=name,ascii_0=False)
 
@@ -526,8 +539,6 @@ def gen_gridlim(tables_dir='local'):
     for file in os.listdir(models_dir):
         if not file.startswith('._') and file.endswith('.idl'):
             idldata = readsav(models_dir+file)
-
-            idldata
 
             data_row = []; data_row.extend([file.split('.idl')[0]])
             parameters = [i.decode() for i in idldata.param_labl]

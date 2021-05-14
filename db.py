@@ -268,7 +268,7 @@ def findlist(list):
     return items
 
 
-def findtable(table,path=None,delimiter=' ',strip_end=True):
+def findtable(table,path=None,delimiter=' ',fits_strip_end=True):
     '''
     Function to get the data from a FITS-format table.
 
@@ -283,8 +283,8 @@ def findtable(table,path=None,delimiter=' ',strip_end=True):
     delimiter :
     The string used to separate values. Default is whitespace.
 
-    strip_end : boolean, optional
-        If 'True' it strips all strings within the data.
+    fits_strip_end : boolean, optional
+        If 'True' it strips all strings within the data of a fits table.
 
     Returns: Data in table, in table format.
     '''
@@ -300,8 +300,10 @@ def findtable(table,path=None,delimiter=' ',strip_end=True):
         #except: data = Table.read(table_dir,format='fits')
 
         data = Table.read(table_dir,format='fits')
-        tostrip = [data.colnames[i] for i in range(len(data.dtype)) if data.dtype[i].char == 'S']
-        for col in tostrip: data[col] = [i.strip() for i in data[col]]
+        if fits_strip_end == True:
+            tostrip = [data.colnames[i] for i in range(len(data.dtype)) if data.dtype[i].char == 'S']
+            for col in tostrip:
+                 data[col] = [i.strip() for i in data[col]]
 
     elif '.csv' in table:
         data = Table.read(table_dir,format='csv')
@@ -452,7 +454,7 @@ def snr(spectra,snrcut=None,get_MF=None):
 
 
 def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None,
-    spccode=False, bmag=None, vmag=None, gaia=False, skip=None):
+    spccode=False, bmag=None, vmag=None, gaia=False, radius=1, skip=None):
     '''
     Function to generate a FITS table with information about sources coming from
     IACOB/FEROS database, a list of names or coordinates, allowing to limitate
@@ -498,8 +500,11 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
         Enter a desired vmag to cut the results e.g. '>8.5'.
 
     gaia : str, optional
-        If True, it will create separate columns with Gaia data.
+        If 'DR2'/'DR3', it will create separate columns with Gaia DR2/3 data.
         Default is False.
+
+    radius : int,float
+        Enter the search radius in arcsec for the Gaia query. Default is 1.
 
     skip : str, optional
         Enter a coma separated list of targets to exclude in the table.
@@ -533,15 +538,17 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
 
     #===========================================================================
     #=============================== Query Gaia ================================
-    gaia_columns = ['BPmag','e_BPmag','+Gmag','e_Gmag','RPmag','e_RPmag',\
-               'pmRA','e_pmRA','pmDE','e_pmDE','Plx','e_Plx']
+    if gaia == 'DR2':
+        gaia_columns = ['BPmag','e_BPmag','+Gmag','e_Gmag','RPmag','e_RPmag',\
+                   'pmRA','e_pmRA','pmDE','e_pmDE','Plx','e_Plx']
 
-    if gaia == True:
         gaia_columns.extend(['astrometric_n_good_obs_al','astrometric_chi2_al'])
         table_u0 = findtable('table_u0_g_col.txt',delimiter=',')
         offset = input('Apply +0.03 mas offset to parallax? [y/n]: ')
 
-    v = Vizier(columns=gaia_columns); v.ROW_LIMIT = 1
+        v = Vizier(columns=gaia_columns); v.ROW_LIMIT = 1
+    elif gaia == 'DR3':
+        v = Vizier(); v.ROW_LIMIT = 1
 
     #===========================================================================
     #============================== Progress Bar ===============================
@@ -602,10 +609,10 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
             else: c = SkyCoord(source,unit=u.deg)
 
             try: # The actual query
-                simbad = Simbad.query_region(c,radius=2*u.arcsec)
+                simbad = Simbad.query_region(c,radius=radius*u.arcsec)
             except: # Retry after 2 seconds
                 time.sleep(2)
-                simbad = Simbad.query_region(c,radius=2*u.arcsec)
+                simbad = Simbad.query_region(c,radius=radius*u.arcsec)
 
             try: # For more than one result, takes the first one
                 if len(simbad) > 1: simbad = Table(simbad[0])
@@ -624,8 +631,8 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
         else:
             RADEC_0 = SkyCoord(ra=simbad['RA'],dec=simbad['DEC'],unit=(u.hourangle,u.deg))[0]
 
-        row['RA_J2000']  = RADEC_0.ra.to_string(unit=u.hourangle,sep=':')
-        row['DEC_J2000'] = RADEC_0.dec.to_string(unit=u.deg,sep=':')
+        row['RA_J2000']  = RADEC_0.ra.to_string(unit=u.hourangle,sep=':',pad=True,alwayssign=True)
+        row['DEC_J2000'] = RADEC_0.dec.to_string(unit=u.deg,sep=':',pad=True,alwayssign=True)
         row['RAdeg_J2000']  = RADEC_0.ra.deg; row['RAdeg_J2000'].unit = u.deg
         row['DECdeg_J2000'] = RADEC_0.dec.deg; row['DECdeg_J2000'].unit = u.deg
 
@@ -737,54 +744,62 @@ def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None
             except: row['Comments'] = '-'
 
         #=======================================================================
-        #========================= Get Gaia DR2 data ===========================
-        if gaia == True:
-            gFlag = True; catalog = "I/345/gaia2"
+        #======================== Get Gaia DR2/3 data ==========================
+        if gaia in ['DR2','DR3']:
+            gFlag = True
+            if gaia == 'DR2': catalog = "I/345/gaia2"
+            elif gaia == 'DR3': catalog = "I/350/gaiaedr3"
 
             if vmag_0 != '' and float(vmag_0) < 5:
-                print('\nWARNING: '+str(source)+' is too bright (Vmag = %r)' %vmag_0)
+                print('\nWARNING: %s is too bright (Vmag = %r)' % (source,vmag_0))
 
             try:
-                gaiaq = v.query_object(source,catalog=catalog,radius=2*u.arcsec)[0]
+                gaiaq = v.query_object(source,catalog=catalog,radius=radius*u.arcsec)[0]
 
-                # Correct Gaia photometry:
-                if str(gaiaq['Gmag'][0]) != '--' or str(gaiaq['e_Gmag'][0]) != '--':
-                    if gaiaq['e_Gmag'] < 8e-3:  gaiaq['e_Gmag'] = 8e-3
-                    if (6 <= gaiaq['Gmag'] <= 16):
-                        gaiaq['Gmag'] = gaiaq['Gmag'] - 0.0032*(gaiaq['Gmag']-6)
-                    if gaiaq['Gmag'] < 6:
-                        gaiaq['Gmag'] = gaiaq['Gmag'] + 0.0271*(6-gaiaq['Gmag'])
-                    gaiaq['Gmag'].unit = u.mag
-                else: gFlag = False; print(str(source),'has missing Gaia G photometry.')
+                if gaia == 'DR2':
+                    # Correct Gaia photometry:
+                    if str(gaiaq['Gmag'][0]) != '--' or str(gaiaq['e_Gmag'][0]) != '--':
+                        if gaiaq['e_Gmag'] < 8e-3:  gaiaq['e_Gmag'] = 8e-3
+                        if (6 <= gaiaq['Gmag'] <= 16):
+                            gaiaq['Gmag'] = gaiaq['Gmag'] - 0.0032*(gaiaq['Gmag']-6)
+                        if gaiaq['Gmag'] < 6:
+                            gaiaq['Gmag'] = gaiaq['Gmag'] + 0.0271*(6-gaiaq['Gmag'])
+                        gaiaq['Gmag'].unit = u.mag
+                    else: gFlag = False; print(str(source),'has missing Gaia G photometry.')
 
-                if str(gaiaq['e_BPmag'][0]) != '--':
-                    if gaiaq['e_BPmag'] < 9e-3:  gaiaq['e_BPmag'] = 9e-3
-                else: gFlag = False; print(str(source),'has missing Gaia B photometry.')
-                if str(gaiaq['e_RPmag'][0]) != '--':
-                    if gaiaq['e_RPmag'] < 10e-3: gaiaq['e_RPmag'] = 10e-3
-                else: gFlag = False; print(str(source),'has missing Gaia R photometry.')
+                    if str(gaiaq['e_BPmag'][0]) != '--':
+                        if gaiaq['e_BPmag'] < 9e-3:  gaiaq['e_BPmag'] = 9e-3
+                    else: gFlag = False; print(str(source),'has missing Gaia B photometry.')
+                    if str(gaiaq['e_RPmag'][0]) != '--':
+                        if gaiaq['e_RPmag'] < 10e-3: gaiaq['e_RPmag'] = 10e-3
+                    else: gFlag = False; print(str(source),'has missing Gaia R photometry.')
 
-                # Correct Gaia astrometry:
-                try:
-                    if offset == 'y': gaiaq['Plx'] = round(gaiaq['Plx']+0.03,6)
-                except: print(str(source),'has missing Gaia parallax.')
+                    # Correct Gaia astrometry:
+                    try:
+                        if offset == 'y': gaiaq['Plx'] = round(gaiaq['Plx']+0.03,6)
+                    except: print(str(source),'has missing Gaia parallax.')
 
-            except:
-                gaiaq = []; print('\n%s could not be queried in Gaia.' % source)
+                    # Add RUWE column
+                    if gFlag == True:
+                        UWE = np.sqrt(float(gaiaq['chi2AL'])/(float(gaiaq['NgAL']) - 5))
 
-            if not gaiaq == []:
-                if gFlag == True:
-                    UWE = np.sqrt(float(gaiaq['chi2AL'])/(float(gaiaq['NgAL']) - 5))
+                        diff = abs(gaiaq['Gmag'][0] - table_u0['g_mag']) + \
+                               abs(gaiaq['BPmag'][0] - gaiaq['RPmag'][0] - table_u0['bp_rp'])
+                        diff = diff.tolist()
 
-                    diff = abs(gaiaq['Gmag'][0] - table_u0['g_mag']) + \
-                           abs(gaiaq['BPmag'][0] - gaiaq['RPmag'][0] - table_u0['bp_rp'])
-                    diff = diff.tolist()
+                        gaiaq['RUWE'] = round(UWE/table_u0['u0'][diff.index(min(diff))],4)
 
-                    gaiaq['RUWE'] = round(UWE/table_u0['u0'][diff.index(min(diff))],4)
+                        gaiaq.remove_columns(['NgAL','chi2AL'])
 
-                gaiaq.remove_columns(['NgAL','chi2AL'])
+                elif gaia == 'DR3':
+
+                    gaiaq = gaiaq[[i for i in gaiaq.columns if not\
+                    any([j in i for j in ['dr2','scan_','_corr','_obs_','ipd_','transits']])]]
 
                 row = hstack([row,gaiaq])
+
+            except:
+                print('\n%s could not be queried in Gaia.' % source)
 
         try: table = vstack([table,row])
         except: table = row
@@ -914,20 +929,27 @@ def zp_edr3(ra,dec,radius=1):
 
     '''
 
+    import sys
+    sys.path.append(os.path.expanduser('~')+'/MEGA/PhD/programs/python/edr3_zp')
+    import zpt; zpt.load_tables()
     from astroquery.gaia import Gaia
 
     radius = radius/60/60
 
     first = True
-    for ra,dec in zip(ra,dec):
+    for ra_i,dec_i in zip(ra,dec):
         job = Gaia.launch_job("select TOP 1 * FROM gaiaedr3.gaia_source "
                     "WHERE 1=CONTAINS(POINT('ICRS',ra,dec), "
-                    "CIRCLE('ICRS',%f,%f,%f))" % (ra,dec,radius)).get_results()
+                    "CIRCLE('ICRS',%f,%f,%f))" % (ra_i,dec_i,radius)).get_results()
         if len(job) == 0: continue
         elif len(job) > 1: job.sort('phot_g_mean_mag')
 
         if first == True: table = job; first = False
         else: table.add_row(job[0])
+
+    if first == True:
+        print('No objects were found for the input coordinates.')
+        return None
 
     table = table[table['astrometric_params_solved']>3]
     zpvals = zpt.get_zpt(table['phot_g_mean_mag'],table['nu_eff_used_in_astrometry'],\

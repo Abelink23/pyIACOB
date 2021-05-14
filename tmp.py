@@ -2,6 +2,17 @@ from spec import *
 from RV import *
 from tools import *
 
+x=findtable('ALL_OBs_n4+.txt',delimiter=',')
+
+x['ion'] = [i.split(' ')[1] for i in x['spc']]
+y = x[(x['elem'] == 'Si') & (x['ion'] =='III') & (x['configuration'] == '3s.4p-3s.4d') ]
+z = setdiff(x,y,keys='wl_air')
+y.sort('term')
+terms = list(set(y['term']))
+configs =list(set(y['configuration']))
+
+he = x[['He' in i for i in x['spc']]].sort('wl_air')
+he[(he['wl_air'] > 4500) & (he['wl_air'] < 5000) & (he['-lg(gf)'] > -2)]
 
 #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 #table_selection = findtable('table_selection.fits')
