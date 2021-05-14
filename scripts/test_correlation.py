@@ -15,10 +15,10 @@ spec1.waveflux(lwl=3900,rwl=5080)
 
 synthetic = []
 for file in os.listdir(datadir+'ASCII/Synthetic_MAUI/'):
-    if spec1.name_star in file: synthetic.append(file)
+    if spec1.id_star in file: synthetic.append(file)
 
 if len(synthetic) == 0:
-    print('No files found for %s.\n' % (spec1.name_star))
+    print('No files found for %s.\n' % (spec1.id_star))
 elif len(synthetic) == 1:
     synthetic = synthetic[0]
 else:

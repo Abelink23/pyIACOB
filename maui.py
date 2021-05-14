@@ -358,8 +358,8 @@ def gen_synthetic(save_dir='server', lwl=3900, rwl=5080):
                            fmt=('%.4f','%.6f'))
 
 
-def gen_table(tables_dir='server', input_table='MAUI_ver11.txt', check_best=True,
-              grids_table='MAUI_grid_limits.fits', format='fits'):
+def gen_table_maui(tables_dir='server', input_table='MAUI_ver11.txt',
+    check_best=True, grids_table='MAUI_grid_limits.fits', format='fits'):
     '''
     Function to generate a table with the results from MAUI given an input table
     containing the ID of the stars and filename to search in the MAUI-SOLUTION

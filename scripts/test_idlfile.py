@@ -10,9 +10,9 @@ for i in idldata.keys():
     try: print(i,len(idldata[i]))
     except: print(i)
 
-file_name = idldata.aa[0][3].decode()
-name_star = file_name.split('_')[0]
-resolution = int(file_name.split('_V')[-1][0:5])
+filename = idldata.aa[0][3].decode()
+id = filename.split('_')[0]
+resolution = int(filename.split('_V')[-1][0:5])
 gridname = idldata.modelgridname.decode()
 synwave = idldata.xx_mod
 synflux = idldata.spec_prim
@@ -28,7 +28,7 @@ idldata.solution[0].sol
 
 data_rows = []
 data_row = []
-data_row.extend([name_star])
+data_row.extend([id])
 parameters = [i.decode() for i in idldata.solution.var_label[0]]
 for i in range(len(parameters)):
     # Los 11/13 parametros

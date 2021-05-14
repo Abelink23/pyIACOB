@@ -453,7 +453,7 @@ def snr(spectra,snrcut=None,get_MF=None):
     return best_spectra
 
 
-def gen_fits(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None,
+def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None,
     spccode=False, bmag=None, vmag=None, gaia=False, radius=1, skip=None):
     '''
     Function to generate a FITS table with information about sources coming from

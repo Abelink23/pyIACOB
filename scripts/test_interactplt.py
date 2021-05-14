@@ -27,7 +27,7 @@ plt.close('all')
 fig, ax = plt.subplots(tight_layout=True)
 
 table = findtable('O9BAs_RVEWFWs.fits')
-x = table['EWSiIII1']; y = table['EWSiIII2']; names = table['Name']
+x = table['EWSiIII1']; y = table['EWSiIII2']; names = table['ID']
 
 test = 1
 if test == 1:

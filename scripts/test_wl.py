@@ -30,7 +30,7 @@ try: vbar = header0['I-VBAR'] # [km/s] Barycent. rv correction at midpoint
 except: print('No helio/bary-centric correction is applied for ' + spectrum); vbar = 0
 
 flux = []; wave = []
-for j in range(0, spec_length):
+for j in range(0,spec_length):
 
     if l_wl != None and r_wl != None:
         if '_log' in spectrum:
