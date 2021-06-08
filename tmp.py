@@ -14,6 +14,10 @@ configs =list(set(y['configuration']))
 he = x[['He' in i for i in x['spc']]].sort('wl_air')
 he[(he['wl_air'] > 4500) & (he['wl_air'] < 5000) & (he['-lg(gf)'] > -2)]
 
+x=findtable('ALL_OBs_n4+.txt',delimiter=',')
+x[(x['wl_air'] > 4310) & (x['wl_air'] < 4370)]# & (x['-lg(gf)'] > -2)]
+
+
 #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 #table_selection = findtable('table_selection.fits')
 #for i in table_selection:
@@ -27,7 +31,7 @@ he[(he['wl_air'] > 4500) & (he['wl_air'] < 5000) & (he['-lg(gf)'] > -2)]
 #    x = spec(i)
 #    x.waveflux(3900,6800)
 #    x.degrade(20000)
-#    x.resamp(5*x.dx)
+#    x.resamp(5*x.dlam)
 #    print('\n',x.filename,x.snr)
 #    x.flux = x.flux+j*0.05
 #    x.plotspec()

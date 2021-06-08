@@ -1,20 +1,21 @@
 from spec import *
 from scipy.io.idl import readsav
 
+
 grids_dic = {
 'all': ('Grids coverage','dodgerblue',0,
 [[4.543,4.290,4.290,4.146,4.146,4.543,4.543],[2.391,2.391,3.092,3.092,4.391,4.391,2.391]]),
-'nlte_10.1.6_SOLAR_expoclump_2019-10-24': ('BSgs_CNOSiMg_old','b',1,
+'nlte_10.1.6_SOLAR_expoclump_2019-10-24': ('BSgs_CNOSiMg','b',1,
 [[4.190,4.477,4.477,4.190,4.190],[3.785,3.785,4.391,4.391,3.785]]),
-'nlte_10.1.6_bdwarfs_SOLAR_2020-01-29': ('BDws_CNOSIMg_old','orange',2,
+'nlte_10.1.6_bdwarfs_SOLAR_2020-01-29': ('BDws_CNOSIMg','orange',2,
 [[4.290,4.543,4.543,4.290,4.290],[2.391,2.391,3.889,3.889,2.391]]),
-'nlte_10.4.7_OB.Sg_SOLAR_2021-01-23': ('OBSgs_hot_NOSi_new','g',3,
+'nlte_10.4.7_OB.Sg_SOLAR_2021-01-23': ('OBSgs_hot_NOSi','g',3,
 [[4.399,4.544,4.544,4.399,4.399],[3.488,3.488,4.386,4.386,3.488]]),
-'nlte_10.4.7_late.bsgs_SOLAR_expoclump_NOSi.djl_2021-02-06': ('BSgs_cool_NOSi_new','r',4,
+'nlte_10.4.7_late.bsgs_SOLAR_expoclump_NOSi.djl_2021-02-06': ('BSgs_cool_NOSi','r',4,
 [[4.146,4.322,4.322,4.146,4.146],[3.092,3.092,4.391,4.391,3.092]]),
-'astar2013_SOLAR_2_LMC_4_grid_2019-10-24_2019-10-24': ('ASgs_new','purple',5,
+'astar2013_SOLAR_2_LMC_4_grid_2019-10-24_2019-10-24': ('ASgs_CNOMgSTiFe_Kurucz','purple',5,
 [[3.900,4.114,4.114,3.900,3.900],[3.142,3.142,4.292,4.292,3.142]]),
-'nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1_2021-05-05.idl': ('BSg_CNOSiMg_prelast','DeepPink',6,
+'nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1_2021-05-05.idl': ('BSg_CNOSiMg','DeepPink',6,
 [[4.148,4.477,4.477,4.148,4.148],[3.392,3.392,4.386,4.386,3.392]])
 }
 
@@ -33,8 +34,6 @@ def mauipath(path=None):
     if path in ['def','default']:
         if platform.system() == 'Darwin':
             defmainpath = '/Users/abelink/Documents/MAUI/'
-        elif platform.uname().node == 'msi':
-            defmainpath = '/home/abelink/Documents/MAUI/'
         elif 'iac.es' in platform.uname().node:
             defmainpath = '/net/nas/proyectos/hots/masblue/maui2021/'
 

@@ -1,13 +1,15 @@
+# Basic packages:
 import re
 import time
 import os.path
 import platform
 import progressbar as pb
-
 import warnings; warnings.filterwarnings("ignore")
 
+# Core packages
 import numpy as np
 
+# Astro-packages
 import astropy.units as u
 from astropy.io import fits
 from astropy.table import Table, join, setdiff, vstack, hstack
@@ -31,16 +33,20 @@ def mainpath(path=None):
     '''
 
     if path in ['def','default']:
+
         if platform.system() == 'Darwin':
             defmainpath = '/Users/abelink/MEGA/PhD/'
-        elif platform.uname().node == 'msi':
-            defmainpath = '/home/abelink/MEGA/PhD/'
+
+        elif platform.system() == 'Windows':
+            defmainpath = 'E:/MEGA/PhD/'
+
         elif 'iac.es' in platform.uname().node:
             defmainpath = '/net/nas/proyectos/hots/adeburgos/'
 
         mainpath = defmainpath
 
     elif path == None:
+
         mainpath = input('Working directory path (default is %s) : ' % defmainpath)
         if mainpath == '': mainpath = defmainpath
 
@@ -63,16 +69,20 @@ def datapath(path=None):
     '''
 
     if path in ['def','default']:
+
         if platform.system() == 'Darwin':
             defdatapath = '/Users/abelink/Documents/DB/'
-        elif platform.uname().node == 'msi':
-            defdatapath = '/media/abelink/Orange/PhData/DB/'
+
+        elif  platform.system() == 'Windows':
+            defdatapath = 'F:/PhData/DB/'
+
         elif 'iac.es' in platform.uname().node:
-            defdatapath= '/net/nas/proyectos/hots/masblue/obs_iac/spec_opt/IACOB_DB/'
+            defdatapath = '/net/nas/proyectos/hots/masblue/obs_iac/spec_opt/IACOB_DB/'
 
         datapath = defdatapath
 
     elif path == None:
+
         datapath = input("Data directory path (default is %s) : " % defdatapath)
         if datapath == '': datapath = defdatapath
 
@@ -82,7 +92,7 @@ def datapath(path=None):
 
 datadir = datapath('def')
 
-def search(myfile,path):
+def search(myfile, path):
     '''
     Function to search a file within a directory.
 
@@ -100,7 +110,9 @@ def search(myfile,path):
     f_dir = []
     for root, dirs, files in os.walk(path):
         for file in files:
-            if file == myfile: f_dir = os.path.join(root,file)
+            if file == myfile:
+                f_dir = os.path.join(root,file)
+
     if f_dir == []:
         print('File %s not found.\n' % myfile)
         return None
@@ -108,7 +120,7 @@ def search(myfile,path):
     return f_dir
 
 
-def findstar(spectra=None,SNR=None):
+def findstar(spectra=None, SNR=None):
     '''
     Function to get the paths of the searched spectra allowing to limitate the
     results by a minimum SNR if provided in the header, or the one with best SNR.
@@ -133,45 +145,66 @@ def findstar(spectra=None,SNR=None):
             print('No file/files were selected.\n')
             spectra = input('Enter the input spectra (name(s), *, *.fits, *.txt/.lst): ')
 
-    if spectra == '*': list_spectra = ['*']
+    if spectra == '*':
+        list_spectra = ['*']
 
     elif '.lst' in spectra or '.txt' in spectra:
         print('\nSearching file in %s... \n' % (maindir))
 
-        list_dir = search(spectra,maindir); list_spectra = []
-        with open(list_dir,'r') as spectra: list_spectra = spectra.read().splitlines()
+        list_dir = search(spectra,maindir)
+        list_spectra = []
+
+        with open(list_dir,'r') as spectra:
+            list_spectra = spectra.read().splitlines()
+
         if len(list_spectra) == 0:
-            print('No spectra in list found.\nExiting...'); return None
+            print('No spectra in list found.\nExiting...')
+            return None
+
         list_spectra = [spectrum.split()[0] for spectrum in list_spectra \
                        if not spectrum.startswith('#') and not spectrum == '']
 
-    elif 'fits' in spectra: list_spectra = spectra.split(',')
+    elif 'fits' in spectra:
+        list_spectra = spectra.split(',')
 
-    else: list_spectra = spectra.replace(' ','').split(',') # This catches 'HDXXXX, HDYYYY'
+    else:
+        list_spectra = spectra.replace(' ','').split(',') # This catches 'HDXXXX, HDYYYY'
 
     dir_spectra = []
     for spectrum in list_spectra:
         match = 0
         for root, dirs, files in os.walk(datadir):
             for file in files:
+
                 if file.startswith('._'): continue
+
                 elif spectrum == '*' and file.endswith('.fits'):
                     dir_spectra.append(os.path.join(root,file))
                     match = 1
+
                 elif file == spectrum:
                     dir_spectra.append(os.path.join(root,file))
                     match = 1
+
                 elif spectrum + '_' in file and file.endswith('.fits'):
                     dir_spectra.append(os.path.join(root,file))
                     match = 1
-        if not match == 1: print('File/source %s not found.\n' % (spectrum))
 
-    if len(dir_spectra) == 0: return None #quit()
+        if not match == 1:
+            print('File/source %s not found.\n' % (spectrum))
+
+    if len(dir_spectra) == 0:
+        return None #quit()
 
     # Spectra selection based on selected SNR.
-    if SNR == 'best': dir_spectra = snr(dir_spectra)
-    elif SNR == 'bestMF': dir_spectra = snr(dir_spectra,get_MF=True)
-    elif type(SNR) == int: dir_spectra = snr(dir_spectra,snrcut=SNR)
+    if SNR == 'best':
+        dir_spectra = snr(dir_spectra)
+
+    elif SNR == 'bestMF':
+        dir_spectra = snr(dir_spectra,get_MF=True)
+
+    elif type(SNR) == int:
+        dir_spectra = snr(dir_spectra,snrcut=SNR)
 
     # Order all spectra from a single target by date.
     if len(list_spectra) == 1:
@@ -212,27 +245,40 @@ def findlines(list):
 
     # Single input in float or int format without quotation marks:
     if type(list) == float or type(list) == int:
-        lines.append(float(list)); elements = loggf = [None]
+        lines.append(float(list))
+        elements = loggf = [None]
 
     # Lines in a lst/txt file with more information on each line:
     elif '.lst' in list or '.txt' in list:
         list_dir = search(list,path)
-        with open(list_dir,'r') as file_lines: lines = file_lines.read().splitlines()
+        with open(list_dir,'r') as file_lines:
+            lines = file_lines.read().splitlines()
+
         rows = [line.split(',') for line in lines if not line.startswith('#') and not line == '']
         lines = [float(line[0]) for line in rows]
-        try: elements = [line[1].strip() for line in rows]
-        except: elements = [None]*len(lines)
-        try: loggf = [float(line[2].strip()) for line in rows]
-        except: loggf = [None]*len(lines)
+
+        try:
+            elements = [line[1].strip() for line in rows]
+        except:
+            elements = [None]*len(lines)
+
+        try:
+            loggf = [float(line[2].strip()) for line in rows]
+        except:
+            loggf = [None]*len(lines)
 
     # String of lines separated by coma:
     else:
-        lines = list.split(','); elements = loggf = [None]*len(lines)
+        lines = list.split(',')
+        elements = loggf = [None]*len(lines)
 
         lines_f = []
         for n in range(len(lines)):
-            if '?' in lines[n]: lines_f.append(searchlines(lines[n]))
-            else: lines_f.append(lines[n])
+            if '?' in lines[n]:
+                lines_f.append(searchlines(lines[n]))
+            else:
+                lines_f.append(lines[n])
+
         lines = [float(line) for line in lines_f]
 
     return lines,elements,loggf
@@ -254,21 +300,24 @@ def findlist(list):
 
     # To catch wrong int/float inputs:
     if type(list) == float or type(list) == int:
-        print('Input cannot be int or float format. \n Exiting...'); return None
+        print('Input cannot be int or float format. \n Exiting...')
+        return None
 
     # Lines in a lst/txt file with more information on each line:
     elif '.lst' in list or '.txt' in list:
         list_dir = search(list,path)
-        with open(list_dir,'r') as file_list: list = file_list.read().splitlines()
+        with open(list_dir,'r') as file_list:
+            list = file_list.read().splitlines()
 
         items = [row.split(',')[0] for row in list if not row.startswith('#') and not row == '']
 
-    else: items = list.replace(' ','').split(',') # This catches 'HDXXXX, HDYYYY'
+    else:
+        items = list.replace(' ','').split(',') # This catches 'HDXXXX, HDYYYY'
 
     return items
 
 
-def findtable(table,path=None,delimiter=' ',fits_strip_end=True):
+def findtable(table, path=None, delimiter=' ', fits_strip_end=True):
     '''
     Function to get the data from a FITS-format table.
 
@@ -289,7 +338,8 @@ def findtable(table,path=None,delimiter=' ',fits_strip_end=True):
     Returns: Data in table, in table format.
     '''
 
-    if path == None: path = maindir+'tables'
+    if path == None:
+        path = maindir+'tables'
 
     table_dir = search(table,path)
 
@@ -307,6 +357,7 @@ def findtable(table,path=None,delimiter=' ',fits_strip_end=True):
 
     elif '.csv' in table:
         data = Table.read(table_dir,format='csv')
+
     else:
         data = Table.read(table_dir,format='ascii',delimiter=delimiter)
 
@@ -351,9 +402,11 @@ def xmatch_table(table1, table2, match_col=None, output_cols=None,
     # Cross-match column:
     same_cols = [i for i in table1.colnames if i in table2.colnames]
     if match_col == None:
+
         if same_cols == []:
             print('No columns found with the same name in both tables. Exiting... \n')
             return None
+
         else:
             print(same_cols)
             match_col = input('Select one of the above column names for the cross-match: ')
@@ -362,6 +415,7 @@ def xmatch_table(table1, table2, match_col=None, output_cols=None,
     if len(same_cols) > 1:
         print('WARNING: More than one column has the same name.')
         print('Output table will contain *_1, *_2 for them.')
+
         rm = input('Remove repeated columns from second table? [y/n]: ')
         if rm == 'y':
             table2.remove_columns(
@@ -374,17 +428,18 @@ def xmatch_table(table1, table2, match_col=None, output_cols=None,
 
     table = join(table1,table2,keys=match_col)
     if len(table) == 0:
-        print('No matches for the joined tables. Exiting... \n'); return None
+        print('No matches for the joined tables. Exiting... \n')
+        return None
 
     # Output columns:
     if output_cols != None:
-         output_cols = output_cols.split(',')
-         table.remove_columns(
-         [i for i in table.colnames if not i in output_cols])
+        output_cols = output_cols.split(',')
+        table.remove_columns([i for i in table.colnames if not i in output_cols])
 
     # Saving the file:
     full_path = maindir+'tables/'+output_name+'.'+format
-    if format == 'ascii': format += '.fixed_width_two_line'
+    if format == 'ascii':
+        format += '.fixed_width_two_line'
     table.write(full_path,format=format,overwrite=True)
 
 
@@ -415,13 +470,17 @@ def snr(spectra,snrcut=None,get_MF=None):
 
     best_spectra = []
     for star in names_stars:
-        SNR_best = 0; SNR_best_MF = 0
+        SNR_best = 0
+        SNR_best_MF = 0
         for spectrum in spectra:
             filename = spectrum.split('/')[-1].split('_')
             id_star = filename[0]
             date = int(filename[1]+filename[2])
             instr = filename[3]
-            if star != id_star: continue
+
+            if star != id_star:
+                continue
+
             else:
                 # Retrieve the key values fron the fits header
                 hdu = fits.open(spectrum)# Open the fits image file
@@ -439,12 +498,12 @@ def snr(spectra,snrcut=None,get_MF=None):
                     if get_MF == True and instr in ['M','F'] and SNR > SNR_best_MF:
                         SNR_best_MF = SNR; best_spec_MF = spectrum
 
-                elif SNR > int(snrcut): best_spectra.append(spectrum)
+                elif SNR > int(snrcut):
+                    best_spectra.append(spectrum)
 
         if snrcut == None:
             if get_MF == True and best_spec_inst=='N' and SNR_best-SNR_best_MF<.15*SNR_best:
                  best_spec = best_spec_MF
-
             best_spectra.append(best_spec)
 
         elif len(best_spectra) == 0:
@@ -500,7 +559,7 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
         Enter a desired vmag to cut the results e.g. '>8.5'.
 
     gaia : str, optional
-        If 'DR2'/'DR3', it will create separate columns with Gaia DR2/3 data.
+        If 'DR2'/'EDR3', it will create separate columns with Gaia DR2/EDR3 data.
         Default is False.
 
     radius : int,float
@@ -517,12 +576,14 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
         # For each source, the best available SNR is picked
         lst_sources_f = snr(lst_sources_all,get_MF=True)
         type_list = 'names'
+
     elif db == 'Simbad':
         lst_sources_f = findlist(list)
         type_list = input('The list contains names or coordinates? [names/coords]: ')
         if not type_list in ['names','coords']:
              print('Input answer is not valid. Exiting... \n')
              return None
+
     else:
         print('Database not recognised. Exiting... \n')
         return None
@@ -541,12 +602,12 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
     if gaia == 'DR2':
         gaia_columns = ['BPmag','e_BPmag','+Gmag','e_Gmag','RPmag','e_RPmag',\
                    'pmRA','e_pmRA','pmDE','e_pmDE','Plx','e_Plx']
-
         gaia_columns.extend(['astrometric_n_good_obs_al','astrometric_chi2_al'])
         table_u0 = findtable('table_u0_g_col.txt',delimiter=',')
         offset = input('Apply +0.03 mas offset to parallax? [y/n]: ')
 
         v = Vizier(columns=gaia_columns); v.ROW_LIMIT = 1
+
     elif gaia == 'DR3':
         v = Vizier(); v.ROW_LIMIT = 1
 
@@ -572,20 +633,29 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
             row['ID'] = [source.split('/')[-1].split('_')[0]]
 
             # Official name (not implemented yet)
-            try: row['Name'] = header['I-Name']
-            except: row['Name'] = '-'
+            try:
+                row['Name'] = header['I-Name']
+            except:
+                row['Name'] = '-'
 
             # Reference spectrum (added at the end)
             filename = source.split('/')[-1][:-5]
 
             # Gather the coordinates:
             if '_M_' in filename:
-                try: OBJRA = header['OBJ_RA']; OBJDEC = header['OBJ_DEC']
-                except: pass # Only new fits include it
+                try:
+                    OBJRA = header['OBJ_RA']
+                    OBJDEC = header['OBJ_DEC']
+                except:
+                    pass # Only new fits include it
+
             elif '_N_' in filename:
-                OBJRA = header['OBJRA']*360/24; OBJDEC = header['OBJDEC']
+                OBJRA = header['OBJRA']*360/24
+                OBJDEC = header['OBJDEC']
+
             elif '_F_' in filename:
-                OBJRA = header['RA']; OBJDEC = header['DEC']
+                OBJRA = header['RA']
+                OBJDEC = header['DEC']
 
             source = row['ID'][0]
 
@@ -605,8 +675,10 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
             if simbad == None: continue
 
         elif type_list == 'coords':
-            if ':' in source: c = SkyCoord(source,unit=(u.hourangle,u.deg))
-            else: c = SkyCoord(source,unit=u.deg)
+            if ':' in source:
+                c = SkyCoord(source,unit=(u.hourangle,u.deg))
+            else:
+                c = SkyCoord(source,unit=u.deg)
 
             try: # The actual query
                 simbad = Simbad.query_region(c,radius=radius*u.arcsec)
@@ -620,7 +692,7 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
                 print('Source %s not found in Simbad' % source)
                 continue
 
-            source = simbad['MAIN_ID'][0].decode()
+            source = simbad['MAIN_ID'][0]
 
             row['ID'] = row['Name'] = [source]
 
@@ -649,10 +721,12 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
         #=======================================================================
         #======================= Get the spectral class ========================
         if db == 'IACOB':
+
             SpC_0 = header['I-SPC']
             if (not type(SpC_0) == str or SpC_0.strip() == '-'):
                 row['SpC'] = SpC_0 = simbad['SP_TYPE'][0]
                 row['SpC_ref'] = 'SIMBAD'
+
             else:
                 row['SpC'] = SpC_0
                 row['SpC_ref'] = header['I-SPCREF']
@@ -665,12 +739,15 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
         #========================= Limit by SpT or LC ==========================
         spt_0 = []; lc_0 = []
         if spt != None or lc != None:
+
             if 'I' in SpC_0:
                 spt_0 = SpC_0[:SpC_0.index('I')]
                 lc_0 = SpC_0[SpC_0.index('I'):]
+
             elif 'V' in SpC_0:
                 spt_0 = SpC_0[:SpC_0.index('V')]
                 lc_0 = SpC_0[SpC_0.index('V'):]
+
             elif len(re.split(':|pe',SpC_0.strip())[0]) <= 4:
                 spt_0 = SpC_0.strip()
 
@@ -698,37 +775,51 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
         #=======================================================================
         #========================= Limit by magnitude ==========================
         bmag_0 = simbad['FLUX_B'][0]
-        if str(bmag_0) == '--': bmag_0 = np.nan
+        if str(bmag_0) == '--':
+            bmag_0 = np.nan
 
         if bmag != None and ~np.isnan(bmag_0):
             bmag_0 = round(bmag_0,2)
             if bmag[0] == '<' and float(bmag[1:]) < bmag_0: continue
             elif bmag[0] == '>' and float(bmag[1:]) > bmag_0: continue
 
-        row['mag_B'] = bmag_0; row['mag_B'].unit = u.mag
+        row['mag_B'] = bmag_0
+        row['mag_B'].unit = u.mag
 
         vmag_0 = simbad['FLUX_V'][0]
-        if str(vmag_0) == '--': vmag_0 = np.nan
+        if str(vmag_0) == '--':
+            vmag_0 = np.nan
 
         if vmag != None and ~np.isnan(vmag_0):
             vmag_0 = round(vmag_0, 2)
             if vmag[0] == '<' and float(vmag[1:]) < vmag_0: continue
             elif vmag[0] == '>' and float(vmag[1:]) > vmag_0: continue
 
-        row['mag_V'] = vmag_0; row['mag_V'].unit = u.mag
+        row['mag_V'] = vmag_0
+        row['mag_V'].unit = u.mag
 
         #=======================================================================
         #============== Add extra columns from header or database ==============
         # Counting FIES / HERMES / FEROS spectra
         if db == 'IACOB':
-            FIES = 0; HERMES = 0; FEROS = 0
+            FIES = 0
+            HERMES = 0
+            FEROS = 0
             for j in lst_sources_all:
                 if source + '_' in j and j.endswith('.fits'):
-                    if '_N_' in j: FIES = FIES + 1
-                    elif '_M_' in j: HERMES = HERMES + 1
-                    elif '_F_' in j: FEROS = FEROS + 1
 
-            row['FIES'] = FIES; row['HERMES'] = HERMES; row['FEROS'] = FEROS
+                    if '_N_' in j:
+                        FIES = FIES + 1
+
+                    elif '_M_' in j:
+                        HERMES = HERMES + 1
+
+                    elif '_F_' in j:
+                        FEROS = FEROS + 1
+
+            row['FIES'] = FIES
+            row['HERMES'] = HERMES
+            row['FEROS'] = FEROS
 
             row['Ref_file'] = filename
 
@@ -736,19 +827,27 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
             row['SNR_best'] = float(header['I-SNR'])
 
             # SB feature of the star (added at the end)
-            try: row['SB'] = header['I-SB']
-            except: row['SB'] = '-'
+            try:
+                row['SB'] = header['I-SB']
+            except:
+                row['SB'] = '-'
 
             # Comments in the header (added at the end)
-            try: row['Comments'] = header['I-commen']
-            except: row['Comments'] = '-'
+            try:
+                row['Comments'] = header['I-commen']
+            except:
+                row['Comments'] = '-'
 
         #=======================================================================
         #======================== Get Gaia DR2/3 data ==========================
         if gaia in ['DR2','DR3']:
+
             gFlag = True
-            if gaia == 'DR2': catalog = "I/345/gaia2"
-            elif gaia == 'DR3': catalog = "I/350/gaiaedr3"
+            if gaia == 'DR2':
+                catalog = "I/345/gaia2"
+
+            elif gaia == 'DR3':
+                catalog = "I/350/gaiaedr3"
 
             if vmag_0 != '' and float(vmag_0) < 5:
                 print('\nWARNING: %s is too bright (Vmag = %r)' % (source,vmag_0))
@@ -765,26 +864,37 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
                         if gaiaq['Gmag'] < 6:
                             gaiaq['Gmag'] = gaiaq['Gmag'] + 0.0271*(6-gaiaq['Gmag'])
                         gaiaq['Gmag'].unit = u.mag
-                    else: gFlag = False; print(str(source),'has missing Gaia G photometry.')
+                    else:
+                        gFlag = False; print(str(source),'has missing Gaia G photometry.')
 
                     if str(gaiaq['e_BPmag'][0]) != '--':
-                        if gaiaq['e_BPmag'] < 9e-3:  gaiaq['e_BPmag'] = 9e-3
-                    else: gFlag = False; print(str(source),'has missing Gaia B photometry.')
+                        if gaiaq['e_BPmag'] < 9e-3:
+                            gaiaq['e_BPmag'] = 9e-3
+                    else:
+                        print(str(source),'has missing Gaia B photometry.')
+                        gFlag = False
+
                     if str(gaiaq['e_RPmag'][0]) != '--':
-                        if gaiaq['e_RPmag'] < 10e-3: gaiaq['e_RPmag'] = 10e-3
-                    else: gFlag = False; print(str(source),'has missing Gaia R photometry.')
+                        if gaiaq['e_RPmag'] < 10e-3:
+                            gaiaq['e_RPmag'] = 10e-3
+                    else:
+                        print(str(source),'has missing Gaia R photometry.')
+                        gFlag = False
 
                     # Correct Gaia astrometry:
                     try:
-                        if offset == 'y': gaiaq['Plx'] = round(gaiaq['Plx']+0.03,6)
-                    except: print(str(source),'has missing Gaia parallax.')
+                        if offset == 'y':
+                            gaiaq['Plx'] = round(gaiaq['Plx']+0.03,6)
+                    except:
+                        print(str(source),'has missing Gaia parallax.')
 
                     # Add RUWE column
                     if gFlag == True:
                         UWE = np.sqrt(float(gaiaq['chi2AL'])/(float(gaiaq['NgAL']) - 5))
 
-                        diff = abs(gaiaq['Gmag'][0] - table_u0['g_mag']) + \
-                               abs(gaiaq['BPmag'][0] - gaiaq['RPmag'][0] - table_u0['bp_rp'])
+                        diff = abs(gaiaq['Gmag'][0] - table_u0['g_mag']) \
+                            + abs(gaiaq['BPmag'][0] - gaiaq['RPmag'][0] - table_u0['bp_rp'])
+
                         diff = diff.tolist()
 
                         gaiaq['RUWE'] = round(UWE/table_u0['u0'][diff.index(min(diff))],4)
@@ -793,24 +903,28 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
 
                 elif gaia == 'DR3':
 
-                    gaiaq = gaiaq[[i for i in gaiaq.columns if not\
-                    any([j in i for j in ['dr2','scan_','_corr','_obs_','ipd_','transits']])]]
+                    gaiaq = gaiaq[[i for i in gaiaq.columns if not \
+                        any([j in i for j in ['dr2','scan_','_corr','_obs_','ipd_','transits']])]]
 
                 row = hstack([row,gaiaq])
 
             except:
                 print('\n%s could not be queried in Gaia.' % source)
 
-        try: table = vstack([table,row])
-        except: table = row
+        try:
+            table = vstack([table,row])
+        except:
+            table = row
 
         bar.update(i)
 
     bar.finish()
 
     # Export table
-    try: table.write(maindir+'tables/tablestars.fits',format='fits',overwrite=True)
-    except: print('Table is empty, no sources were found.')
+    try:
+        table.write(maindir+'tables/tablestars.fits',format='fits',overwrite=True)
+    except:
+        print('Table is empty, no sources were found.')
 
     return None
 
@@ -834,9 +948,11 @@ def spc_code(spc):
 
     if spc_c in ['~'] or spc_c.startswith(('WC','WN','WR','C')):
         spt_c = lc_c = np.nan
+
     else:
         # Spectral type
-        spt_c = re.findall('[O,B,A,F,G,K,M]',spc_c); num = len(spt_c)
+        spt_c = re.findall('[O,B,A,F,G,K,M]',spc_c)
+        num = len(spt_c)
         spt_c_lst = [spt_dic[i] for i in spt_c]
 
         spt_c = re.findall('[0-9.]+',spc_c)
@@ -848,19 +964,22 @@ def spc_code(spc):
                 spt_c = (sum(spt_c_lst[:num])/num+sum(spt_c_lst[num:])/len(spt_c_lst[num:]))
             else:
                 spt_c = sum(spt_c_lst)/num
-        except: print(source,spt_c_lst,num)
+        except:
+            print(source,spt_c_lst,num)
 
         # Luminosity class
         lc_c = re.findall('[I,V]+',spc_c)
         lc_c_lst = [lc_dic[i] for i in lc_c]
 
-        if len(lc_c_lst) == 0: lc_c = np.nan
-        else: lc_c = np.asarray(lc_c_lst).mean()
+        if len(lc_c_lst) == 0:
+            lc_c = np.nan
+        else:
+            lc_c = np.asarray(lc_c_lst).mean()
 
     return spt_c,lc_c
 
 
-def SB(name=None,ra=None,dec=None,radius='5s'):
+def SB(name=None, ra=None, dec=None, radius='5s'):
     '''
     Function to query an object in Simbad database.
 
@@ -882,34 +1001,47 @@ def SB(name=None,ra=None,dec=None,radius='5s'):
     '''
 
     if name is not None:
-        try: simbad = Simbad.query_object(name)
-        except: time.sleep(3); simbad = Simbad.query_object(name)
-    else: name = 'empty'; simbad = None
+        try:
+            simbad = Simbad.query_object(name)
+        except:
+            time.sleep(3)
+            simbad = Simbad.query_object(name)
+
+    else:
+        name = 'empty'
+        simbad = None
 
     while simbad is None: # type(simbad) == type(None)
         print('Provide alternative name for %s in Simbad.' % name)
         print('In some cases try replacing "HD" by "HD ".')
+
         if ra != None and dec != None:
             print('Type "sky" to query %s around input ra/dec (if given).' % radius)
-        print('Hit return to skip this source.')
-        check = input('Name: ')
 
-        if check == '': print('Skipping source: %s\n' % name); break
+        print('Hit return to skip this source.')
+
+        check = input('Name: ')
+        if check == '':
+            print('Skipping source: %s\n' % name)
+            break
 
         elif check == 'sky' and ra != None and dec != None:
             simbad = Simbad.query_region(SkyCoord(ra,dec,unit='deg'),radius=radius)
-            if type(simbad) == type(None): print('No objects found.')
+            if type(simbad) == type(None):
+                print('No objects found.')
 
-        else: simbad = Simbad.query_object(check)
+        else:
+            simbad = Simbad.query_object(check)
 
         if simbad is not None and len(simbad) > 1:
             print('More than one Simbad result, choosing the brigtest source...')
-            simbad.sort('FLUX_V'); simbad = Table(simbad[0])
+            simbad.sort('FLUX_V')
+            simbad = Table(simbad[0])
 
     return simbad
 
 
-def zp_edr3(ra,dec,radius=1):
+def zp_edr3(ra, dec, radius=1):
     '''
     Function to obtain avaliable parallax zero-point offsets.
     Input is a list of coordinates in degrees which are used for the Gaia query.

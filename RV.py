@@ -7,19 +7,21 @@ Program to calculate the radial velocities for a given spectra/spectrum via
 lists of individual lines or via cross correlation using synthetic spectra.
 ============================================================================='''
 
-def RV_cc(id_star,windows=[(3950,4160),(4310,4360),(4370,4490),(4540,4690),(4840,4950)]):
+def RV_cc(id_star, windows=[(3950,4160),(4310,4360),(4370,4490),(4540,4690),(4840,4950)]):
     spectra = findstar(id_star)
 
     synthetic = []
     for file in os.listdir(datadir+'ASCII/Synthetic_MAUI/'):
-        if id_star+'_' in file: synthetic.append(file)
+        if id_star+'_' in file:
+            synthetic.append(file)
 
     if len(synthetic) == 0:
-        print('No files found for %s.\n' % (id_star))
+        print('No files found for %s.\n' % id_star)
     elif len(synthetic) == 1:
         synthetic = synthetic[0]
     else:
-        for name,i in zip(synthetic,range(len(synthetic))): print(name,i)
+        for name,i in zip(synthetic,range(len(synthetic))):
+            print(name,i)
         which = input('Enter the number of the synthetic spectra you want to use: ')
         synthetic = synthetic[int(which)]
 
@@ -66,8 +68,7 @@ def RV_cc(id_star,windows=[(3950,4160),(4310,4360),(4370,4490),(4540,4690),(4840
     plt.show(block=False)
 
 
-def RV1_cc(spectra1, spectra2,
-    windows=[(3950,4160),(4310,4360),(4370,4490),(4540,4690),(4840,4950)]):
+def RV1_cc(spectra1, spectra2, windows=[(3950,4160),(4310,4360),(4370,4490),(4540,4690),(4840,4950)]):
     '''
 
     Parameters
@@ -83,6 +84,7 @@ def RV1_cc(spectra1, spectra2,
         computed. If more than one pair, the result is averaged.
         Default is a set of defautl windows.
 
+    Returns: XXXXXXX
     '''
 
     spec1 = spec(spectra1)
@@ -95,8 +97,11 @@ def RV1_cc(spectra1, spectra2,
     spec1.resamp(dx=spec1.dx)
 
     mask = [spec2.flux < .998]
-    spec1.wave = spec1.wave[mask]; spec1.flux = spec1.flux[mask]
-    spec2.wave = spec2.wave[mask]; spec2.flux = spec2.flux[mask]
+
+    spec1.wave = spec1.wave[mask]
+    spec1.flux = spec1.flux[mask]
+    spec2.wave = spec2.wave[mask]
+    spec2.flux = spec2.flux[mask]
 
     RVs_angs = []; RVs_kms = []
     for win in windows:
@@ -125,7 +130,7 @@ def RV1_cc(spectra1, spectra2,
     return RV_A,RV_kms
 
 
-def RV0(lines,spectrum,ewcut=30,width=20,tol=150,func='g',info=False,plot=False):
+def RV0(lines, spectrum, ewcut=50, width=20, tol=150, func='g', info=False, plot=False):
     '''
     Parameters
     ----------
@@ -151,28 +156,28 @@ def RV0(lines,spectrum,ewcut=30,width=20,tol=150,func='g',info=False,plot=False)
 
         if np.isnan(fit['RV_A']): continue
         elif fit['EW'] < ewcut: continue
-        else: RVs.append(fit['RV_A'])
+        else: RVs.append(fit['RV_kms'])
 
     if len(RVs) == 0:
         print('\tWARNING: No lines were fitted for RV0 calculation.\n')
         return 0
 
     try:
-        RVs = sigma_clip(RVs,sigma_lower=1.7,sigma_upper=1.7,masked=False)
+        RVs = sigma_clip(RVs, sigma_lower=1.7, sigma_upper=1.7, masked=False)
         #print(RVs)
     except:
         print('Not enought values for sigma clipping. Skipping... ')
         return 0
 
-    print('\nStd after clipping is: %s using %s lines.\n' % (round(np.std(RVs),3),len(RVs)))
+    print('\nRV0: %s/%s lines used (after clipping) with std=%s [km/s]\n' % (len(RVs),len(lines),round(np.std(RVs),3)))
 
     RV_0 = np.mean(RVs)
 
     return RV_0
 
 
-def RV(lines,spectra,SNR=None,linesRV0=None,linecut=1,ewcut=25,width=None,tol=50,\
-       func='g',info=False,plot=False):
+def RV(lines, spectra, SNR=None, linesRV0=None, linecut=1, ewcut=25, width=None, tol=50,\
+       func='g', info=False, plot=False):
     '''
 
     Parameters
@@ -204,23 +209,40 @@ def RV(lines,spectra,SNR=None,linesRV0=None,linecut=1,ewcut=25,width=None,tol=50
     '''============================ PARAMETERS =============================='''
     if width == None:
         try:
-            if   lines.startswith('O'): width = 12; color = 'purple'
-            elif lines.startswith('B'): width = 10; color = 'b'
-            elif lines.startswith('A'): width = 10; color = 'teal'
-            elif lines.startswith('M'): width = 12; color = 'r'
-            else: width = 10; color = 'g'
-        except: width = 10; color = 'g'
+            if   lines.startswith('O'):
+                width = 12
+                color = 'purple'
+            elif lines.startswith('B'):
+                width = 10
+                color = 'b'
+            elif lines.startswith('A'):
+                width = 10
+                color = 'teal'
+            elif lines.startswith('M'):
+                width = 12
+                color = 'r'
+            else:
+                width = 10
+                color = 'g'
+        except:
+            width = 10
+            color = 'g'
 
 
     '''=============================== SPECTRA =============================='''
-    i = 0; RVs_all_means = []; RVs_all_std = []; num_lines = []
+    i = 0
+    RVs_all_means = []
+    RVs_all_std = []
+    num_lines = []
     for spectrum in spectra:
 
         print('\n##########################################################')
         print('Analyzing spectrum: ' + spectrum.split('/')[-1])
 
-        if linesRV0 == None: RV_0 = 0
-        else: RV_0 = RV0(linesRV0,spectrum,ewcut=ewcut,width=width,func=func)
+        if linesRV0 == None:
+            RV_0 = 0
+        else:
+            RV_0 = RV0(linesRV0,spectrum,ewcut=ewcut,width=width,func=func)
 
         spectrum = spec(spectrum,offset=RV_0)
 
@@ -239,12 +261,16 @@ def RV(lines,spectra,SNR=None,linesRV0=None,linecut=1,ewcut=25,width=None,tol=50
 
             fit = spectrum.fitline(line,width=width,tol=tol,func=func,info=info,plot=plot)
 
-            if np.isnan(fit['RV_kms']): continue
-            elif fit['EW'] < ewcut: continue
+            if np.isnan(fit['RV_kms']):
+                continue
+
+            elif fit['EW'] < ewcut:
+                continue
+
             else:
                 RVs.append(fit['RV_kms'])
                 out_f2.write('%.3f, %.3f, %d, %d, %.2f, %.3f\n' %
-                line,fit['line'],fit['RV_kms'],fit['EW'],fit['FWHM'],fit['q_fit'])
+                    line,fit['line'],fit['RV_kms'],fit['EW'],fit['FWHM'],fit['q_fit'])
 
         if RVs == []:
             print('No lines were found for spectrum: %s\n' % spectrum.filename)
@@ -258,7 +284,7 @@ def RV(lines,spectra,SNR=None,linesRV0=None,linecut=1,ewcut=25,width=None,tol=50
         # Enable/disable histogram (also enable also the lines after sigma clip)
         #ax.hist(RVs, bins = 60, alpha = 0.8)
         RVs = sigma_clip(RVs,sigma_lower=2,sigma_upper=2,masked=False, \
-              return_bounds=True,cenfunc='median')
+            return_bounds=True,cenfunc='median')
         #ax.plot([np.median(RVs[0]),np.median(RVs[0])],[0,10],'-k') # Prints central value
         #ax.plot([RVs[1],RVs[1]],[0,10],'--r') # Prints low  clipping value
         #ax.plot([RVs[2],RVs[2]],[0,10],'--r') # Prints high clipping value
@@ -271,22 +297,24 @@ def RV(lines,spectra,SNR=None,linesRV0=None,linecut=1,ewcut=25,width=None,tol=50
         RVs_all_std.append(std)
 
         out_f1.write(
-               str(round(RVs_mean, 4)) + ', ' + str(round(std, 4)) + ', ' + \
-               str(round(date_obs,4)) + ', ' + str(len(RVs[0])) + ', ' + \
-               spectrum.filename.split('.')[0] + '\n')
+            str(round(RVs_mean, 4)) + ', ' + str(round(std, 4)) + ', ' \
+            +  str(round(date_obs,4)) + ', ' + str(len(RVs[0])) + ', ' \
+            +  spectrum.filename.split('.')[0] + '\n')
 
 
         '''============================== Plot =============================='''
         ax.errorbar(date_obs,RVs_mean,yerr=std,elinewidth=.4,marker='o',
-                    color=color,capsize=2,markersize=3)
+            color=color,capsize=2,markersize=3)
 
         i = i + 1
 
-    out_f1.close(); out_f2.close()
+    out_f1.close()
+    out_f2.close()
 
     if i == 0:
         print('The program did not work, check the output lines...')
-        plt.close(); return None
+        plt.close()
+        return None
 
 
     '''==================== Mean of RVs and peak-to-peak ===================='''
@@ -294,21 +322,21 @@ def RV(lines,spectra,SNR=None,linesRV0=None,linecut=1,ewcut=25,width=None,tol=50
     RVs_mean_all_means_std = np.std(RVs_all_means) # Std of the mean of all spectra
     ax.plot([date_obs_0, date_obs],[RVs_mean_all_means,RVs_mean_all_means],'-k',lw=.5)
     peak_to_peak = abs(max(RVs_all_means) - min(RVs_all_means))
-    peak_to_peak_err = np.sqrt(RVs_all_std[RVs_all_means.index(max(RVs_all_means))]**2 + \
-                        RVs_all_std[RVs_all_means.index(min(RVs_all_means))]**2)
+    peak_to_peak_err = np.sqrt(RVs_all_std[RVs_all_means.index(max(RVs_all_means))]**2
+        + RVs_all_std[RVs_all_means.index(min(RVs_all_means))]**2)
 
 
     '''============================== Output ================================'''
     print('====================================================')
     print('Results for '+ spectrum.id_star)
     if i == 1:
-        print('The mean RV of the spectrum is: ' + str(round(RVs_mean,4)) + \
-        ' +/- ' + str(round(std,4)))
+        print('The mean RV of the spectrum is: ' + str(round(RVs_mean,4)) \
+        + ' +/- ' + str(round(std,4)))
     else:
-        print('The mean radial velocity is: ' + str(round(RVs_mean_all_means, 4)) + \
-        ' +/- ' + str(round(RVs_mean_all_means_std, 4)))
-        print('The peak to peak value is: ' + str(round(peak_to_peak, 4)) + \
-        ' +/- ' + str(round(peak_to_peak_err,4)))
+        print('The mean radial velocity is: ' + str(round(RVs_mean_all_means, 4)) \
+        + ' +/- ' + str(round(RVs_mean_all_means_std, 4)))
+        print('The peak to peak value is: ' + str(round(peak_to_peak, 4)) \
+        + ' +/- ' + str(round(peak_to_peak_err,4)))
         print('The time span of the spectra is: ' + str(round(date_obs-date_obs_0, 2)))
     print('The average number of lines used is: ' + str(round(np.mean(num_lines), 1)))
     print('The number of spectra used is: ' + str(len(RVs_all_means)))
