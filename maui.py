@@ -326,18 +326,18 @@ def gen_synthetic(save_dir='server', lwl=3900, rwl=5080):
     Returns: Nothing but the ascii .dat files are generated.
     '''
 
-    solution_dir = mauidir+'RESULTS_BSGS_202101/SOLUTION/'
+    solution_dir = mauidir + 'RESULTS_BSGS_202101/SOLUTION/'
 
     if save_dir == 'local':
-        save_dir = datadir+'ASCII/Synthetic_MAUI/'
+        save_dir = datadir + 'ASCII/Synthetic_MAUI/'
     elif save_dir == 'server':
         save_dir = '/net/nas/proyectos/hots/masblue/obs_iac/spec_opt/IACOB_DB/ASCII/SYNTHETIC/'
 
     for file in os.listdir(solution_dir):
         if not file.startswith('._') and file.endswith('.idl'):
-            idlspec = idl(solution_dir+file)
+            idlspec = idl(solution_dir + file)
 
-            star_db = spec(idlspec.id,SNR='best')
+            star_db = spec(idlspec.id, SNR='best')
 
             if idlspec.filename != star_db.filename[:-5]:
                 print('\nWARNING: %s does not match with best spectrum available.'
@@ -346,20 +346,20 @@ def gen_synthetic(save_dir='server', lwl=3900, rwl=5080):
             else:
                 #idlspec.filename = idlspec.filename.replace(str(idlspec.resolution),'85000')
                 new_idlspec = '%s_red%i.dat' % (idlspec.filename,grids_dic[idlspec.gridname][2])
-                np.savetxt(save_dir+new_idlspec,np.c_[idlspec.synwave,idlspec.synflux],
-                           fmt=('%.4f','%.6f'))
+                np.savetxt(save_dir + new_idlspec, np.c_[idlspec.synwave,idlspec.synflux],
+                    fmt=('%.4f','%.6f'))
 
-                star_idl = spec(new_idlspec,txt=True)
-                star_idl.txtwaveflux(lwl,rwl)
-                #plt.plot(star_idl.wave,star_idl.flux,'r',lw=.3) # plot to check
-                star_idl.degrade(profile='rotmac',vsini=idlspec.vsini,vmac=idlspec.vmac)
-                #plt.plot(star_idl.wave,star_idl.flux,'g',lw=.3) # plot to check
+                star_idl = spec(new_idlspec, txt=True)
+                star_idl.txtwaveflux(lwl, rwl)
+                #plt.plot(star_idl.wave, star_idl.flux, 'r', lw=.3) # plot to check
+                star_idl.degrade(profile='rotmac', vsini=idlspec.vsini, vmac=idlspec.vmac)
+                #plt.plot(star_idl.wave, star_idl.flux, 'g', lw=.3) # plot to check
 
-                np.savetxt(save_dir+new_idlspec,np.c_[star_idl.wave,star_idl.flux],
-                           fmt=('%.4f','%.6f'))
+                np.savetxt(save_dir + new_idlspec, np.c_[star_idl.wave,star_idl.flux],
+                    fmt=('%.4f','%.6f'))
 
 
-def gen_table_maui(tables_dir='server', input_table='MAUI_ver11.txt',
+def gen_table_maui(tables_dir='server', input_table='MAUI_ver11.txt', solution_dir='server',
     check_best=True, grids_table='MAUI_grid_limits.fits', format='fits'):
     '''
     Function to generate a table with the results from MAUI given an input table
@@ -371,9 +371,14 @@ def gen_table_maui(tables_dir='server', input_table='MAUI_ver11.txt',
 
     tables_dir : str, optional
         Enter the directory where to locate the input_table and output fits.
+        Shortcuts are 'local' and 'server'. Default is 'server'.
 
     input_table : str, optional
         Name of the input table contaning the list of stars to search.
+
+    solution_dir : str, optional
+        Enter the directory where to locate the input_table and output fits.
+        Shortcuts are 'local' and 'server'. Default is 'server'.
 
     check_best : boolean, optional
         True if each spectra from the input_table is checked against the best
@@ -388,10 +393,13 @@ def gen_table_maui(tables_dir='server', input_table='MAUI_ver11.txt',
     Returns: Nothing but the output table with the MAUI results is generated.
     '''
 
-    solution_dir = mauidir+'RESULTS_BSGS_202101/SOLUTION/'
+    if solution_dir == 'local':
+        solution_dir = mauidir + 'SOLUTION/'
+    elif solution_dir == 'server':
+        solution_dir = mauidir + 'RESULTS_BSGS_202101/SOLUTION/'
 
     if tables_dir == 'local':
-        tables_dir = maindir+'tables/'
+        tables_dir = maindir + 'tables/'
     elif tables_dir == 'server':
         tables_dir = '/net/nas/proyectos/hots/adeburgos/tables/'
 
@@ -412,15 +420,15 @@ def gen_table_maui(tables_dir='server', input_table='MAUI_ver11.txt',
         match = []
         for file in os.listdir(solution_dir):
             if file.endswith('.idl') and \
-               file.split('_sqexp_mat1_')[1][:-14]+'RV.ascii' == filename:
-                   match.append(solution_dir+file)
+            file.split('_sqexp_mat1_')[1][:-14] + 'RV.ascii' == filename:
+                match.append(solution_dir+file)
 
         if len(match) == 0:
             print('\nWARNING: No .idl file found for %s. Continuing...' % filename)
             continue
 
         elif len(match) > 1:
-            match = sorted(match, key=lambda x: int(x[-14:-4].replace('-','')),reverse=True)
+            match = sorted(match, key=lambda x: int(x[-14:-4].replace('-','')), reverse=True)
 
         idldata = readsav(match[0])
 
@@ -462,7 +470,13 @@ def gen_table_maui(tables_dir='server', input_table='MAUI_ver11.txt',
 
             data_row.extend([label,round(sol_max,5),round(err_up,5),round(err_dw,5)])
 
+        # Add the name of the model used in the MAUI emulator
         data_row.extend([grid['Model_name'][0]])
+
+        # Add photometric data
+        data_row.extend([idldata.phot_prim[0],idldata.phot_prim[2]])
+
+        # Append the raw to the table
         data_rows.append(tuple(data_row))
 
         bar.update(i)
@@ -471,15 +485,25 @@ def gen_table_maui(tables_dir='server', input_table='MAUI_ver11.txt',
 
     # Saving the results:
     names = ['ID']
+
+    # Add parameter column names
     for i in range(len(param_lst)):
         names += ['l_'+param_lst[i],param_lst[i],param_lst[i]+'_eUP',param_lst[i]+'_eDW']
+
+    # Add model column name
     names += ['Model_name']
 
-    output = Table(rows=data_rows,names=(names))
+    # Add the photometric column names
+    names += ['BC','(B-V)0']
 
-    full_path = tables_dir+'MAUI_results.'+format
-    if format == 'ascii': format += '.fixed_width_two_line'
-    output.write(full_path,format=format,overwrite=True)
+    output = Table(rows=data_rows, names=(names))
+
+    full_path = tables_dir + 'MAUI_results.' + format
+
+    if format == 'ascii':
+        format += '.fixed_width_two_line'
+
+    output.write(full_path, format=format, overwrite=True)
 
     return 'DONE'
 

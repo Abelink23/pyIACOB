@@ -1,7 +1,10 @@
 __pycache__/
 edr3_zp/__pycache__/
+
 plots/
 scripts/
-tmp*.py
-*_bkp.py
+
 .DS_Store
+matplotlibrc
+*tmp*.py
+*_bkp.py

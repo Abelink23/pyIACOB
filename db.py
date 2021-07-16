@@ -1064,32 +1064,35 @@ def zp_edr3(ra, dec, radius=1, IDs=[]):
     IDs : str,list, optional
         Enter the ID of the input coordinates.
 
-    Returns: Table with the queried sources including the zero-point offset.
+    Returns
+    -------
+    Table with the queried sources including the zero-point offset.
 
     '''
 
     import sys
-    sys.path.append(os.path.expanduser('~')+'/MEGA/PhD/programs/python/edr3_zp')
+    sys.path.append(os.path.expanduser('~') + '/MEGA/PhD/programs/python/edr3_zp')
     import zpt; zpt.load_tables()
     from astroquery.gaia import Gaia
 
     radius = radius/60/60
 
     if len(IDs) == 0:
-        IDs = np.arange(1,len(ra)+1,1)
+        IDs = np.arange(1, len(ra)+1, 1)
+
+    IDs = IDs.tolist()
 
     bar = pb.ProgressBar(maxval=len(IDs),
                          widgets=[pb.Bar('=', '[', ']'), ' ', pb.Percentage()])
     bar.start()
 
-    first = True; i = 0
+    first = True
     for ra_i,dec_i,ID_i in zip(ra, dec, IDs):
         job = Gaia.launch_job("select TOP 1 * FROM gaiaedr3.gaia_source "
                     "WHERE 1=CONTAINS(POINT('ICRS',ra,dec), "
                     "CIRCLE('ICRS',%f,%f,%f))" % (ra_i,dec_i,radius)).get_results()
 
-        bar.update(i + IDs.index(ID_i))
-        i = i + 1
+        bar.update(IDs.index(ID_i))
 
         if len(job) == 0:
             continue
@@ -1105,6 +1108,7 @@ def zp_edr3(ra, dec, radius=1, IDs=[]):
             job['ID'] = ID_i
             table.add_row(job[0])
 
+    bar.finish()
 
     if first == True:
         print('No objects were found for the input coordinates.')
