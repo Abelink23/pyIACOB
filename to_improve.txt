@@ -9,7 +9,8 @@ Saved figures have the same filename. Fix with maybe some ID or adding a number.
 Anadir un argumento a las funciones para elegir corregir o no de heliocentric correction, hel_cor = Yes (default) y despues pues.. if No, usar la linea comentada.
 Esto mismo aplicarlo a /home/abelink/PhD/PerOB1/Radial_Velocity/Plot_line_mask_OBA.py para elegir si quiero o no overplotear las lineas.
 
-Ahora mismo como todo está en dos carpetas para SNR > o < 50, si hay un espectro en lowSNR con fecha anterior a cualquiera de IACOB, para la misma estrella, el eje X tendrá valores negativos de MJD, pero la solución más sencilla sería meter todo en la misma carpeta.
-
 En fitline.py, el resampling solo funciona para los espectros de antes de Sep. 2019 cuando Mercator todavía no puso lambda en logaritmo. Hay que cambiarlo ya que t = wave, da waves no equiespaciados, y es condición necesaria.
 
+Implement vsini determination through FT picking first inflexion point using derivate. Klaus usa sqrt(vsini)/2 -> HeI, Z | sqrt(vsini)/1 -> H | sqrt(vsini)/3.5 -> HeII
+
+SkyCoord puede aceptar el nombre de una estrella en vez de las coordenadas pero devuelve las coordenadas igualmente. Limpiar code para homogeneizar con QueryObject()

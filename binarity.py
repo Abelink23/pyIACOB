@@ -42,8 +42,8 @@ def findSB(table=None, RVcorr=True):
             star = spec(spectrum,SNR='best')
 
             if RVcorr == True:
-                star.offset = RV0(list,star.spectrum,func='g',ewcut=30,tol=150)
-            star.waveflux(4530,6700) # Applies the offset if any
+                star.rv0 = RV0(list,star.spectrum,func='g',ewcut=30,tol=150)
+            star.waveflux(4530,6700) # Applies the rv0 correction
             star.cosmic(sigclip=1.2)
             star.degrade(20000)
             star.flux = star.flux+i*0.05

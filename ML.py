@@ -2,17 +2,18 @@ from RV import *
 import random
 
 from matplotlib.backends.backend_pdf import PdfPages
-pp = PdfPages(maindir+'tmp_plots/ML_results.pdf')
+pp = PdfPages(maindir + 'tmp_plots/ML_results.pdf')
 
-def gen_ascii_ML(input_table='OBAs_ML_raw.fits',not_do=None,manual=False):
+def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, manual=False):
 
     table = findtable(input_table)
-    output = open(maindir+'tmp/results_ML.txt','a')
+    output = open(maindir + 'tmp/results_ML.txt', 'a')
 
-    for row in table:
+    for row in table[:1]:
 
         # Skip all sources in the 'not_do' input list :
         if not_do is not None and row['ID'] in not_do: continue
+
         if row['SNR_best'] < 60: continue
         else: print('Analysing %s' % row['ID'])
 
@@ -35,35 +36,36 @@ def gen_ascii_ML(input_table='OBAs_ML_raw.fits',not_do=None,manual=False):
 
         # Determines the RV with a default fitting function and width
         fun = 'r'; wid = 15
-        best_star = spec(row['ID'],SNR='bestMF')
-        best_star.offset = RV0(rv_list,best_star.spectrum,ewcut=50,func=fun,width=wid,tol=150)
-        best_star.waveflux(3950,6850) # Applies the offset
+        best_star = spec(row['ID'], SNR='bestMF')
+        best_star.rv0 = RV0(rv_list, best_star.spectrum, ewcut=50, func=fun, width=wid, tol=150)
+        best_star.waveflux(3950,6850) # Applies the rv0 correction
 
         # If the line is >.1A from where should be, you determine new best function, width and line
-        RV_A = abs(best_star.fitline(line,func=fun,width=wid,tol=20)['RV_A'])
+        RV_A = abs(best_star.fitline(line, func=fun, width=wid, tol=20)['RV_A'])
         if np.isnan(RV_A) or RV_A > 0.1: # 5km/s at 5400A
-            print('Fitted line outside offset is %.3f (tolerance is 0.1A)' % RV_A)
-            fun,wid,line = func_width(best_star,row['SpT_code'],rv_list,line)
+            print('Fitted line offset is %.3f (tolerance is 0.1A)' % RV_A)
+            fun,wid,line = func_width(best_star, row['SpT_code'], rv_list, line)
 
         # For all available spectra withing a limit, create the final output ascii
-        goodspec = findstar(row['ID'],SNR=60)
-        if len(goodspec) > 10: goodspec = random.sample(goodspec,10)
+        goodspec = findstar(row['ID'], SNR=60)
+        if len(goodspec) > 10:
+            goodspec = random.sample(goodspec, 10)
 
-        for j,n in zip(goodspec,range(len(goodspec))):
-            star = spec(j,SNR='best')
-            star.offset = RV0(rv_list,star.spectrum,ewcut=50,width=wid,tol=150,func=fun)
-            star.waveflux(3950,6850) # Applies the offset
+        for j,n in zip(goodspec, range(len(goodspec))):
+            star = spec(j, SNR='best')
+            star.rv0 = RV0(rv_list, star.spectrum, ewcut=50, width=wid, tol=150, func=fun)
+            star.waveflux(3950,6850) # Applies the rv0 correction
 
-            fig,axs = plt.subplots(3,1,figsize=(14,8),tight_layout=True)
+            fig,axs = plt.subplots(3, 1, figsize=(14,8), tight_layout=True)
             fig.suptitle(star.filename)
-            axs[0].tick_params(direction='in',top='on')
-            axs[0].set_xlim(3950,6850)
-            axs[0].set_ylim(0.5,1.1)
-            axs[1].tick_params(direction='in',top='on')
-            axs[1].set_xlim(3950,6850)
-            axs[1].set_ylim(0.5,1.1)
+            axs[0].tick_params(direction='in', top='on')
+            axs[0].set_xlim(3950, 6850)
+            axs[0].set_ylim(0.5, 1.1)
+            axs[1].tick_params(direction='in', top='on')
+            axs[1].set_xlim(3950, 6850)
+            axs[1].set_ylim(0.5, 1.1)
 
-            axs[0].plot(star.wave,star.flux,c='orange',lw=.2,alpha=.7,label='original')
+            axs[0].plot(star.wave, star.flux, c='orange', lw=.2, alpha=.7, label='original')
 
             # Remove artifacts in FEROS spectra
             if '_F_' in star.filename:
@@ -77,34 +79,38 @@ def gen_ascii_ML(input_table='OBAs_ML_raw.fits',not_do=None,manual=False):
                 [4900.7,4902.2],
                 [6636.,6638.],
                 ]:
-                    mask = (star.wave > win[0]-star.offset)&(star.wave < win[1]-star.offset)
+                    correction = float(star.rv0)*float(np.mean(win))*1000/cte.c # In Angstrom
+                    mask = (star.wave > win[0]-correction) & (star.wave < win[1]-correction)
                     gap = star.flux[mask]
                     if np.std(gap) < 5*std: continue # To skip if the artifact is not there
                     length = len(gap)
                     cont = np.mean(np.concatenate((gap[:5],gap[-5:])))
                     star.flux[mask] = [random.uniform(cont-2*std,cont+2*std) for i in range(length)]
-                    axs[0].plot(star.wave[mask],star.flux[mask],c='r',lw=.2,label='FEROS fixed issues'if i==0 else "")
+                    axs[0].plot(star.wave[mask], star.flux[mask],
+                        c='r', lw=.2, label='FEROS fixed issues' if i==0 else "")
                     i += 1
 
-            star.flux = cleanML(star.wave,star.flux,star.filename,axs,manual=manual)
+            star.flux = cleanML(star.wave, star.flux, star.filename, axs, manual=manual)
 
             star.degrade(resol=5000)
 
-            mask = (star.wave > line-10)&(star.wave < line+10)
-            axs[2].plot(star.wave[mask],star.flux[mask],c='b',lw=.2,label='final spectra')
-            axs[2].plot([line,line],[min(star.flux[mask]),max(star.flux[mask])],'k',label='ref. line position')
+            mask = (star.wave > line-10) & (star.wave < line+10)
+            axs[2].plot(star.wave[mask], star.flux[mask], c='b', lw=.2, label='final spectra')
+            axs[2].plot([line,line], [min(star.flux[mask]),max(star.flux[mask])], c='k', label='ref. line position')
             medval = (max(star.flux[mask]) + min(star.flux[mask]))/2
             medpos = [np.where(star.flux[mask] <= medval)[0][value] for value in (0,-1)]
             center = round((star.wave[mask][medpos[1]]+star.wave[mask][medpos[0]])/2,3)
-            axs[2].plot([center,center],[min(star.flux[mask]),max(star.flux[mask])],'g',label='actual position')
+            axs[2].plot([center,center], [min(star.flux[mask]),max(star.flux[mask])], c='g', label='actual position')
             axs[2].set_title('Difference in angstroms is: %.5f' % abs(center - line))
             axs[2].set_ylim()
 
-            star.resamp(10*0.02564975,3950,6850)
+            star.resamp(10*0.02564975, 3950, 6850)
 
-            star.export(tail='_RV_ML_%i' % n,extension='.ascii')
-            if max(star.flux) > 1.5: output.write(star.filename+' | Max flux: %.3f\n' % max(star.flux))
-            if abs(center - line) > 0.2: output.write(star.filename+' | RV difference (A): %.3f\n' % (center - line))
+            star.export(tail='_RV_ML_%i' % n, extension='.ascii')
+            if max(star.flux) > 1.5:
+                output.write(star.filename + ' | Max flux: %.3f\n' % max(star.flux))
+            if abs(center - line) > 0.2:
+                output.write(star.filename + ' | RV difference (A): %.3f\n' % (center - line))
 
             axs[0].legend(); axs[1].legend(); axs[2].legend()
             pp.savefig(fig)
@@ -112,10 +118,10 @@ def gen_ascii_ML(input_table='OBAs_ML_raw.fits',not_do=None,manual=False):
 
     output.close()
     pp.close()
-    np.savetxt(maindir+'tmp/wavelenghtML.ascii',np.c_[best_star.wave],fmt=('%.4f'))
+    np.savetxt(maindir + 'tmp/wavelenghtML.ascii', np.c_[star.wave], fmt=('%.4f'))
 
 
-def func_width(spec,spt_code,rv_list,line):
+def func_width(spec, spt_code, rv_list, line):
     next = 'n'
     while next != '':
 
@@ -124,7 +130,7 @@ def func_width(spec,spt_code,rv_list,line):
         if line.strip() == '': line = line_0
         else: line = float(line)
 
-        spec.plotspec(line-10,line+10)
+        spec.plotspec(line-10, line+10)
 
         fun = '-'
         while fun not in ['g','l','v','r','vr']:
@@ -142,12 +148,12 @@ def func_width(spec,spt_code,rv_list,line):
 
         plt.close()
 
-        spec.offset = RV0(rv_list,spec.spectrum,ewcut=50,width=wid,tol=150,func=fun)
-        spec.waveflux(3950,6850) # Applies the offset
+        spec.rv0 = RV0(rv_list, spec.spectrum, ewcut=50, width=wid, tol=150, func=fun)
+        spec.waveflux(3950,6850) # Applies the rv0 correction
         spec.cosmic()
         spec.degrade(resol=5000)
 
-        spec.plotspec(line-wid/2,line+wid/2,poslines='OB')
+        spec.plotspec(line-wid/2, line+wid/2, poslines='OB')
 
         next = input('Hit return to continue with the rest of spectra or any other key to repeat. ')
 
@@ -202,11 +208,11 @@ def cosmicML(wave, flux, method='zscore', sigclip=1.5, iter=3, sig_g=None):
             sig_g = 2*lambda0/(2.35482*float(resolution))
         else: sig_g = float(sig_g)
 
-        x = np.arange(-5*sig_g,5*sig_g+dlam,dlam)
-        gauss = f_gaussian(x,sig_g)
+        x = np.arange(-5*sig_g, 5*sig_g+dlam, dlam)
+        gauss = f_gaussian(x, sig_g)
         kernel = gauss/np.trapz(gauss)
 
-        convoluted = 1 + convolve(flux-1,kernel,mode='same')
+        convoluted = 1 + convolve(flux-1, kernel, mode='same')
 
         flux_norm = flux/convoluted
 
@@ -234,12 +240,12 @@ def cleanML(wave, flux, filename, axs, manual=False):
 
         while next == 'n':
             plt.figure(figsize=(13,4))
-            plt.plot(wave,flux,c='orange',lw=.5,label='original')
-            flux_iter1 = cosmicML(wave,flux,      method='zscore',sigclip=sigclip1,iter=3)
-            flux_iter2 = cosmicML(wave,flux_iter1,method='zscore',sigclip=sigclip2,iter=3)
+            plt.plot(wave, flux, c='orange', lw=.5, label='original')
+            flux_iter1 = cosmicML(wave, flux,       method='zscore', sigclip=sigclip1, iter=3)
+            flux_iter2 = cosmicML(wave, flux_iter1, method='zscore', sigclip=sigclip2, iter=3)
             new_flux = np.where((flux_iter1 > 1.01)&((wave < 6550)|(wave > 6576)),flux_iter2,flux_iter1)
 
-            plt.plot(wave,new_flux,c='b',lw=.5,label='final')
+            plt.plot(wave, new_flux, c='b', lw=.5, label='final')
             plt.legend(); plt.tight_layout(); plt.ylim(-0.1,2.1)#; plt.show(block=False)
 
             print('New max/min:',round(new_flux.max(),1),round(new_flux.min(),1))
@@ -253,21 +259,22 @@ def cleanML(wave, flux, filename, axs, manual=False):
             plt.close()
     else:
         sigclip1 = 2.5; sigclip2 = 1.3
-        flux_iter1 = cosmicML(wave,flux,      method='zscore',sigclip=sigclip1,iter=3)
-        flux_iter2 = cosmicML(wave,flux_iter1,method='zscore',sigclip=sigclip2,iter=3)
+        flux_iter1 = cosmicML(wave, flux,       method='zscore', sigclip=sigclip1, iter=3)
+        flux_iter2 = cosmicML(wave, flux_iter1, method='zscore', sigclip=sigclip2, iter=3)
         new_flux = np.where((flux_iter1 > 1.01)&((wave < 6550)|(wave > 6576)),flux_iter2,flux_iter1)
 
-    axs[1].plot(wave,flux,c='orange',lw=.2,alpha=.7,label='original*')
+    axs[1].plot(wave, flux, c='orange', lw=.2, alpha=.7, label='original*')
     i = 0
     for wl_em in [3967.79,4958.911,5006.843,6300.304,6548.04,6583.46,6716.44,6730.82]:
         mask = (wave > wl_em-0.8)&(wave < wl_em+0.8)
         new_flux[mask] = flux[mask]
-        axs[1].plot(wave[mask],new_flux[mask],c='g',lw=.2,label='Em. lines'if i==0 else "",zorder=10)
+        axs[1].plot(wave[mask], new_flux[mask], c='g', lw=.2, label='Em. lines' if i==0 else "", zorder=10)
         i += 1
 
-    if new_flux.min() < 0: new_flux = np.where(new_flux < 0,0.0,new_flux)
+    if new_flux.min() < 0:
+        new_flux = np.where(new_flux < 0, 0.0, new_flux)
 
-    axs[1].plot(wave,new_flux,c='b',lw=.2,alpha=.7,label='final')
+    axs[1].plot(wave, new_flux, c='b', lw=.2, alpha=.7, label='final')
 
     return new_flux
 
@@ -282,11 +289,11 @@ def remove_wave(path=maindir+'tmp/',only_list='to_correct.txt'):
             if only_list != None and not file in table['File']:
                 continue
 
-            data = Table.read(path+file,format='ascii',delimiter=' ')
+            data = Table.read(path + file, format='ascii', delimiter=' ')
             try:
                 if max(data['col2']) > 1.5:
-                    plt.plot(data['col1'],data['col2'],lw=.5)
-                    plt.plot([3950,6850],[2,2],'k',lw=.5)
+                    plt.plot(data['col1'], data['col2'], lw=.5)
+                    plt.plot([3950,6850], [2,2], c='k', lw=.5)
                     plt.show(block=False)
                     inp = input('Wanna print data for %s it? [y/ ]: ' % file)
                     if inp == 'y':
@@ -294,7 +301,7 @@ def remove_wave(path=maindir+'tmp/',only_list='to_correct.txt'):
                     plt.close()
                 if min(data['col2']) < 0: print(file,'<0',min(data['col2']))
                 data.remove_columns(['col1'])
-                data.write(maindir+'tmp/new/'+file,format='ascii.no_header')
+                data.write(maindir + 'tmp/new/' + file, format='ascii.no_header')
             except:
                 print(file)
 

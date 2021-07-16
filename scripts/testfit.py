@@ -2,20 +2,20 @@ import sys; sys.path.append('../')
 
 from spec import *
 
-width = 15
-offset = 0
+width = 60
+rv0 = 0.416
 tol = 150
-func = 'r'
+func = 'vrg_H'
 plot = 'y'
-iter = 3
+iter = 1
 
 # SiIII 4552.622 | SiII 6347.11 | SiII 6371.37 | CII 6578.05 | MgII 4481.13 | Hb 4861.325
-line = 4553.22
+line = 4861.325
 
 errors = False
 
 #star = spec('maui_T20000lgf130v110_V25000.txt',SNR='best',txt=True)
-star = spec('HD36959',SNR='best')
+star = spec('HD36959',SNR='best',rv0=rv0)
 
 # Test contaminations:
 # The size of the line-core must be manually set as # times the FWHM of the first
@@ -109,14 +109,14 @@ while i < iter:
         break
     flux = star.flux[window]; wave = star.wave[window]
 
-    # The min FWHM will be defined by either 3 times the dx, or 3/4 of the
+    # The min FWHM will be defined by either 3 times the dlam, or 3/4 of the
     # minimum theoretical FWHM given the input line and resolution
-    dx_mean = (wave[-1]-wave[0])/(len(wave)-1)
-    FWHM_min = np.max([3*dx_mean,3/4*dlamb])
+    dlam_mean = (wave[-1]-wave[0])/(len(wave)-1)
+    FWHM_min = np.max([3*dlam_mean,3/4*dlamb])
 
     # Auto-resampling
-    #if dx_mean >= 0.025 and not 'log' in star.file_name:
-    #    factor = dx_mean/0.025; star.resamp(factor)
+    #if dlam_mean >= 0.025 and not 'log' in star.file_name:
+    #    factor = dlam_mean/0.025; star.resamp(factor)
 
     # Find regions of the continuum to use during normalization (4 iter)
     for j in range(4):
@@ -134,9 +134,9 @@ while i < iter:
 
 
     '''====================== Fitting the line ===================='''
-    popt_i = curve_fit(fitfunc,wave,flux_norm_i,bounds=bounds)[0]
+    popt_i, pcov_i = curve_fit(fitfunc,wave,flux_norm_i,bounds=bounds)
     try:
-        popt_i = curve_fit(fitfunc,wave,flux_norm_i,bounds=bounds)[0]
+        popt_i, pcov_i = curve_fit(fitfunc,wave,flux_norm_i,bounds=bounds)
         flux_fit_i = fitfunc(wave,*popt_i)
 
         if test in [1,2]:
@@ -165,7 +165,7 @@ while i < iter:
                 plt.plot(wave,np.where(mask_l==False,1,np.nan)+0.01,'k',lw=.3)
 
                 # a) Use the mask
-                popt_a = curve_fit(fitfunc,wave[mask_l],flux_norm_i[mask_l],bounds=bounds)[0]
+                popt_a, pcov_a = curve_fit(fitfunc,wave[mask_l],flux_norm_i[mask_l],bounds=bounds)
                 flux_fit_a = fitfunc(wave,*popt_a)
                 plt.plot(wave,flux_fit_a,'-.r',lw=.3,label='masked fitting')
 
@@ -174,7 +174,7 @@ while i < iter:
                 plt.plot(wave,flux_norm_b,'-.k',lw=.4,label='flux to fit')
                 nans = np.isnan(flux_norm_b); x = lambda z: z.nonzero()[0]
                 flux_norm_b[nans]= np.interp(x(nans),x(~nans),flux_norm_b[~nans])
-                popt_b = curve_fit(fitfunc,wave,flux_norm_b,bounds=bounds)[0]
+                popt_b, pcov_b = curve_fit(fitfunc,wave,flux_norm_b,bounds=bounds)
                 flux_fit_b = fitfunc(wave,*popt_b)
                 plt.plot(wave,flux_fit_b,'-.g',lw=.3,label='interp. fitting')
 
@@ -206,7 +206,8 @@ while i < iter:
         # Checking step results
         if FWHM_min < FWHM < FWHM_max:
             flux_norm = flux_norm_i; continuum = continuum_i; mask = mask_i
-            flux_fit = flux_fit_i; popt = popt_i; width = width_i; print(popt)
+            flux_fit = flux_fit_i; popt = popt_i; pcov = pcov_i; width = width_i
+            print(popt)
             i = i + 1; width_i = FWHM*7
             if errors is True:
                 flux_fit_up = flux_fit_up_i; flux_fit_dw = flux_fit_dw_i
@@ -230,7 +231,9 @@ line_f = wave[flux_fit == min(flux_fit)][0]
 if abs(line - line_f) > tol_aa:
     sys.exit('Line %sA found outside tolerance.\n' % line)
 
-line_f = line_f + star.offset
+# Add the rv0 on top on the position of the line
+#line_f = line_f + float(star.rv0)*float(line)*1000/cte.c
+
 RV_A = round((line_f - line),3)
 RV_kms = round(((line_f - line)/line)*cte.c/1000,1)
 line_f = round(line_f,3)
@@ -283,6 +286,8 @@ snr = int(1/sigma_cont)
 q_fit = 1/np.std(flux_norm[flux_fit<.995]/flux_fit[flux_fit<.995]) #simple
 q_fit = round(q_fit,3)
 
+q_fit = np.sqrt(np.diag(pcov))[0] # Estimate of error for the Area
+
 
 '''========================== Find more lines ======================='''
 flux_norm_2 = flux_norm/flux_fit; mirror_line = line - RV_A
@@ -299,7 +304,7 @@ try:
     EW_2 = round(1000*EW_2)
 
     line_f_2 = line_fit_2[0][line_fit_2[1].tolist().index(min(line_fit_2[1]))]
-    line_f_2 = line_f_2 + offset
+    line_f_2 = line_f_2 + float(star.rv0)*float(line)*1000/cte.c
     RV_A_2 = round((line_f_2-line),3)
     RV_kms_2 = round(((line_f_2-line)/line)*const.c/1000,3)
     line_f_2 = round(line_f_2,3)
@@ -364,3 +369,5 @@ print(fitsol)
 #elif func == 'v': FWHM = 2*(.5346*popt[3]+np.sqrt(.2166*(popt[3]**2)+popt[2]**2))
 #elif func == 'r': FWHM = 1.7*popt[3]*line*1000/const.c
 #FWHM = round(FWHM, 2)
+
+popt

@@ -118,7 +118,8 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_input',RV0tol=20
         match_REF = table_REF[[i.strip()==id for i in table_REF['ID']]]
         match_IB = table_IB[table_IB['ID']==id]
 
-        if len(match_REF) == 0 or len(match_IB) == 0: continue
+        if len(match_REF) == 0 or len(match_IB) == 0:
+            print('Missing information in RVEWFW or IB tables for %s\n' % id); continue
 
         # Filter based on Si lines properties:
         if row['QSiII']<3 or match_REF['EWSiII']<50 or np.isnan(match_REF['EWSiII']) or\
@@ -139,10 +140,10 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_input',RV0tol=20
             print(star.filename,' vs ',match_IB['filename'][0])
             if ascii_0 == True:
                 do_file = input('Which ascii do you want to create 1 or 2: ')
-                if int(do_file) == 1: filename = star.filename
-                elif int(do_file) == 2: filename = match_IB['filename'][0]
+                if int(do_file) == 1: star.filename = star.filename
+                elif int(do_file) == 2: star.filename = match_IB['filename'][0]
 
-        if ascii_0 == True and not search(filename[:-5]+'_RV.ascii',\
+        if ascii_0 == True and not search(star.filename[:-5]+'_RV.ascii',\
         os.path.expanduser('~')+'/Documents/MAUI/ASCII/') is None: ascii = False
 
         # ----------------------------------------------------------------------
@@ -160,12 +161,13 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_input',RV0tol=20
 
             from RV import RV0
 
-            # If RV SiIII is good enough, it uses it for the offset:
+            # If RV SiIII is good enough, it uses it for the rv0 correction:
             if abs(match_REF['RVSiIII1']-match_REF['RVHb']) < 10:
-                star.offset = float(match_REF['RVSiIII1'])*float(4500)*1000/cte.c
-                star.waveflux(); print('RV good enough.\n')
+                star.rv0 = match_REF['RVSiIII1']
+                star.waveflux() # Applies the rv0 correction to the wavelenght vector.
+                print('RV good enough.\n')
 
-            # Otherwise it calculates the offset with the RV0 program:
+            # Otherwise it calculates the rv0 correction with the RV package:
             else:
                 next = 'n'
                 while next == 'n':
@@ -173,7 +175,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_input',RV0tol=20
                     skip = input('%s - Hit return to continue, type "s" to skip: ' % id)
                     if skip == 's': break
 
-                    if match_REF['SpT_code'] <= 2.5: star.plotspec(4530,4590)
+                    if table['SpT_code'] <= 2.5: star.plotspec(4530,4590)
                     else: star.plotspec(6337.11,6357.11)
 
                     SpT = '-'
@@ -194,11 +196,11 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_input',RV0tol=20
 
                     plt.close()
 
-                    star.offset = RV0(spt_list,star.spectrum,ewcut=30,width=wid,tol=RV0tol,func=fun)
-                    star.waveflux() # Applies the offset
+                    star.rv0 = RV0(spt_list,star.spectrum,ewcut=30,width=wid,tol=RV0tol,func=fun)
+                    star.waveflux() # Applies the rv0 correction
                     #star.cosmic(sigclip=0.005)
 
-                    if match_REF['SpT_code'] <= 2.5: star.plotspec(4530,4590,poslines='OB')
+                    if table['SpT_code'] <= 2.5: star.plotspec(4530,4590,poslines='OB')
                     else: star.plotspec(6337.11,6357.11,poslines='OB')
 
                     input(); plt.close('all')

@@ -1,43 +1,33 @@
-import sys; sys.path.append('../')
+import sys
+sys.path.append('../')
 
 from spec import *
+from ML import *
 
-plt.close('all')
-plt.figure()
-star = spec('HD41398',SNR='bestMF')
-wave,flux,_ = star.waveflux(4500,6380)
+plt.figure(figsize=(17,7))
+#star = spec(findstar('HD41398_20201218_070204_M_V85000_log.fits'),SNR='bestMF')
+star = spec('ALS15210',SNR='bestMF')
+star.waveflux(3950,6850)
+plt.plot(star.wave,star.flux,'orange',lw=.7,label='original')
 
-sigclip = 1.5
+star.flux = cosmicML(star.wave,star.flux,method='zscore',sigclip=3.0,iter=3)
+flux_kern = cosmicML(star.wave,star.flux,method='zscore',sigclip=1.3,iter=3)
+star.flux = np.where(star.flux > 1.01,flux_kern,star.flux)
+plt.plot(star.wave,star.flux,'--b',lw=.7,label='finalML')
 
-sigma = .2
-# OR
-sigma = 2*np.mean(star.wave)/(2.35482*float(star.resolution))
+star.degrade(resol=5000)
+star.resamp(10*0.02564975,3950,6850)
+plt.plot(star.wave,star.flux+1,'b',lw=.7,label='degraded')
 
-x = np.arange(-5*sigma,5*sigma+star.dx,star.dx)
-gauss = f_gaussian(x,sigma)
-kernel = gauss/np.trapz(gauss)
+star.waveflux(3950,6850)
+star.cosmic(method='kernel')
+plt.plot(star.wave,star.flux,'--g',lw=.7,label='finalOri')
 
-# computational convolution
-convoluted = 1 + convolve(flux-1,kernel,mode='same')
+star.degrade(resol=5000)
+star.resamp(10*0.02564975,3950,6850)
+plt.plot(star.wave,star.flux+1.5,'g',lw=.7,label='degraded')
 
-plt.plot(x,kernel)
+plt.rcParams['figure.dpi'] = 300
+plt.legend(); plt.tight_layout()
 
-plt.figure()
-
-plt.plot(wave,flux,label='original')
-plt.plot(wave,convoluted-0.05,label='convolved')
-
-flux_norm = flux/convoluted
-
-plt.plot(wave,flux_norm+0.05,'gray',label='ori./conv.')
-
-std = np.std(flux_norm)
-flux_cleaned = np.where(flux_norm>1+sigclip*std,np.nan,flux)
-
-nans = np.isnan(flux_cleaned); x = lambda z: z.nonzero()[0]
-flux_cleaned[nans]= np.interp(x(nans),x(~nans),flux_cleaned[~nans])
-
-plt.plot(wave,flux_cleaned-0.1,label='final')
-
-plt.legend()
-plt.show(block=False)
+plt.show()

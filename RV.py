@@ -1,11 +1,11 @@
-from spec import *
-from scipy.signal import correlate,correlation_lags
-
-
 '''=============================================================================
 Program to calculate the radial velocities for a given spectra/spectrum via
 lists of individual lines or via cross correlation using synthetic spectra.
 ============================================================================='''
+
+from spec import *
+from scipy.signal import correlate,correlation_lags
+
 
 def RV_cc(id_star, windows=[(3950,4160),(4310,4360),(4370,4490),(4540,4690),(4840,4950)]):
     spectra = findstar(id_star)
@@ -84,7 +84,9 @@ def RV1_cc(spectra1, spectra2, windows=[(3950,4160),(4310,4360),(4370,4490),(454
         computed. If more than one pair, the result is averaged.
         Default is a set of defautl windows.
 
-    Returns: XXXXXXX
+    Returns
+    -------
+    XXXXXXX
     '''
 
     spec1 = spec(spectra1)
@@ -100,6 +102,7 @@ def RV1_cc(spectra1, spectra2, windows=[(3950,4160),(4310,4360),(4370,4490),(454
 
     spec1.wave = spec1.wave[mask]
     spec1.flux = spec1.flux[mask]
+
     spec2.wave = spec2.wave[mask]
     spec2.flux = spec2.flux[mask]
 
@@ -109,18 +112,18 @@ def RV1_cc(spectra1, spectra2, windows=[(3950,4160),(4310,4360),(4370,4490),(454
         flux1 = spec1.flux[(spec1.wave >= win[0]) & (spec1.wave <= win[1])]
         wave1 = spec1.wave[(spec1.wave >= win[0]) & (spec1.wave <= win[1])]
 
-        corr = correlate(flux2-1,flux1-1)
+        corr = correlate(flux1-1,flux2-1)
         corr /= np.max(corr)
 
         # Requires scipy version 1.6.0 or above to run
         lags = correlation_lags(len(flux1),len(flux2))
-        corr_shift = -lags[np.argmax(corr)]
+        corr_shift = lags[np.argmax(corr)]
 
         #lags = np.arange(-len(flux1)+1,len(flux1),1)
-        #corr_shift = -corr.argmax()+len(flux1)-1
+        #corr_shift = corr.argmax()-len(flux1)+1
 
         RVs_angs.append(corr_shift*spec1.dx)
-        RVs_kms.append(RVs_angs[-1]/np.mean(wave1)*cte.c/1000)
+        RVs_kms.append(corr_shift*spec1.dx/np.mean(wave1)*cte.c/1000)
 
         #plt.plot(lags,corr,lw=.5)
 
@@ -144,7 +147,9 @@ def RV0(lines, spectrum, ewcut=50, width=20, tol=150, func='g', info=False, plot
     Other parameters : optional
         See help for spec and spec.fitline
 
-    Returns: Mean radial velocity in angstroms.
+    Returns
+    -------
+    Mean radial velocity in km/s.
     '''
 
     lines = findlines(lines)[0]
@@ -154,7 +159,7 @@ def RV0(lines, spectrum, ewcut=50, width=20, tol=150, func='g', info=False, plot
 
         fit = spec(spectrum).fitline(line,width=width,tol=tol,func=func,info=info,plot=plot)
 
-        if np.isnan(fit['RV_A']): continue
+        if np.isnan(fit['RV_kms']): continue
         elif fit['EW'] < ewcut: continue
         else: RVs.append(fit['RV_kms'])
 
@@ -169,7 +174,8 @@ def RV0(lines, spectrum, ewcut=50, width=20, tol=150, func='g', info=False, plot
         print('Not enought values for sigma clipping. Skipping... ')
         return 0
 
-    print('\nRV0: %s/%s lines used (after clipping) with std=%s [km/s]\n' % (len(RVs),len(lines),round(np.std(RVs),3)))
+    print('\nRV0: %s/%s lines used (after clipping) with std=%s [km/s]\n' %
+        (len(RVs),len(lines),round(np.std(RVs),3)))
 
     RV_0 = np.mean(RVs)
 
@@ -197,6 +203,11 @@ def RV(lines, spectra, SNR=None, linesRV0=None, linecut=1, ewcut=25, width=None,
 
     Other parameters : optional
         See help for see spec and spec.fitline and spec() class.
+
+    Returns
+    -------
+    Nothing, but output text files are created with the individual and global results.
+    Terminal output is also prompted.
     '''
 
     spectra = findstar(spectra=spectra,SNR=SNR)
@@ -263,10 +274,8 @@ def RV(lines, spectra, SNR=None, linesRV0=None, linecut=1, ewcut=25, width=None,
 
             if np.isnan(fit['RV_kms']):
                 continue
-
             elif fit['EW'] < ewcut:
                 continue
-
             else:
                 RVs.append(fit['RV_kms'])
                 out_f2.write('%.3f, %.3f, %d, %d, %.2f, %.3f\n' %
@@ -275,10 +284,10 @@ def RV(lines, spectra, SNR=None, linesRV0=None, linecut=1, ewcut=25, width=None,
         if RVs == []:
             print('No lines were found for spectrum: %s\n' % spectrum.filename)
             continue
+
         if len(RVs) < linecut:
             print('Only %d line found for: %s\n' % (len(RVs),spectrum.filename))
             continue
-
 
         '''========================= Sigma Clipping ========================='''
         # Enable/disable histogram (also enable also the lines after sigma clip)
@@ -301,7 +310,6 @@ def RV(lines, spectra, SNR=None, linesRV0=None, linecut=1, ewcut=25, width=None,
             +  str(round(date_obs,4)) + ', ' + str(len(RVs[0])) + ', ' \
             +  spectrum.filename.split('.')[0] + '\n')
 
-
         '''============================== Plot =============================='''
         ax.errorbar(date_obs,RVs_mean,yerr=std,elinewidth=.4,marker='o',
             color=color,capsize=2,markersize=3)
@@ -316,7 +324,6 @@ def RV(lines, spectra, SNR=None, linesRV0=None, linecut=1, ewcut=25, width=None,
         plt.close()
         return None
 
-
     '''==================== Mean of RVs and peak-to-peak ===================='''
     RVs_mean_all_means = np.mean(RVs_all_means)    # Mean of all spectra
     RVs_mean_all_means_std = np.std(RVs_all_means) # Std of the mean of all spectra
@@ -325,23 +332,21 @@ def RV(lines, spectra, SNR=None, linesRV0=None, linecut=1, ewcut=25, width=None,
     peak_to_peak_err = np.sqrt(RVs_all_std[RVs_all_means.index(max(RVs_all_means))]**2
         + RVs_all_std[RVs_all_means.index(min(RVs_all_means))]**2)
 
-
     '''============================== Output ================================'''
-    print('====================================================')
+    print('––––––––––––––––––––––––––––––––––––––––––––––––––')
     print('Results for '+ spectrum.id_star)
     if i == 1:
         print('The mean RV of the spectrum is: ' + str(round(RVs_mean,4)) \
-        + ' +/- ' + str(round(std,4)))
+            + ' +/- ' + str(round(std,4)))
     else:
         print('The mean radial velocity is: ' + str(round(RVs_mean_all_means, 4)) \
-        + ' +/- ' + str(round(RVs_mean_all_means_std, 4)))
+            + ' +/- ' + str(round(RVs_mean_all_means_std, 4)))
         print('The peak to peak value is: ' + str(round(peak_to_peak, 4)) \
-        + ' +/- ' + str(round(peak_to_peak_err,4)))
+            + ' +/- ' + str(round(peak_to_peak_err,4)))
         print('The time span of the spectra is: ' + str(round(date_obs-date_obs_0, 2)))
     print('The average number of lines used is: ' + str(round(np.mean(num_lines), 1)))
     print('The number of spectra used is: ' + str(len(RVs_all_means)))
-    print('====================================================')
-
+    print('––––––––––––––––––––––––––––––––––––––––––––––––––')
 
     '''================================ Plot ================================'''
     ax.set_title(spectrum.id_star)

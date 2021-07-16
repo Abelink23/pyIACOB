@@ -49,19 +49,24 @@ class spec():
             else: spectrum = spectrum[0]
 
         if SNR in ['best','bestMF'] and not '.fits' in spectrum and not txt == True:
-            try: self.spectrum = findstar(spectrum,SNR=SNR)[0]
+            try: self.spectrum = findstar(spectrum, SNR=SNR)[0]
             except: self.spectrum = None
-
 
         else: self.spectrum = spectrum
 
         self.filename = self.spectrum.split('/')[-1]
         self.id_star = self.spectrum.split('/')[-1].split('_')[0]
+
         self.resolution = int(re.split('(\d*\d+)',self.spectrum)[-2])
+
         self.offset = offset # Note, run self.waveflux to apply offset.
-        self.rv0 = rv0 # Note, run self.waveflux to apply rv0.
-        if txt == False: self.waveflux()
-        elif txt == True: self.txtwaveflux()
+
+        self.rv0 = rv0 # Note, run self.waveflux to apply the correction.
+
+        if txt == False:
+            self.waveflux()
+        elif txt == True:
+            self.txtwaveflux()
         self.txt = txt
 
 
@@ -70,7 +75,7 @@ class spec():
             query = Simbad.query_object(self.id_star)
 
             if query == None and 'HD' in self.id_star:
-                new_id_star = self.id_star.replace('HD','HD ')
+                new_id_star = self.id_star.replace('HD', 'HD ')
                 query = Simbad.query_object(new_id_star)
             self.SpC = query['SP_TYPE'][0]
         except:
@@ -108,8 +113,8 @@ class spec():
         # Alternatively use len(hdu[0].data[0]) (NOT/MERCATOR) or len(hdu[0].data)
 
         # Correct Mercator CRVAL1 20101018-19:
-        if any(bad in self.spectrum for bad in ['_20101018_','_20101019_']) \
-               and lam0 == 3763.9375: lam0 = 3763.61
+        if any(bad in self.spectrum for bad in ['_20101018_','_20101019_']) and lam0 == 3763.9375:
+            lam0 = 3763.61
 
         try: vbar = header0['I-VBAR'] # [km/s] Barycent. rv correction at midpoint
         #    vbar = header0['BVCOR']  # [km/s] Barycent. rv correction at midpoint | MERCATOR
@@ -133,7 +138,8 @@ class spec():
             print('\nWARNING: Width value %f is too large, setting it to 200. ' %width)
 
         wave = lam0 + dlam*(np.arange(spec_length) - pix0 + 1)
-        if '_log' in self.spectrum: wave = np.exp(wave)
+        if '_log' in self.spectrum:
+            wave = np.exp(wave)
         elif helcorr == 'hel' and not instrum == 'FEROS':
             wave = wave*(1 + 1000*vbar/cte.c)
         # Those with log and those from FEROS are already corrected from helcorr
@@ -142,25 +148,31 @@ class spec():
 
         wave = wave - self.offset
 
-        try: flux = hdu[0].data[0]
-        except: flux = hdu[0].data
+        try:
+            flux = hdu[0].data[0]
+        except:
+            flux = hdu[0].data
 
         if lwl != None and rwl != None:
             if wave[0] > lwl+dlam or wave[-1] < rwl-dlam:
                 print('WARNING: Wavelenght limits outside spectrum wavelenght range.')
-            flux = flux[(wave >= lwl-width/2.)&(wave <= rwl+width/2.)]
-            wave = wave[(wave >= lwl-width/2.)&(wave <= rwl+width/2.)]
+            flux = flux[(wave >= lwl-width/2.) & (wave <= rwl+width/2.)]
+            wave = wave[(wave >= lwl-width/2.) & (wave <= rwl+width/2.)]
 
         if '_log' in self.spectrum:
             self.dlam = (wave[-1]-wave[0])/(len(wave)-1)
-        else: self.dlam = dlam
+        else:
+            self.dlam = dlam
 
         hdu.close()
 
-        self.wave_0 = wave; self.flux_0 = flux
-        self.wave = wave; self.flux = flux
+        self.wave_0 = wave
+        self.flux_0 = flux
 
-        return wave,flux,hjd
+        self.wave = wave
+        self.flux = flux
+
+        return wave, flux, hjd
 
 
     def txtwaveflux(self, lwl=None, rwl=None, width=0):
@@ -170,10 +182,14 @@ class spec():
         See help for spec.waveflux
 
         '''
-        data = findtable(self.spectrum,path=datadir+'ASCII/')
+        data = findtable(self.spectrum, path=datadir+'ASCII/')
 
-        try: wave = np.asarray(data['wavelenght']); flux = np.asarray(data['flux'])
-        except: wave = np.asarray(data['col1']); flux = np.asarray(data['col2'])
+        try:
+            wave = np.asarray(data['wavelenght'])
+            flux = np.asarray(data['flux'])
+        except:
+            wave = np.asarray(data['col1'])
+            flux = np.asarray(data['col2'])
 
         wave = wave*(1 - 1000*self.rv0/cte.c)
 
@@ -183,15 +199,20 @@ class spec():
             dlam = (wave[-1]-wave[0])/(len(wave)-1)
             if wave[0] > lwl+dlam or wave[-1] < rwl-dlam:
                 print('WARNING: Wavelenght limits outside spectrum wavelenght range.')
-            flux = flux[(wave >= lwl-width/2.)&(wave <= rwl+width/2.)]
-            wave = wave[(wave >= lwl-width/2.)&(wave <= rwl+width/2.)]
+            flux = flux[(wave >= lwl-width/2.) & (wave <= rwl+width/2.)]
+            wave = wave[(wave >= lwl-width/2.) & (wave <= rwl+width/2.)]
 
-        self.dlam = (wave[-1]-wave[0])/len(wave); self.vbar = 0; self.hjd = 0
+        self.dlam = (wave[-1]-wave[0])/len(wave)
+        self.vbar = 0
+        self.hjd = 0
 
-        self.wave_0 = wave; self.flux_0 = flux
-        self.wave = wave; self.flux = flux
+        self.wave_0 = wave
+        self.flux_0 = flux
 
-        return wave,flux,0
+        self.wave = wave
+        self.flux = flux
+
+        return wave, flux, 0
 
 
     def fitline(self, line, width=15, tol=150., func='g', iter=3,
@@ -237,7 +258,7 @@ class spec():
         fitsol = {'sol': 0, 'line': np.nan, 'RV_A': np.nan, 'RV_kms': np.nan,
                   'EW': np.nan, 'FWHM': np.nan, 'depth': np.nan, 'q_fit': np.nan}
 
-        '''============================ Parameters =========================='''
+        #============================== Parameters =============================
         # Catch line input containing more than one line
         if type(line) == str and (',' in line or ' ' in line.strip()):
             print('Error: More than one line selected.\nExitting...')
@@ -253,7 +274,6 @@ class spec():
         # Maximum FWHM allowed (should be up to 18 for H lines)
         FWHM_max = 17
 
-        #=======================================================================
         #=========== Dictionary and boundary limits for the functions ==========
         fit_dic = {'g': ('A','lam0','sigma'),
                    'l': ('A','lam0','gamma','y'),
@@ -307,7 +327,6 @@ class spec():
             bounds  = ([-.1,line-tol_aa,0. ,0,  1,-1.3,0,-.01], # y=-.01 = larger EWs
                        [ .0,line+tol_aa,1.5,1,410, 0. ,2, .01])
 
-        #=======================================================================
         #============================= Line fitting ============================
         i = 0; width_i = width
         while i < iter:
@@ -317,7 +336,9 @@ class spec():
             if not any(window):
                 print('Line %sA not in spectra.\n' % line)
                 return fitsol
-            flux = self.flux[window]; wave = self.wave[window]
+
+            flux = self.flux[window]
+            wave = self.wave[window]
 
             dlam_mean = (wave[-1]-wave[0])/(len(wave)-1)
             # Auto-resampling
@@ -329,26 +350,24 @@ class spec():
                 if j == 0:
                     mask_i = ~np.isnan(flux)
                 else:
-                    mask_i = ~sigma_clip(flux/continuum_i,maxiters=None,
-                              sigma_lower=1.4,sigma_upper=2.5,axis=-1).mask #1.4 before
+                    mask_i = ~sigma_clip(flux/continuum_i, maxiters=None,
+                        sigma_lower=1.4, sigma_upper=2.5, axis=-1).mask #1.4 before
 
-                c_fit = np.poly1d(np.polyfit(wave[mask_i],flux[mask_i],1))
+                c_fit = np.poly1d(np.polyfit(wave[mask_i], flux[mask_i], 1))
                 continuum_i = c_fit(wave)
 
             # Final normalization of the iteration
             flux_norm_i = flux / continuum_i
 
-
-            #===================================================================
             #========================= Fitting the line ========================
             try:
-                popt_i = curve_fit(fitfunc,wave,flux_norm_i,bounds=bounds)[0]
-                flux_fit_i = fitfunc(wave,*popt_i)
+                popt_i = curve_fit(fitfunc, wave, flux_norm_i, bounds=bounds)[0]
+                flux_fit_i = fitfunc(wave, *popt_i)
 
                 # Calculate the empirical approximate FWHM
                 medval = (max(flux_fit_i) + min(flux_fit_i))/2
                 medpos = [np.where(flux_fit_i <= medval)[0][value] for value in (0,-1)]
-                FWHM = round(wave[medpos[1]]-wave[medpos[0]],2)
+                FWHM = round(wave[medpos[1]] - wave[medpos[0]],2)
 
                 # Checking step results
                 # The min FWHM will be defined by either 3 times the dlam, or 3/4 of the
@@ -359,16 +378,18 @@ class spec():
                     flux_fit = flux_fit_i; popt = popt_i; width = width_i
                     i = i + 1; width_i = FWHM*7
                 elif FWHM < FWHM_min:
-                    print('WARNING: %.3fA FWHM(%.1f) < minimum FWHM.' % (line,FWHM)); break
+                    print('WARNING: %.3fA FWHM(%.1f) < minimum FWHM.' % (line,FWHM))
+                    break
                 elif FWHM > FWHM_max:
-                    print('WARNING: %.3fA FWHM(%.1f) < maximum FWHM.' % (line,FWHM)); break
+                    print('WARNING: %.3fA FWHM(%.1f) < maximum FWHM.' % (line,FWHM))
+                    break
 
             except: break
 
-        #=======================================================================
         #======================== Checking final results =======================
         window = (self.wave >= line-width/2.) & (self.wave <= line+width/2.)
-        flux = self.flux[window]; wave = self.wave[window]
+        flux = self.flux[window]
+        wave = self.wave[window]
 
         if i == 0:
             if info is True:
@@ -382,69 +403,66 @@ class spec():
                 print('Line %sA found outside tolerance.\n' % line)
             return fitsol
 
-        RV_A   = round((line_f - line),3)
-        RV_kms = round(((line_f - line)/line)*cte.c/1000,1)
-        line_f = round(line_f,3)
+        RV_A   = round((line_f - line), 3)
+        RV_kms = round(((line_f - line)/line)*cte.c/1000, 1)
+        line_f = round(line_f, 3)
 
         if info is True:
             print('Line %sA found at %.3fA -> RV: %.1fkm/s\n' % (line,line_f,RV_kms))
 
-        #=======================================================================
         #=========================== Calculate the EW ==========================
         # stackoverflow.com/questions/34075111/calculate-equivalent-width-using-python-code
-        EW = .5*abs(fsum((wave[wl-1]-wave[wl])*((1-flux_fit[wl-1]) +
-             (1-flux_fit[wl])) for wl in range(1,len(flux_fit))))
+        EW = .5*abs(fsum((wave[wl-1] - wave[wl])*((1 - flux_fit[wl-1]) +
+             (1 - flux_fit[wl])) for wl in range(1, len(flux_fit))))
         EW = round(1000*EW)
 
-        #=======================================================================
         #====================== Calculate the final FWHM =======================
         medval = (max(flux_fit) + min(flux_fit))/2
         medpos = [np.where(flux_fit <= medval)[0][value] for value in (0,-1)]
-        try: l_val = np.interp(medval,[flux_fit[medpos[0]],flux_fit[medpos[0]-1]],
-                                      [wave[medpos[0]],wave[medpos[0]-1]])
-        except: l_val = wave[medpos[0]]
-        try: r_val = np.interp(medval,[flux_fit[medpos[1]],flux_fit[medpos[1]+1]],
-                                      [wave[medpos[1]],wave[medpos[1]+1]])
-        except: r_val = wave[medpos[1]]
-        FWHM = round(r_val-l_val,2)
+        try:
+            l_val = np.interp(medval, [flux_fit[medpos[0]], flux_fit[medpos[0]-1]],
+                [wave[medpos[0]], wave[medpos[0]-1]])
+        except:
+            l_val = wave[medpos[0]]
+        try:
+            r_val = np.interp(medval, [flux_fit[medpos[1]], flux_fit[medpos[1]+1]],
+                [wave[medpos[1]], wave[medpos[1]+1]])
+        except:
+            r_val = wave[medpos[1]]
+        FWHM = round(r_val - l_val, 2)
 
-        #=======================================================================
         #======================= Calculate the line depth ======================
-        depth = round(1-min(flux_fit),2)
+        depth = round(1 - min(flux_fit), 2)
 
-
-        #=======================================================================
         #===================== Calculate the SNR continuum =====================
         sigma_cont = np.std(flux_norm[mask])
         snr = int(1/sigma_cont)
 
-        #=======================================================================
         #============================= Quality value ===========================
         q_fit = 1/np.std(flux_norm[flux_fit<.995]/flux_fit[flux_fit<.995]) #simple
-        q_fit = round(q_fit,3)
+        q_fit = round(q_fit, 3)
 
-        #=======================================================================
         #================================ Plot =================================
         if plot is True:
 
             fig, ax = plt.subplots()
 
-            ax.plot(wave,flux,'orange',lw=.5)
-            ax.plot(wave,continuum,'r',lw=.5)
-            ax.plot(wave,flux_norm,'b',lw=.5)
+            ax.plot(wave, flux, c='orange', lw=.5)
+            ax.plot(wave, continuum, c='r', lw=.5)
+            ax.plot(wave, flux_norm, c='b', lw=.5)
 
-            ax.plot(wave,flux_fit,'g',lw=.5)
+            ax.plot(wave, flux_fit, c='g', lw=.5)
 
-            ax.plot(wave,np.where(mask==False,1,np.nan)+0.01,'k',lw=.5)
+            ax.plot(wave, np.where(mask==False, 1, np.nan) + 0.01, 'k', lw=.5)
 
             ax.set_title('%s | %.2f | RV: %d | EW: %d | FWHM: %.2f' %
-                     (self.id_star,line_f,RV_kms,EW,FWHM))
+                (self.id_star,line_f,RV_kms,EW,FWHM))
 
             ax.set_yticks([])
-            ax.set_xlabel('$\lambda$ $[\AA]$',size=13)
-            ax.set_ylabel('Normalized flux',size=13)
-            ax.tick_params(direction='in',top='on')
-            ax.figure.subplots_adjust(top=.9,bottom=.12,right=.88,left=.08)
+            ax.set_xlabel('$\lambda$ $[\AA]$', size=13)
+            ax.set_ylabel('Normalized flux', size=13)
+            ax.tick_params(direction='in', top='on')
+            ax.figure.subplots_adjust(top=.9, bottom=.12, right=.88, left=.08)
 
         plt.show(block=False)
 
@@ -452,12 +470,14 @@ class spec():
         #================= Packing the results in a dictionary =================
         fitsol = {'sol': 1, 'line': line_f, 'RV_A': RV_A, 'RV_kms': RV_kms,
                    'EW': EW, 'FWHM': FWHM, 'depth': depth, 'q_fit': q_fit}
-        for f_par,par in zip(fit_dic[func.split('_')[0]],popt):
-            fitsol[f_par] = round(par,3)
+        for f_par,par in zip(fit_dic[func.split('_')[0]], popt):
+            fitsol[f_par] = round(par, 3)
 
         if outfit == True:
-            fitsol['wave'] = wave; fitsol['flux'] = flux
-            fitsol['flux_norm'] = flux_norm; fitsol['flux_fit'] = flux_fit
+            fitsol['wave'] = wave
+            fitsol['flux'] = flux
+            fitsol['flux_norm'] = flux_norm
+            fitsol['flux_fit'] = flux_fit
 
         return fitsol
 
@@ -492,14 +512,15 @@ class spec():
         elif zone in ['all','ALL']:
             mask = (self.wave > 4000) & (self.wave < 7000)
 
-        lambda0 = np.mean(self.wave[mask]); resol = 10000
+        lambda0 = np.mean(self.wave[mask])
+        resol = 10000
 
         sigma = lambda0/(2.35482*float(resol))
 
-        gauss = f_gaussian(np.arange(-5*sigma,5*sigma,self.dlam),sigma)
+        gauss = f_gaussian(np.arange(-5*sigma, 5*sigma, self.dlam), sigma)
         kernel = gauss/np.trapz(gauss)
 
-        convoluted = 1 + convolve(self.flux[mask]-1,kernel,mode='same')
+        convoluted = 1 + convolve(self.flux[mask] - 1, kernel, mode='same')
 
         flux_norm = self.flux[mask]/convoluted
 
@@ -509,8 +530,9 @@ class spec():
 
             flux_norm_i = flux_norm[(self.wave[mask] >= lwl) & (self.wave[mask] <= rwl)]
 
-            std = np.std(flux_norm_i); sig_clip = 3
-            flux_clean = np.where(abs(flux_norm_i-1) > sig_clip*std,np.nan,flux_norm_i)
+            sig_clip = 3
+            std = np.std(flux_norm_i)
+            flux_clean = np.where(abs(flux_norm_i - 1) > sig_clip*std, np.nan, flux_norm_i)
 
             snr_all.append(1/np.nanstd(flux_clean))
 
@@ -544,7 +566,7 @@ class spec():
             #www.towardsdatascience.com/removing-spikes-from-raman-spectra-8a9fdda0ac22
 
             # First we calculated ∇x(i):
-            delta_flux = [self.flux[i+1] - self.flux[i] for i in np.arange(len(self.flux)-1)]
+            delta_flux = [self.flux[i+1] - self.flux[i] for i in np.arange(len(self.flux) - 1)]
 
             median_int = np.median(delta_flux)
             mad_int = np.median([np.abs(delta_flux - median_int)])
@@ -552,34 +574,36 @@ class spec():
             # The multiplier 0.6745 is the 0.75th quartile of the standard normal
             # distribution, to which the median absolute deviation converges to.
 
-            flux_norm =  np.concatenate(([1],abs(modified_z_scores)))
+            flux_norm =  np.concatenate(([1], abs(modified_z_scores)))
 
         elif method == 'kernel':
             if sig_g == None:
                 lambda0 = np.mean(self.wave)
                 # Two times the theoretical sigma offers better results
                 sigma = 2*lambda0/(2.35482*float(self.resolution))
-            else: sig_g = float(sig_g)
+            else:
+                sig_g = float(sig_g)
 
-            x = np.arange(-5*sigma,5*sigma+self.dlam,self.dlam)
+            x = np.arange(-5*sigma, 5*sigma + self.dlam, self.dlam)
             gauss = f_gaussian(x,sigma)
             kernel = gauss/np.trapz(gauss)
 
-            convoluted = 1 + convolve(self.flux-1,kernel,mode='same')
+            convoluted = 1 + convolve(self.flux - 1, kernel, mode='same')
 
             flux_norm = self.flux/convoluted
 
         for i in range(iter):
             std = np.nanstd(flux_norm)
-            flux_norm = np.where(abs(flux_norm-1) > sigclip*std,np.nan,flux_norm)
+            flux_norm = np.where(abs(flux_norm - 1) > sigclip*std, np.nan, flux_norm)
 
-        flux_clean = np.where(np.isnan(flux_norm),np.nan,self.flux)
+        flux_clean = np.where(np.isnan(flux_norm), np.nan, self.flux)
 
-        nans = np.isnan(flux_clean); x = lambda z: z.nonzero()[0]
-        flux_clean[nans]= np.interp(x(nans),x(~nans),flux_clean[~nans])
+        nans = np.isnan(flux_clean)
+        x = lambda z: z.nonzero()[0]
+        flux_clean[nans] = np.interp(x(nans), x(~nans), flux_clean[~nans])
 
-        flux_clean = np.where((flux_clean > self.flux)|(abs(flux_clean-self.flux)<0.05),
-                     self.flux,flux_clean)
+        flux_clean = np.where((flux_clean > self.flux) | (abs(flux_clean-self.flux) < 0.05),
+            self.flux,flux_clean)
 
         self.flux = flux_clean
 
@@ -615,17 +639,17 @@ class spec():
         if profile == 'g':
             sigma = lambda0/(2.35482*float(resol))
 
-            x = np.arange(-10*sigma,10*sigma+self.dlam,self.dlam)
+            x = np.arange(-10*sigma, 10*sigma+self.dlam, self.dlam)
             gauss = f_gaussian(x,sigma)
             kernel = gauss/np.trapz(gauss)
             self.resolution = resol
 
         elif profile == 'rotmac':
-            x = np.arange(-9,9+self.dlam,self.dlam)
-            rotmac = f_rotmac(x,lambda0,vsini,vmac)
+            x = np.arange(-9, 9+self.dlam, self.dlam)
+            rotmac = f_rotmac(x, lambda0, vsini, vmac)
             kernel = rotmac/np.trapz(rotmac)
 
-        convoluted = 1 + convolve(self.flux-1,kernel,mode='same')
+        convoluted = 1 + convolve(self.flux - 1, kernel, mode='same')
 
         self.flux = convoluted
 
@@ -653,8 +677,10 @@ class spec():
         Returns: None (but the spectrum (wavelenght,flux) is resampled).
         '''
 
-        try: float(dlam)
-        except: print('Input should be float or integrer.'); return None
+        try:
+            float(dlam)
+        except:
+            print('Input should be float or integrer.'); return None
 
         self.dlam = dlam
 
@@ -663,19 +689,20 @@ class spec():
             print('WARNING: The new delta lambda implies lossing information...')
 
         if lwl == None and rwl == None:
-            lwl = self.wave[0]; rwl = self.wave[-1]
+            lwl = self.wave[0]
+            rwl = self.wave[-1]
 
-        f = interp1d(self.wave,self.flux,kind=method,fill_value="extrapolate")
-        self.wave = np.arange(lwl,rwl+self.dlam,self.dlam)
+        f = interp1d(self.wave, self.flux, kind=method, fill_value='extrapolate')
+        self.wave = np.arange(lwl, rwl+self.dlam, self.dlam)
         self.flux = f(self.wave)
 
         return None
 
 
     def export(self, tail='', extension='.dat'):
-        filename = self.filename.replace('.fits','')
+        filename = self.filename.replace('.fits', '')
         np.savetxt(maindir+'tmp/%s' % (filename + tail + extension),
-                   np.c_[self.wave,self.flux],fmt=('%.4f','%.6f'))
+            np.c_[self.wave,self.flux], fmt=('%.4f','%.6f'))
 
 
     def plotline(self, lines, width=10, ylim=None):
@@ -699,30 +726,34 @@ class spec():
         self.spc()
 
         lines,elements,_ = findlines(lines)
-        if len(lines) > 1: nrows = ncols = int(round(np.sqrt(len(lines)),0))
-        else: nrows = ncols = 1
+        if len(lines) > 1:
+            nrows = ncols = int(round(np.sqrt(len(lines)), 0))
+        else:
+            nrows = ncols = 1
 
-        for line,element,nplot in zip(lines,elements,range(len(lines))):
+        for line,element,nplot in zip(lines, elements, range(len(lines))):
 
             mask = (self.wave > line - width/2) & (self.wave < line + width/2)
 
             if len(lines) > 1:
-                plt.subplot(nrows,ncols,nplot+1)
-                plt.xticks([round(line-width/3,1),round(line,1),round(line+width/3,1)])
-                plt.title(element,fontsize=6,pad=1)
+                plt.subplot(nrows, ncols, nplot + 1)
+                plt.xticks([round(line - width/3, 1),round(line, 1),round(line + width/3, 1)])
+                plt.title(element, fontsize=6, pad=1)
 
-            plt.plot(self.wave[mask],self.flux[mask],lw=.3,label=self.id_star+' '+self.SpC)
-            plt.tick_params(direction='in',top='on')
+            plt.plot(self.wave[mask], self.flux[mask], lw=.3, label=self.id_star+' '+self.SpC)
+            plt.tick_params(direction='in', top='on')
 
-            if ylim is not None and (type(ylim) is list or type(ylim) is tuple): plt.ylim(ylim)
+            if ylim is not None and (type(ylim) is list or type(ylim) is tuple):
+                plt.ylim(ylim)
 
             if len(lines) == 1:
-                plt.xlabel('$\lambda$ $[\AA]$',size=13)
-                plt.ylabel('Normalized flux',size=13)
+                plt.xlabel('$\lambda$ $[\AA]$', size=13)
+                plt.ylabel('Normalized flux', size=13)
 
             plt.tight_layout()
 
-        plt.legend(); plt.show(block=False)
+        plt.legend()
+        plt.show(block=False)
 
         return None
 
@@ -748,8 +779,10 @@ class spec():
 
         self.spc()
 
-        if lwl < min(self.wave): lwl = min(self.wave)
-        if rwl > max(self.wave): rwl = max(self.wave)
+        if lwl < min(self.wave):
+            lwl = min(self.wave)
+        if rwl > max(self.wave):
+            rwl = max(self.wave)
 
         mask = (self.wave > lwl) & (self.wave < rwl)
 
@@ -758,14 +791,16 @@ class spec():
                 print('Spectrum not corrected from RV, lines will have offset.')
 
             if  poslines == 'all':
-                table = findtable('ALL_all.txt',delimiter=',')
+                table = findtable('ALL_all.txt', delimiter=',')
             elif poslines == 'OB':
-                table = findtable('ALL_OBs_n4+.txt',delimiter=',')
+                table = findtable('ALL_OBs_n4+.txt', delimiter=',')
 
-            synlines = table['wl_air']; elements = table['spc']; gfs = table['-lg(gf)']
+            synlines = table['wl_air']
+            elements = table['spc']
+            gfs = table['-lg(gf)']
 
             # Aqui falta definir mejor los constrains para plotear lineas loggf por ejemplo
-            for synline,element,gf in zip(synlines,elements,gfs):
+            for synline,element,gf in zip(synlines, elements, gfs):
 
                 if synline < lwl or synline > rwl or gf <= -1: continue
 
@@ -776,19 +811,22 @@ class spec():
                     return None
 
                 # depth line mask = depth deepest line
-                plt.text(synline-.1,1-depth,element,size=5,rotation=-50,clip_on=True)
-                plt.plot([synline,synline],[1.008-depth,np.mean(self.flux[mask])],'k',lw=10**gf/5)
+                plt.text(synline-.1,1-depth, element, size=5, rotation=-50, clip_on=True)
+                plt.plot([synline,synline], [1.008-depth,np.mean(self.flux[mask])], c='k', lw=10**gf/5)
                 # 10**gf/5 empiric way to draw thicker lines for instense lines
 
-        plt.plot(self.wave[mask],self.flux[mask],lw=.3,label=self.id_star+' '+self.SpC)
-        plt.tick_params(direction='in',top='on')
+        plt.plot(self.wave[mask], self.flux[mask], lw=.3, label=self.id_star+' '+self.SpC)
+        plt.tick_params(direction='in', top='on')
 
-        if ylim is not None and (type(ylim) is list or type(ylim) is tuple): plt.ylim(ylim)
+        if ylim is not None and (type(ylim) is list or type(ylim) is tuple):
+            plt.ylim(ylim)
 
-        plt.xlabel('$\lambda$ $[\AA]$',size=13)
-        plt.ylabel('Normalized flux',size=13)
+        plt.xlabel('$\lambda$ $[\AA]$', size=13)
+        plt.ylabel('Normalized flux', size=13)
 
-        plt.legend(); plt.tight_layout(); plt.show(block=False)
+        plt.legend()
+        plt.tight_layout()
+        plt.show(block=False)
 
         return None
 
@@ -798,22 +836,25 @@ def f_gaussian(x, sigma):
 
 def f_gaussian1(x, A, lam0, sigma):
     # A -> Amplitude;  lam0 -> center
-    return A*np.exp(-(x-lam0)**2/(2*sigma**2)) + 1
+    return A*np.exp(-(x - lam0)**2/(2*sigma**2)) + 1
 
 def f_lorentzian(x, A, lam0, gamma, y):
-    return A*gamma**2/((x-lam0)**2 + gamma**2) + y
+    return A*gamma**2/((x - lam0)**2 + gamma**2) + y
 
 def f_voigt(x, A, lam0, sigma, gamma, y):
     # sigma -> gaussian width; gamma -> lorentzian width
     # sigma = alpha / sqrt(2 * np.log(2))
-    return A*np.real(wofz((x-lam0+1j*gamma)/sigma/np.sqrt(2)))/sigma/np.sqrt(2*np.pi) + y
+    return A*np.real(wofz((x - lam0 + 1j*gamma)/sigma/np.sqrt(2)))/sigma/np.sqrt(2*np.pi) + y
 
 def f_rot(x, A, lam0, sigma, vsini):
     G = A*np.exp(-(x - lam0)**2/(2*sigma**2))
 
-    # Default value: beta=1.5 (epsilon=0.6) beta= epsilon/(1-epsilon)
-    eps = 0.6; delta = 1000*lam0*vsini/cte.c; doppl = 1 - ((x-lam0)/delta)**2
-    R = A*(2*(1-eps)*np.sqrt(doppl) + np.pi*eps/2.*doppl)/(np.pi*delta*(1-eps/3))
+    # Default value: beta=1.5 (epsilon=0.6) beta=epsilon/(1 - epsilon)
+    eps = 0.6
+    delta = 1000*lam0*vsini/cte.c
+    doppl = 1 - ((x - lam0)/delta)**2
+
+    R = A*(2*(1 - eps)*np.sqrt(doppl) + np.pi*eps/2.*doppl)/(np.pi*delta*(1 - eps/3))
     R = np.nan_to_num(R)
 
     return 1-convolve(G,R,mode='same')
@@ -821,21 +862,27 @@ def f_rot(x, A, lam0, sigma, vsini):
 def f_voigtrot(x, A, lam0, sigma, gamma, vsini, y):
     V = A*np.real(wofz((x-lam0+1j*gamma)/sigma/np.sqrt(2)))/sigma/np.sqrt(2*np.pi) + y
 
-    eps = 0.6; delta = 1000*lam0*vsini/cte.c; doppl = 1-((x-lam0)/delta)**2
-    R = A*(2*(1-eps)*np.sqrt(doppl) + np.pi*eps/2.*doppl)/(np.pi*delta*(1-eps/3))
+    eps = 0.6
+    delta = 1000*lam0*vsini/cte.c
+    doppl = 1 - ((x - lam0)/delta)**2
+
+    R = A*(2*(1 - eps)*np.sqrt(doppl) + np.pi*eps/2.*doppl)/(np.pi*delta*(1 - eps/3))
     R = np.nan_to_num(R)
 
-    return 1-convolve(V,R,mode='same')
+    return 1-convolve(V, R, mode='same')
 
 def f_vrg(x, A, lam0, sigma, gamma, vsini, A2, sigma2, y):
-    VG = A*np.real(wofz((x-lam0+1j*gamma)/sigma/np.sqrt(2)))/sigma/np.sqrt(2*np.pi) + y\
-         + A2*np.exp(-(x-lam0)**2/(2*sigma2**2))
+    VG = A*np.real(wofz((x - lam0 + 1j*gamma)/sigma/np.sqrt(2)))/sigma/np.sqrt(2*np.pi) + y \
+        + A2*np.exp(-(x - lam0)**2/(2*sigma2**2))
 
-    eps = 0.6; delta = 1000*lam0*vsini/cte.c; doppl = 1-((x-lam0)/delta)**2
-    R = A*(2*(1-eps)*np.sqrt(doppl)+np.pi*eps/2.*doppl)/(np.pi*delta*(1-eps/3))
+    eps = 0.6
+    delta = 1000*lam0*vsini/cte.c
+    doppl = 1 - ((x - lam0)/delta)**2
+
+    R = A*(2*(1 - eps)*np.sqrt(doppl)+np.pi*eps/2.*doppl)/(np.pi*delta*(1 - eps/3))
     R = np.nan_to_num(R)
 
-    return 1-convolve(VG,R,mode='same')
+    return 1-convolve(VG, R, mode='same')
 
 def f_rotmac(x, lam0, vsini=None, vmac=None):
 
@@ -845,10 +892,11 @@ def f_rotmac(x, lam0, vsini=None, vmac=None):
         doppl = 1 - (x/delta_R)**2
 
         eps = 0.6
-        R = (2*(1-eps)*np.sqrt(doppl) + np.pi*eps/2.*doppl)/(np.pi*delta_R*(1-eps/3))
+        R = (2*(1 - eps)*np.sqrt(doppl) + np.pi*eps/2.*doppl)/(np.pi*delta_R*(1 - eps/3))
         R = np.nan_to_num(R)
 
-        if vmac == None: return R
+        if vmac == None:
+            return R
 
     if vmac != None:
         # Macroturbulence function:
@@ -862,8 +910,10 @@ def f_rotmac(x, lam0, vsini=None, vmac=None):
 
         M = M_T # + M_R
 
-        M = np.concatenate((M[::-1],M[1:]))
+        M = np.concatenate((M[::-1], M[1:]))
 
-        if vsini == None: return M
+        if vsini == None:
+            return M
 
-    if vsini != None and vmac != None: return convolve(R,M,mode='same')
+    if vsini != None and vmac != None:
+        return convolve(R, M, mode='same')

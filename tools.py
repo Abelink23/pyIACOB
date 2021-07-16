@@ -5,6 +5,7 @@ import scipy.constants as cte
 from astroquery.nist import Nist
 from astroquery.atomic import AtomicLineList
 
+from astropy.time import Time
 from astropy.stats import sigma_clip
 from astropy.coordinates import EarthLocation
 
@@ -278,6 +279,7 @@ def exptime(exp, mag, fib=3):
     '''
     Function to calculate the SNR for a given exposure time and magnitude (Vega).
     It is assumed an average airmass of 1.4 and gray night.
+
     Parameters
     ----------
     exp : int/float
@@ -286,9 +288,43 @@ def exptime(exp, mag, fib=3):
     mag : int/float
         Magnitude of the source.
 
-    Returns: SNR
+    Returns
+    -------
+    SNR
     '''
 
+def visplot(time, target, site=None):
+    '''
+    Function to create visibility plot for observing runs.
+
+    Parameters
+    ----------
+    time : str
+        Date and time of observation (e.g. '2018-01-02 19:00').
+
+    target : str
+        Name of the target (e.g. 'HD 189733').
+
+    Returns
+    -------
+    SNR
+    '''
+    import matplotlib.pyplot as plt
+
+    from astroplan import FixedTarget, Observer
+    from astroplan.plots import plot_airmass
+
+    time = Time(time)
+    target = FixedTarget.from_name(target)
+
+    if site == None:
+        print(EarthLocation.get_site_names())
+        site = input('Plese use one of the above: ')
+
+    apo = Observer.at_site(site)
+
+    plot_airmass(target, apo, time, brightness_shading=True, altitude_yaxis=True)
+    plt.show(block=False)
 
 
 def outliers(data, iter=3, siglo=2.5, sigup=2.5):

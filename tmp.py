@@ -2,6 +2,12 @@ from spec import *
 from RV import *
 from tools import *
 
+
+table = findtable('IACOB_O9BAs_SNR20.fits') # file where quality flags are
+table[['Em' in i for i in table['CHb']]]
+
+
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 x=findtable('ALL_OBs_n4+.txt',delimiter=',')
 
 x['ion'] = [i.split(' ')[1] for i in x['spc']]
@@ -16,7 +22,6 @@ he[(he['wl_air'] > 4500) & (he['wl_air'] < 5000) & (he['-lg(gf)'] > -2)]
 
 x=findtable('ALL_OBs_n4+.txt',delimiter=',')
 x[(x['wl_air'] > 4310) & (x['wl_air'] < 4370)]# & (x['-lg(gf)'] > -2)]
-
 
 #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 #table_selection = findtable('table_selection.fits')

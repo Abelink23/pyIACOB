@@ -104,7 +104,7 @@ def RVEWFW(table='IACOB_O9BAs_SNR20.fits',output_table='O9BAs_RVEWFWs.fits',
 
             plt.close()
 
-            star.offset = RV0(RV0lines,star.spectrum,func=fun,ewcut=30,tol=RV0tol)
+            star.rv0 = RV0(RV0lines,star.spectrum,func=fun,ewcut=30,tol=RV0tol)
             star.waveflux(4500,6380); star.cosmic()
             star.plotspec(4500,4600,poslines='OB')
 
