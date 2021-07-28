@@ -1,6 +1,4 @@
-# == pyIACOB == (v1.00)
-
-# Introduction:
+# Introduction to pyIACOB (v1.00):
 
 This package has been created mainly to manipulate data from the IACOB spectroscopic
 database (see Simón-Díaz et al. 2011), which currently gathers high-resolution spectra
@@ -20,40 +18,36 @@ creating summary tables with their results. The current list of supported progra
 - IACOB-Broad (S. Simón-Díaz & A. Herrero 2013)
 - MAUI (M.A. Urbaneja 2017)
 
-  Created by: Abel de Burgos
+Created by: Abel de Burgos
 
-# Python Requirements (latest versions for each module are used):
+# Python Requirements:
 
-- Python 3.8 or above
-- numpy
-- math
-- scipy
-- random
-- astropy
-- astroquery
-- matplotlib
-- progressbar
+- Python 3.8.2 or above
+- numpy 1.20.2
+- scipy 1.6.2
+- random 1.2.2
+- astropy 4.2.1
+- astroquery 0.4.1
+- matplotlib 3.3.4
+- progressbar 2.5
 
 # Other Requirements:
 
-- Access to the spectroscopic data stored locally. Available spectra from the IACOB
+Access to the spectroscopic data stored locally. Available spectra from the IACOB
 database can be downloaded from http://research.iac.es/proyecto/iacob/iacobcat/
 
 # Installation:
 
-For the current version the only steps that have to be done in order to properly configure
-the package are these:
-
-- Change the paths to your working directory by modifying the file "paths.txt"
+1. Change the paths to your working directory by modifying the file "paths.txt"
 NOTE: For mist.py to work, drop me an email and I will send you the needed files (~600mb)
 
-- The main working directory must contain the following sub-folders:
-  lists/lines/
-  plots
-  tables
-  tmp
+2. Create the main working directories which must contain the following sub-folders:
+  - lists/lines/
+  - plots
+  - tables
+  - tmp
 
-  * Please put the included file "ALL_OBs_n4+.txt" inside the tables folder.
+3. Put the included file "ALL_OBs_n4+.txt" inside the tables folder.
 
 # Overview of the modules:
 
@@ -86,4 +80,4 @@ NOTE: For mist.py to work, drop me an email and I will send you the needed files
 
 # Acknowledgments:
 
-- Sergio Simón-Díaz
+Sergio Simón-Díaz
