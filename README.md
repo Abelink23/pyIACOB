@@ -1,4 +1,4 @@
-# == pyIACOB ==
+# == pyIACOB == (v1.00)
 
 # Introduction:
 
@@ -44,10 +44,7 @@ database can be downloaded from http://research.iac.es/proyecto/iacob/iacobcat/
 For the current version the only steps that have to be done in order to properly configure
 the package are these:
 
-- Change the paths to the main working directory and the database (db.py)
-- Change the path to where the IACOB-Broad analyses are (IACOBroad.py)
-- Change the path to the MAUI working directory (maui.py)
-- Change the path to where the MIST isochrones and tracks are (mist.py)
+- Change the paths to your working directory by modifying the file "paths.txt"
 NOTE: For mist.py to work, drop me an email and I will send you the needed files (~600mb)
 
 - The main working directory must contain the following sub-folders:

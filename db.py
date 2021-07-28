@@ -19,98 +19,20 @@ from astroquery.simbad import Simbad
 Simbad.add_votable_fields('flux(B)','flux(V)','sptype')
 
 
-def mainpath(path=None):
+# Load the working paths:
+with open('paths.txt', 'r') as paths:
+    paths = [i.split('=') for i in paths.read().splitlines() if not i == '']
 
-    '''
-    Function to set the main directory (working directory) where the lists, tables,
-    plots, and temporary files are or will be stored.
+dirs = {}
+for i in paths:
+    dirs[i[0]] = i[1]
 
-    Parameters
-    ----------
-    path : str, optional
-        If 'default' or 'def', it will choose the default path (see below).
+maindir = dirs['main']
+datadir = dirs['data']
+ibdir   = dirs['ib']
+mauidir = dirs['maui']
+mistdir = dirs['mist']
 
-    Returns
-    -------
-    Selected main directory path.
-
-    Notes
-    -----
-    As default, it is configured for the case that you have this folder in a cloud service
-    and therefore a similar path in different computers is needed.
-    This must be modified according to your particular need or case.
-    '''
-
-    if path in ['def','default']:
-
-        if platform.system() == 'Darwin':
-            defmainpath = '/Users/abelink/MEGA/PhD/'
-
-        elif platform.system() == 'Windows':
-            defmainpath = 'E:/MEGA/PhD/'
-
-        elif 'iac.es' in platform.uname().node:
-            defmainpath = '/net/nas/proyectos/hots/adeburgos/'
-
-        mainpath = defmainpath
-
-    elif path == None:
-
-        mainpath = input('Working directory path (default is %s) : ' % defmainpath)
-
-        if mainpath == '':
-            mainpath = defmainpath
-
-    else: mainpath = path
-
-    return mainpath
-
-maindir = mainpath('def')
-
-def datapath(path=None):
-
-    '''
-    Function to set the directory where the data (fits) are.
-
-    Parameters
-    ----------
-    path : str, optional
-        If 'default' or 'def', it will choose the default path (see below).
-
-    Returns
-    -------
-    Selected data directory path.
-
-    Notes
-    -----
-    As default, it is configured for the case that you have this folder in a cloud service
-    and therefore a similar path in different computers is needed.
-    This must be modified according to your particular need or case.
-    '''
-
-    if path in ['def','default']:
-
-        if platform.system() == 'Darwin':
-            defdatapath = '/Users/abelink/Documents/DB/'
-
-        elif  platform.system() == 'Windows':
-            defdatapath = 'F:/PhData/DB/'
-
-        elif 'iac.es' in platform.uname().node:
-            defdatapath = '/net/nas/proyectos/hots/masblue/obs_iac/spec_opt/IACOB_DB/'
-
-        datapath = defdatapath
-
-    elif path == None:
-
-        datapath = input("Data directory path (default is %s) : " % defdatapath)
-        if datapath == '': datapath = defdatapath
-
-    else: datapath = path
-
-    return datapath
-
-datadir = datapath('def')
 
 def search(myfile, path):
 

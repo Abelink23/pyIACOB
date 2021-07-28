@@ -1,7 +1,5 @@
 from db import *
 
-path_MIST = os.path.expanduser('~') + '/Documents/MIST/'
-
 def isomist(myr=None, logmyr=None, av=1.0, vr=0.4):
 
     '''
@@ -56,7 +54,7 @@ def isomist(myr=None, logmyr=None, av=1.0, vr=0.4):
     else: ranage = '50-300'
 
     # NOTE: Edit every new table from MIST removing the first lines before the column names.
-    t_mist = Table.read(path_MIST + 'ISOCHRONES/ISOC_FeH0_%sMyr_Av%s_V%s.fits' % \
+    t_mist = Table.read(mistdir + 'ISOCHRONES/ISOC_FeH0_%sMyr_Av%s_V%s.fits' % \
         (ranage,Av,vr),format='fits')
 
     t_mist = t_mist[t_mist['log10_isochrone_age_yr'] == logage]
@@ -97,11 +95,11 @@ def trackmist(mass=None, av=0.0, vr=0.4):
         mass = str(float(mass)).replace('.',''); digit = 4-len(mass)
         mass = '0'*digit+mass
 
-        t_mist = Table.read(path_MIST + 'TRACKS/TRAC_FeH0_Av%s_V%s/TRAC_FeH0_%sMsol_Av%s_V%s.fits' % \
+        t_mist = Table.read(mistdir + 'TRACKS/TRAC_FeH0_Av%s_V%s/TRAC_FeH0_%sMsol_Av%s_V%s.fits' % \
             (Av,vr,mass,Av,vr), format='fits')
 
     else:
-        t_mist = Table.read(path_MIST + 'TRACKS/TRAC_FeH0_Av%s_V%s/TRAC_FeH0_08-120_Av%s_V%s.fits' % \
+        t_mist = Table.read(mistdir + 'TRACKS/TRAC_FeH0_Av%s_V%s/TRAC_FeH0_08-120_Av%s_V%s.fits' % \
             (Av,vr,Av,vr))
 
     return t_mist

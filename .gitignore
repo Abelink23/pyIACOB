@@ -6,7 +6,8 @@ scripts/
 
 .DS_Store
 matplotlibrc
-*tmp*.py
+tmp.py
+tmp_tables.py
 *_bkp.py
 
 ML.py

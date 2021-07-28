@@ -7,6 +7,7 @@ table = findtable('IACOB_O9BAs_SNR20.fits') # file where quality flags are
 table[['Em' in i for i in table['CHb']]]
 
 
+
 #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 x=findtable('ALL_OBs_n4+.txt',delimiter=',')
 
