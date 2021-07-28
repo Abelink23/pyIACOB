@@ -4,6 +4,7 @@ from RV import *
 import random
 
 def findSB(table=None, RVcorr=True):
+
     '''
     Function to plot all the available spectra from a star in order to visually
     identify spectroscopic binaries.
@@ -18,6 +19,10 @@ def findSB(table=None, RVcorr=True):
 
     redo : str, optional
         Coma separated string with the list of stars for which repeat the analysis.
+
+    Returns
+    -------
+    Nothing, but the plot is created.
     '''
 
     if name == None: table = findtable('IACOB_O9BAs_SNR20.fits')

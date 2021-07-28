@@ -3,6 +3,7 @@ from scipy.io.idl import readsav
 
 
 def ibpath(path=None):
+
     '''
     Function to set the main directory of IACOB broad.
 
@@ -11,22 +12,36 @@ def ibpath(path=None):
     path : str, optional
         If 'default' or 'def', it will choose the default path (see below).
 
-    Returns: Selected IACOB broad main directory path.
+    Returns
+    -------
+    Selected IACOB broad main directory path.
+
+    Notes
+    -----
+    As default, it is configured for the case that you have this folder in a cloud service
+    and therefore a similar path in different computers is needed.
+    This must be modified according to your particular need or case.
     '''
 
     if path in ['def','default']:
         if platform.system() == 'Darwin':
             defmainpath = '/Users/abelink/MEGA/PhD/programs/idl/broadanalys/'
+
         elif platform.uname().node == 'msi':
             defmainpath = '/home/abelink/MEGA/PhD/programs/idl/broadanalys/'
+
         elif 'iac.es' in platform.uname().node:
+            # Not defined yet
             defmainpath = '...'
 
         mainpath = defmainpath
 
     elif path == None:
-        mainpath = input('Working directory path (default is %s) : ' %defmainpath)
-        if mainpath == '': mainpath = defmainpath
+
+        mainpath = input('Working directory path (default is %s) : ' % defmainpath)
+
+        if mainpath == '':
+            mainpath = defmainpath
 
     else: mainpath = path
 
@@ -35,21 +50,23 @@ def ibpath(path=None):
 ibdir = ibpath('def')
 
 
-def ib_input(table='IACOB_O9BAs_SNR20.fits',output_name='input_IB.txt'):
+def ib_input(table='IACOB_O9BAs_SNR20.fits', output_name='input_IB.txt'):
+
     '''
     Function to generate the input table for IACOB broad given an input table with the
     target stars.
 
     Parameters
     ----------
-
     table : str, optional
         Enter the input table contaning a column 'ID' with the identifier of the stars.
 
     output_name : str, optional
         Enter the name for the output table. Default is 'input_IB'.
 
-    Returns: Nothing but the IACOB broad input file is generated.
+    Returns
+    -------
+    Nothing but the IACOB broad input file is generated.
     '''
 
     table = findtable(table)
@@ -117,7 +134,8 @@ def ib_input(table='IACOB_O9BAs_SNR20.fits',output_name='input_IB.txt'):
     return 'DONE'
 
 
-def gen_table(input_table='input_IB.txt',check_best=True,format='fits'):
+def ib_results(input_table='input_IB.txt', check_best=True, format='fits'):
+
     '''
     Function to generate a table with the results from IACOB-broad given an input
     table containing the name of the stars.
@@ -125,7 +143,6 @@ def gen_table(input_table='input_IB.txt',check_best=True,format='fits'):
 
     Parameters
     ----------
-
     input_table : str, optional
         Name of the input table contaning the list of stars to search.
 
@@ -136,7 +153,9 @@ def gen_table(input_table='input_IB.txt',check_best=True,format='fits'):
     format : str, optional
         Enter the output format for the table: 'fits' (default), 'ascii' or 'csv'.
 
-    Returns: Nothing but the output table with the IACOB broad results is generated.
+    Returns
+    -------
+    Nothing but the output table with the IACOB broad results is generated.
     '''
 
     table = findtable(input_table)
@@ -202,16 +221,17 @@ def gen_table(input_table='input_IB.txt',check_best=True,format='fits'):
     data_rows['vmac_GF'][data_rows['vmac_GF'] > 120] = 120
     data_rows['SNR_IB'] = [int(round(row)) for row in data_rows['SNR_IB']]
 
-
     # Saving the results:
     names = ['ID','vsini_FT','vmac_FT','vmac_FT_eDW','vmac_FT_eUP','vsini_GF',
              'vsini_GF_eDW','vsini_GF_eUP','vmac_GF','vmac_GF_eDW','vmac_GF_eUP',
              'line_IB','EW_IB','SNR_IB']
 
-    output = Table(rows=data_rows[names],names=(names))
+    output = Table(rows=data_rows[names], names=(names))
 
-    full_path = maindir+'tables/IB_results.'+format
-    if format == 'ascii': format += '.fixed_width_two_line'
-    output.write(full_path,format=format,overwrite=True)
+    full_path = maindir + 'tables/IB_results.' + format
+    if format == 'ascii':
+        format += '.fixed_width_two_line'
+
+    output.write(full_path, format=format, overwrite=True)
 
     return 'DONE'

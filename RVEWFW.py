@@ -2,8 +2,9 @@ from spec import *
 from RV import *
 
 
-def RVEWFW(table='IACOB_O9BAs_SNR20.fits',output_table='O9BAs_RVEWFWs.fits',
-           RV0lines='rv_Bs.lst',RV0tol=150,ewcut=10,tol=100,redo='n'):
+def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='O9BAs_RVEWFWs.fits',
+    RV0lines='rv_Bs.lst', RV0tol=150, ewcut=10, tol=100, redo='n'):
+
     '''
     Function to interactively calculate and store radial velocity, equivalent
     width and full width at half maximum of stars for SiIII and Hb lines.
@@ -32,6 +33,10 @@ def RVEWFW(table='IACOB_O9BAs_SNR20.fits',output_table='O9BAs_RVEWFWs.fits',
 
     Other parameters : optional
         See help for see spec and spec.fitline
+
+    Returns
+    -------
+    Nothing, but the output table with the results is created.
     '''
 
     table = findtable(table)
@@ -200,8 +205,9 @@ def RVEWFW(table='IACOB_O9BAs_SNR20.fits',output_table='O9BAs_RVEWFWs.fits',
     return 'DONE'
 
 
-def auto_measure(table='emulated_all.txt',output_table='Emul_RVEWFWs.fits',
-                 lines='emulated.lst',func='vrg_H',width=20,ewcut=10,tol=150,txt=False):
+def auto_measure(table='emulated_all.txt', output_table='Emul_RVEWFWs.fits',
+    lines='emulated.lst', func='vrg_H', width=20, ewcut=10, tol=150, txt=False):
+
     '''
     Function to automatically calculate and store radial velocity, equivalent
     width and full width at half maximum of stars for input lines.
@@ -226,6 +232,10 @@ def auto_measure(table='emulated_all.txt',output_table='Emul_RVEWFWs.fits',
 
     Other parameters : optional
         See help for see spec and spec.fitline
+
+    Returns
+    -------
+    Nothing, but the output table with the results is created.
     '''
 
     from matplotlib.backends.backend_pdf import PdfPages

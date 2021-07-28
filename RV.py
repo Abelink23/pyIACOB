@@ -8,6 +8,11 @@ from scipy.signal import correlate,correlation_lags
 
 
 def RV_cc(id_star, windows=[(3950,4160),(4310,4360),(4370,4490),(4540,4690),(4840,4950)]):
+
+    '''
+    IN DEVELOPMENT
+    '''
+
     spectra = findstar(id_star)
 
     synthetic = []
@@ -69,7 +74,9 @@ def RV_cc(id_star, windows=[(3950,4160),(4310,4360),(4370,4490),(4540,4690),(484
 
 
 def RV1_cc(spectra1, spectra2, windows=[(3950,4160),(4310,4360),(4370,4490),(4540,4690),(4840,4950)]):
+
     '''
+    IN DEVELOPMENT
 
     Parameters
     ----------
@@ -134,7 +141,10 @@ def RV1_cc(spectra1, spectra2, windows=[(3950,4160),(4310,4360),(4370,4490),(454
 
 
 def RV0(lines, spectrum, ewcut=50, width=20, tol=150, func='g', info=False, plot=False):
+
     '''
+    Function to...
+
     Parameters
     ----------
     lines : str, list
@@ -184,8 +194,10 @@ def RV0(lines, spectrum, ewcut=50, width=20, tol=150, func='g', info=False, plot
 
 def RV(lines, spectra, SNR=None, linesRV0=None, linecut=1, ewcut=25, width=None, tol=50,\
        func='g', info=False, plot=False):
-    '''
 
+    '''
+    Function to...
+    
     Parameters
     ----------
     lines : str

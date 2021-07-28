@@ -14,6 +14,7 @@ from astropy.coordinates import EarthLocation
 # Generate table with Gaia eDR3 data plus corrected parallax zero point offset.
 #===============================================================================
 def table_zp_edr3(table, ra, dec, search_radius=0.5):
+
     '''
     Function to query input list of RA/DEC coordinates in Gaia eDR3 and for the
     output sources adds a column with the corrected parallax zero point offset.
@@ -32,8 +33,9 @@ def table_zp_edr3(table, ra, dec, search_radius=0.5):
     search_radius : int/float
         Search radius for Gaia query in arcseconds. Default is 0.5.
 
-    Returns: Table containing the output query of Gaia eDR3 including the
-    corrected parallax offset.
+    Returns
+    -------
+    Table containing the output query of Gaia eDR3 including the corrected parallax offset.
     '''
 
     import sys
@@ -78,6 +80,7 @@ def table_zp_edr3(table, ra, dec, search_radius=0.5):
 #===============================================================================
 
 def atline(lwl, rwl, elements=None, source='ALL'):
+
     '''
     Function to retrieve spectral lines from the Atomic Line databases.
 
@@ -95,6 +98,10 @@ def atline(lwl, rwl, elements=None, source='ALL'):
 
     source : str, optional
         Choose between 'ALL' and 'NIST' databases. Default is 'ALL'
+
+    Returns
+    -------
+    List with the spectral lines.
     '''
 
     wavelength_range = (lwl*u.Angstrom,rwl*u.Angstrom)
@@ -116,6 +123,7 @@ def atline(lwl, rwl, elements=None, source='ALL'):
 
 
 def atokms(dlamb, lamb0):
+
     '''
     Function to calculate the velocity in km/s providing delta(lambda) [AA].
 
@@ -127,7 +135,9 @@ def atokms(dlamb, lamb0):
     lamb0 : float/int
         Enter the central wavelenght for the conversion.
 
-    Returns: Corresponding delta in km/s.
+    Returns
+    -------
+    Corresponding delta in km/s.
     '''
 
     velocity = float(dlamb)/float(lamb0)*cte.c/1000
@@ -136,6 +146,7 @@ def atokms(dlamb, lamb0):
 
 
 def kmstoa(dkms, lamb0):
+
     '''
     Function to calculate delta(lambda) [AA] providing the equivalent in km/s.
 
@@ -147,7 +158,9 @@ def kmstoa(dkms, lamb0):
     lamb0 : float/int
         Enter the central wavelenght for the conversion.
 
-    Returns: Corresponding delta in angstroms.
+    Returns
+    -------
+    Corresponding delta in angstroms.
     '''
 
     angstroms = float(dkms)*float(lamb0)*1000/cte.c
@@ -156,6 +169,7 @@ def kmstoa(dkms, lamb0):
 
 
 def vac2air(lamvac):
+
     '''
     Function to calculate the wavelength on air giving it on vacum. Both in angstroms.
 
@@ -164,7 +178,9 @@ def vac2air(lamvac):
     lamvac : float
         Enter the wavelenght in angstroms on vacum.
 
-    Returns: Wavelenght on air.
+    Returns
+    -------
+    Wavelenght on air.
     '''
 
     s = 1e4/float(lamvac)
@@ -180,6 +196,7 @@ def vac2air(lamvac):
 #===============================================================================
 
 def sky_dist(radec1, radec2):
+
     '''
     Function to calculate the distance between two positions in the sky.
 
@@ -191,7 +208,9 @@ def sky_dist(radec1, radec2):
     radec2 : str
         Enter a string with end coordinates, e.g. '34.222 +12.222'
 
-    Returns: Separation in arcsec, and degrees.
+    Returns
+    -------
+    Separation in arcsec, and degrees.
     '''
 
     if any(i in radec1 for i in [':','h']): c1 = SkyCoord(radec1,unit=(u.hourangle,u.deg))
@@ -204,6 +223,7 @@ def sky_dist(radec1, radec2):
 
 
 def pos_ang(radec1, radec2):
+
     '''
     Function to calculate the possition angle in degrees.
 
@@ -215,7 +235,9 @@ def pos_ang(radec1, radec2):
     radec2 : str
         Enter a string with end coordinates, e.g. '34.222 +12.222'
 
-    Returns: Position angle in degrees.
+    Returns
+    -------
+    Position angle in degrees.
     '''
 
     if any(i in radec1 for i in [':','h']): c1 = SkyCoord(radec1,unit=(u.hourangle,u.deg))
@@ -228,6 +250,7 @@ def pos_ang(radec1, radec2):
 
 
 def changecoords(list, infmt, outfmt):
+
     '''
     Parameters
     ----------
@@ -242,7 +265,9 @@ def changecoords(list, infmt, outfmt):
     outfmt : str
         Enter the desired output format between 'hms', 'deg', 'gal'.
 
-    Return: List of coordinates in the specified output format.
+    Returns
+    -------
+    List of coordinates in the specified output format.
     '''
 
     path = maindir+'lists'
@@ -276,7 +301,10 @@ def changecoords(list, infmt, outfmt):
 #===============================================================================
 
 def exptime(exp, mag, fib=3):
+
     '''
+    IN DEVELOPMENT
+
     Function to calculate the SNR for a given exposure time and magnitude (Vega).
     It is assumed an average airmass of 1.4 and gray night.
 
@@ -294,6 +322,7 @@ def exptime(exp, mag, fib=3):
     '''
 
 def visplot(time, target, site=None):
+
     '''
     Function to create visibility plot for observing runs.
 
@@ -309,6 +338,7 @@ def visplot(time, target, site=None):
     -------
     SNR
     '''
+
     import matplotlib.pyplot as plt
 
     from astroplan import FixedTarget, Observer
@@ -328,6 +358,7 @@ def visplot(time, target, site=None):
 
 
 def outliers(data, iter=3, siglo=2.5, sigup=2.5):
+
     '''
     Function to perform a sigma clipping to a list of values.
 
@@ -345,7 +376,9 @@ def outliers(data, iter=3, siglo=2.5, sigup=2.5):
     sigup : int/float
         Enter upper sigma clipping value.
 
-    Returns: Masked array with in values, out values, and bounds values, after clipping.
+    Returns
+    -------
+    Masked array with in values, out values, and bounds values, after clipping.
     '''
 
     if type(data) == list: data = np.asarray(data)
@@ -359,6 +392,7 @@ def outliers(data, iter=3, siglo=2.5, sigup=2.5):
 
 
 def rv_corr(spectrum, observatory, correction):
+
     '''
     Function to calculate the heliocentric/barycentric radial velocity correction in km/s.
 
@@ -373,7 +407,9 @@ def rv_corr(spectrum, observatory, correction):
     correction : str
         Enter the correction between barycentric or heliocentric
 
-    Returns: Value of the radial velocity correction.
+    Returns
+    -------
+    Value of the radial velocity correction.
     '''
 
     fits_dir = findstar(spectrum)

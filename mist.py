@@ -1,10 +1,14 @@
 from db import *
 
-def isomist(myr=None,logmyr=None,av=1.0,vr=0.4):
+path_MIST = os.path.expanduser('~') + '/Documents/MIST/'
+
+def isomist(myr=None, logmyr=None, av=1.0, vr=0.4):
+
     '''
+    Function to retrieve a specific isochrone from the MIST.
+
     Parameters
     ----------
-
     myr : int/float, optional
         Enter the age in Myr of the isochrone you want to retrieve.
 
@@ -16,6 +20,10 @@ def isomist(myr=None,logmyr=None,av=1.0,vr=0.4):
 
     vr : float, optional
         Enter the initial v/v_crit value [0.0/0.4]. Default is 0.4.
+
+    Returns
+    -------
+    MIST isochrone.
     '''
 
     myr_list = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,22,24,26,28,30,\
@@ -42,24 +50,27 @@ def isomist(myr=None,logmyr=None,av=1.0,vr=0.4):
     if logmyr != None:
         logage = min(logmyr_list, key=lambda x:abs(x-logmyr))
         if abs(logage-logmyr) > 0.3:
-            print('Difference to closes isocrone is grater than 0.3 (~2Myr)')
+            print('Difference to closes isochrone is grater than 0.3 (~2Myr)')
 
     if logage < 7.676: ranage = '1-45'
     else: ranage = '50-300'
 
     # NOTE: Edit every new table from MIST removing the first lines before the column names.
-    t_mist = Table.read(os.path.expanduser('~')+'/Documents/MIST/ISOCHRONES/\
-ISOC_FeH0_%sMyr_Av%s_V%s.fits'%(ranage,Av,vr),format='fits')
+    t_mist = Table.read(path_MIST + 'ISOCHRONES/ISOC_FeH0_%sMyr_Av%s_V%s.fits' % \
+        (ranage,Av,vr),format='fits')
 
     t_mist = t_mist[t_mist['log10_isochrone_age_yr'] == logage]
 
     return t_mist
 
-def trackmist(mass=None,av=0.0,vr=0.4):
+
+def trackmist(mass=None, av=0.0, vr=0.4):
+
     '''
+    Function to retrieve a specific track from the MIST.
+
     Parameters
     ----------
-
     mass : int/float, optional
         Enter the mass in M/M_sun of the track you want to retrieve.
         If None as input, all the tracks will be selected.
@@ -69,6 +80,10 @@ def trackmist(mass=None,av=0.0,vr=0.4):
 
     vr : float, optional
         Enter the initial v/v_crit value [0.0/0.4]. Default is 0.4.
+
+    Returns
+    -------
+    MIST isochrone.
     '''
 
     if av < 1.0: Av = str(av).replace('.','')
@@ -82,12 +97,12 @@ def trackmist(mass=None,av=0.0,vr=0.4):
         mass = str(float(mass)).replace('.',''); digit = 4-len(mass)
         mass = '0'*digit+mass
 
-        t_mist = Table.read(os.path.expanduser('~')+'/Documents/MIST/TRACKS/\
-TRAC_FeH0_Av%s_V%s/TRAC_FeH0_%sMsol_Av%s_V%s.fits'%(Av,vr,mass,Av,vr),format='fits')
+        t_mist = Table.read(path_MIST + 'TRACKS/TRAC_FeH0_Av%s_V%s/TRAC_FeH0_%sMsol_Av%s_V%s.fits' % \
+            (Av,vr,mass,Av,vr), format='fits')
 
     else:
-        t_mist = Table.read(os.path.expanduser('~')+'/Documents/MIST/TRACKS/\
-TRAC_FeH0_Av%s_V%s/TRAC_FeH0_08-120_Av%s_V%s.fits'%(Av,vr,Av,vr))
+        t_mist = Table.read(path_MIST + 'TRACKS/TRAC_FeH0_Av%s_V%s/TRAC_FeH0_08-120_Av%s_V%s.fits' % \
+            (Av,vr,Av,vr))
 
     return t_mist
 

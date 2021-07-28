@@ -8,3 +8,6 @@ scripts/
 matplotlibrc
 *tmp*.py
 *_bkp.py
+
+ML.py
+binarity.py

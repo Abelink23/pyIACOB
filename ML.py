@@ -6,6 +6,10 @@ pp = PdfPages(maindir + 'tmp_plots/ML_results.pdf')
 
 def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, manual=False):
 
+    '''
+    IN DEVELOPMENT
+    '''
+
     table = findtable(input_table)
     output = open(maindir + 'tmp/results_ML.txt', 'a')
 
@@ -122,6 +126,11 @@ def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, manual=False):
 
 
 def func_width(spec, spt_code, rv_list, line):
+
+    '''
+    IN DEVELOPMENT
+    '''
+
     next = 'n'
     while next != '':
 
@@ -163,10 +172,12 @@ def func_width(spec, spt_code, rv_list, line):
 
 
 def cosmicML(wave, flux, method='zscore', sigclip=1.5, iter=3, sig_g=None):
+
     '''
+    Function to...
+
     Parameters
     ----------
-
     method : str, optional
         Method for the cosmic ray removal strategy. Only zscore (def) or kernel.
 
@@ -180,7 +191,9 @@ def cosmicML(wave, flux, method='zscore', sigclip=1.5, iter=3, sig_g=None):
         Sigma of the gaussian function used to construct the kernel.
         Default is the theoretical sigma based on wavelenght and resolution.
 
-    Returns: None (but the flux is replaced and cleaned from rays).
+    Returns
+    -------
+    Nothing, but the flux is replaced and cleaned from rays.
     '''
 
     if method == 'zscore':
@@ -232,6 +245,10 @@ def cosmicML(wave, flux, method='zscore', sigclip=1.5, iter=3, sig_g=None):
 
 def cleanML(wave, flux, filename, axs, manual=False):
 
+    '''
+    IN DEVELOPMENT
+    '''
+
     # If manual, it allows to visually play with the sig clipping to remove cosmics
     if manual == True:
         next = 'n'; sigclip1 = 2.5; sigclip2 = 1.3 # 3.0 1.3
@@ -279,7 +296,12 @@ def cleanML(wave, flux, filename, axs, manual=False):
     return new_flux
 
 
-def remove_wave(path=maindir+'tmp/',only_list='to_correct.txt'):
+def remove_wave(path=maindir+'tmp/', only_list='to_correct.txt'):
+
+    '''
+    IN DEVELOPMENT
+    '''
+
     if only_list != None:
         table = findtable(only_list, delimiter=' ')
 

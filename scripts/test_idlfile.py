@@ -5,7 +5,7 @@ from db import *
 
 from scipy.io.idl import readsav
 
-idldata = readsav(maindir+'tables/emulated_solution_mcmc_sqexp_mat1_HD7902_20121025_223409_M_V85000_2021-01-23.idl')
+idldata = readsav('/Users/abelink/Documents/MAUI/SOLUTION/emulated_solution_mcmc_sqexp_mat1_HD2905_20091109_191245_N_V46000_2021-01-10.idl')
 for i in idldata.keys():
     try: print(i,len(idldata[i]))
     except: print(i)

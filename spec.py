@@ -18,10 +18,10 @@ import matplotlib.pyplot as plt
 
 class spec():
     def __init__(self, spectrum, SNR=None, rv0=0, offset=0, txt=False):
+
         '''
         Parameters
         ----------
-
         spectrum : str
             Enter the input spectrum, either name(s) of the star(s), the fits files
             separated by coma, a .txt/.lst file containing the filenames, or '*'
@@ -39,7 +39,6 @@ class spec():
 
         txt : boolean, optional
             If True, it assumes spectrum from a two-columns file with wavelenght and flux.
-
         '''
 
         if type(spectrum) == list:
@@ -71,6 +70,12 @@ class spec():
 
 
     def spc(self):
+
+        '''
+        Function to retrieve the spectral classification of the star from Simbad
+        and add it to the class.
+        '''
+
         try:
             query = Simbad.query_object(self.id_star)
 
@@ -83,7 +88,12 @@ class spec():
 
 
     def waveflux(self, lwl=None, rwl=None, width=0, helcorr='hel'):
+
         '''
+        Function to load or update the wavelenght and flux vectors and optionally apply
+        an offset or a radial velocity correction if they are different from 0 in the
+        class. It also adds the HJD, dlam to the class.
+
         Parameters
         ----------
         lwl : float, optional
@@ -98,6 +108,10 @@ class spec():
         helcorr : str, optional
             If 'hel' as input (default), it applies the heliocentric correction.
 
+        Returns
+        -------
+        In addition to update the class with new data, it returns the wavelength and flux
+        vectors together with the HJD.
         '''
 
         # Retrieve the key values fron the fits header
@@ -176,12 +190,15 @@ class spec():
 
 
     def txtwaveflux(self, lwl=None, rwl=None, width=0):
+
         '''
+        Equivalent to spec.waveflux but for spectra coming from ascii files.
+
         Parameters
         ----------
         See help for spec.waveflux
-
         '''
+
         data = findtable(self.spectrum, path=datadir+'ASCII/')
 
         try:
@@ -215,9 +232,15 @@ class spec():
         return wave, flux, 0
 
 
-    def fitline(self, line, width=15, tol=150., func='g', iter=3,
-                info=False, outfit=False, plot=False):
+    def fitline(self, line, width=15, tol=150., func='g', iter=3, info=False,
+        outfit=False, plot=False):
+
         '''
+        Function to fit a spectral line to a function. Different functions account for
+        different lines depending on their natural profile (e.g. metallic lines should be
+        fitted with either a gaussian, Voigt, rotational profiles). See fitline_readme.txt
+        and fitline_diagram.txt included with pyIACOB for more details.
+
         Parameters
         ----------
         line : float
@@ -490,7 +513,11 @@ class spec():
 
 
     def snrcalc(self, zone='v'):
+
         '''
+        Function to calculate the Signal to Noise Ratio in different regions of the
+        spectra if available.
+
         Parameters
         ----------
         zone : str, optional
@@ -500,7 +527,9 @@ class spec():
                 'r'/'R'     -> 6000-7000 A
                 'all'/'ALL' -> 4000-7000 A
 
-        Returns: Measured signal-to-noise ratio value.
+        Returns
+        -------
+        Measured signal-to-noise ratio value.
         '''
 
         if zone in ['b','B']:
@@ -542,10 +571,12 @@ class spec():
 
 
     def cosmic(self, method='zscore', sigclip=1.5, iter=3, sig_g=None):
+
         '''
+        Function to remove cosmic rays in the spectra by different approaches.
+
         Parameters
         ----------
-
         method : str, optional
             Method for the cosmic ray removal strategy. Only zscore (def) or kernel.
 
@@ -559,7 +590,9 @@ class spec():
             Sigma of the gaussian function used to construct the kernel.
             Default is the theoretical sigma based on wavelenght and resolution.
 
-        Returns: None (but the flux is replaced and cleaned from rays).
+        Returns
+        -------
+        Nothing, but the flux is replaced and cleaned from rays.
         '''
 
         if method == 'zscore':
@@ -609,13 +642,26 @@ class spec():
 
         return None
 
+
     def cosmetic():
+
+        '''
+        IN DEVELOPMENT - Function to remove cosmetic defects recurrently found in the
+        spectra.
+        '''
+
         # Correct from FEROS issues for window in
         #[[4506,4507.5],[4693.7,4696],[4795.,4797.],[4900.7,4902.3],[6636.3,6638.3]]
         return None
 
+
     def degrade(self, resol, profile='g', vsini=None, vmac=None):
+
         '''
+        Function to degrade a spectrum to a certain resolution by convolving it to a
+        gaussian (pure degradation) or to account for rotational+macroturbulence effect
+        for example if a synthetic spectrum is loaded.
+
         Parameters
         ----------
         resol : int/float, optional
@@ -631,7 +677,9 @@ class spec():
         vmac : int/float, optiomal
             Value of vmac. Only valid for rotational+macroturbulence profile.
 
-        Returns: None (but the flux is replaced by the degraded one).
+        Returns
+        -------
+        Nothing, but the flux is replaced by the degraded one.
         '''
 
         lambda0 = np.mean(self.wave)
@@ -655,10 +703,12 @@ class spec():
 
 
     def resamp(self, dlam, lwl=None, rwl=None, method='linear'):
+
         '''
+        Function to resample a spectrum into a fixed delta-lambda and wavelenght range.
+
         Parameters
         ----------
-
         dlam : float/int
             New delta lambda to be used for the output spectra.
 
@@ -674,7 +724,9 @@ class spec():
             Enter the interpolation method to be used. See doc for np.interp1d.
             Default is 'linear'.
 
-        Returns: None (but the spectrum (wavelenght,flux) is resampled).
+        Returns
+        -------
+        Nothing, but the spectrum (wavelenght,flux) is resampled.
         '''
 
         try:
@@ -700,16 +752,39 @@ class spec():
 
 
     def export(self, tail='', extension='.dat'):
+
+        '''
+        Function to export the current wavelenght and flux of the spectrum in the class
+        into an ascii file.
+
+        Parameters
+        ----------
+        tail : str, optional
+            Tail of the file added before the extension for its identification.
+            Default is ''.
+
+        extension : str, optional
+            Extenstion of the output file. Default is '.dat'.
+
+        Returns
+        -------
+        Nothing, but the ascii file is exported.
+        '''
+
         filename = self.filename.replace('.fits', '')
         np.savetxt(maindir+'tmp/%s' % (filename + tail + extension),
             np.c_[self.wave,self.flux], fmt=('%.4f','%.6f'))
 
+        return None
+
 
     def plotline(self, lines, width=10, ylim=None):
+
         '''
+        Function to create a plot around a spectral line or lines.
+
         Parameters
         ----------
-
         lines : float, str
             Enter the wavelenght(s) of the line(s) to plot, either in a coma-separated
             string, or in a .txt/.lst file containing the lines.
@@ -720,7 +795,9 @@ class spec():
         ylim : tuple/list, optional
             Sets the y-limits for the plot. Input must be like "[ymin,ymax]".
 
-        Returns: None (but the plots are generated).
+        Returns
+        -------
+        Nothing, but the plots are generated.
         '''
 
         self.spc()
@@ -759,7 +836,11 @@ class spec():
 
 
     def plotspec(self, lwl=3800, rwl=8000, poslines=None, ylim=None):
+        
         '''
+        Function to create a plot of a portion of the spectra and optionally overplot
+        tabulated spectral lines in that range taken from a database.
+
         Parameters
         ----------
         lwl : float, optional
@@ -774,7 +855,9 @@ class spec():
         ylim : tuple/list, optional
             Sets the y-limits for the plot. Input must be like "[ymin,ymax]".
 
-        Returns: None (but the plots are generated).
+        Returns
+        -------
+        Nothing, but the plots are generated.
         '''
 
         self.spc()
@@ -830,6 +913,8 @@ class spec():
 
         return None
 
+
+# It now follows the functions describing the different fitting profiles:
 
 def f_gaussian(x, sigma):
     return np.exp(-(x/sigma)**2/2)

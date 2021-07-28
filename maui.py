@@ -20,6 +20,7 @@ grids_dic = {
 }
 
 def mauipath(path=None):
+
     '''
     Function to set the main directory of MAUI.
 
@@ -28,20 +29,32 @@ def mauipath(path=None):
     path : str, optional
         If 'default' or 'def', it will choose the default path (see below).
 
-    Returns: Selected MAUI main directory path.
+    Returns
+    -------
+    Selected MAUI main directory path.
+
+    Notes
+    -----
+    As default, it is configured for one user specific paths.
+    This must be modified according to your particular need or case.
     '''
 
     if path in ['def','default']:
+
         if platform.system() == 'Darwin':
             defmainpath = '/Users/abelink/Documents/MAUI/'
+
         elif 'iac.es' in platform.uname().node:
             defmainpath = '/net/nas/proyectos/hots/masblue/maui2021/'
 
         mainpath = defmainpath
 
     elif path == None:
-        mainpath = input('Working directory path (default is %s) : ' %defmainpath)
-        if mainpath == '': mainpath = defmainpath
+
+        mainpath = input('Working directory path (default is %s) : ' % defmainpath)
+
+        if mainpath == '':
+            mainpath = defmainpath
 
     else: mainpath = path
 
@@ -50,7 +63,9 @@ def mauipath(path=None):
 mauidir = mauipath('def')
 
 
-def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_input',RV0tol=200,ascii_0=False):
+def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input',
+    RV0tol=200,ascii_0=False):
+
     '''
     Function to generate the input table for MAUI given an input table with the
     target stars and quality flags for the line fittings.
@@ -68,7 +83,6 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_input',RV0tol=20
 
     Parameters
     ----------
-
     table : str, optional
         Enter the input table contaning a column 'ID' with the name of the stars.
 
@@ -82,7 +96,9 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_input',RV0tol=20
         If True, ascii files will be created for each of the input sources.
         Default is False.
 
-    Returns: Nothing but the MAUI input file is generated.
+    Returns
+    -------
+    Nothing but the MAUI input file is generated.
     '''
 
     if type(table) is type(Table()): pass # In case the input table is already a table
@@ -91,7 +107,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_input',RV0tol=20
     table_IB = findtable('IB_results_ver5.txt') # file where vsini and vmac are
     results = findtable('MAUI_results.fits') # file with output from MAUI
 
-    maui_txt = open(maindir+'lists/%s.txt' % output_name,'a')
+    maui_txt = open(maindir + 'lists/%s.txt' % output_name,'a')
     maui_txt.write(
         "{:<40}".format('fullname')+"{:<48}".format('filename')+"{:<6}".format('vrad')+\
         "{:<6}".format('vsini')+"{:<7}".format('evsini')+"{:<5}".format('vmac')+\
@@ -133,7 +149,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_input',RV0tol=20
         if SiIIIFG == 0 and SiIIFG == 0:
             print('No SiIII/SiII found for %s\n' % id); continue
 
-        star = spec(id,SNR='best')
+        star = spec(id, SNR='best')
 
         if match_IB['filename'][0] != star.filename:
             print('Warning: Different files from best SNR and from IB results for %s' % name)
@@ -242,125 +258,15 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits',output_name='MAUI_input',RV0tol=20
 
     maui_txt.close()
 
-    if ascii == True: print('Remember to move the new ascii into "ASCII_ARCHIVE" folder')
+    if ascii == True:
+        print('Remember to move the new ascii into "ASCII_ARCHIVE" folder')
 
     return 'DONE'
 
 
-def gen_stars_in_grids(table='IACOB_O9BAs_SNR20.fits',table_results='MAUI_results.fits'):
+def maui_results(input_table='MAUI_ver11.txt', solution_dir='server', check_best=True,
+    pdfplots=False, grids_table='MAUI_grid_limits.fits', format='fits'):
 
-    import matplotlib.path as mpath
-
-    table = findtable(table)
-    results = findtable(table_results)
-
-    log_Teff = np.asarray(4+np.log10(results['Teff']))
-    log_LLsol = np.asarray(5.39-results['lgf'])
-
-    points = np.column_stack([log_Teff,log_LLsol])
-
-    # Change ...grids_dic][1:] for individual grids
-    for name,_,_,box in [grids_dic[i] for i in grids_dic][1:]:
-        verts = np.array([box[0],box[1]]).T
-        path = mpath.Path(verts)
-        inout = path.contains_points(points)
-        log_Teff_in,log_LLsol_in = points[inout].T
-
-        results_in = results[path.contains_points(points)]['ID']
-        table_red = table[[i['ID'] in results_in for i in table]]
-
-        # QUITAR, ES SOLO PARA SERGIO DE CARA A ORDENAR POR FWHM Hb
-        RVEW = findtable('RVEWFWs_O9BAs.fits')
-        table_red=join(table_red,RVEW,keys='ID')
-        table_red['3414'] = table_red['FW34Hb']-table_red['FW14Hb']
-        table_red.sort('3414')
-        table_red.reverse()
-
-        maui_input(table=table_red,output_name=name,ascii_0=False)
-
-
-class idl():
-    def __init__(self, idlfile):
-        '''
-        Parameters
-        ----------
-
-        idlfile : str
-            Enter the input spectrum full path to the .idl file.
-        '''
-
-        idldata = readsav(idlfile)
-        #for i in idldata.keys():
-        #    try: print(i,len(idldata[i]))
-        #    except: print(i)
-
-        self.filename = idldata.aa[0][3].decode()
-        self.id = self.filename.split('_')[0]
-        self.resolution = int(self.filename.split('_V')[-1][0:5])
-        self.gridname = idldata.modelgridname.decode()
-        self.synwave = idldata.xx_mod
-        self.synflux = idldata.spec_prim
-        self.dx = (idldata.xx_mod[-1]-idldata.xx_mod[0])/len(idldata.xx_mod)
-
-        self.vsini = idldata.obsdat.spectrum[0].VSINI[0]
-        self.vmac = idldata.obsdat.spectrum[0].MACRO[0]
-
-
-def gen_synthetic(save_dir='server', lwl=3900, rwl=5080):
-    '''
-    Function to generate the .dat files of the synthetic spectra generated by
-    MAUI in all the .idl files found in the SOLUTION folder.
-
-    Parameters
-    ----------
-
-    save_dir : str, optional
-        Enter the directory where to save all the output spectra in ascii format.
-
-    lwl : float, optional
-        Sets the start wavelenght of the output spectrum.
-
-    rwl : float, optional
-        Sets the end wavelenght of the output spectrum.
-
-    Returns: Nothing but the ascii .dat files are generated.
-    '''
-
-    solution_dir = mauidir + 'RESULTS_BSGS_202101/SOLUTION/'
-
-    if save_dir == 'local':
-        save_dir = datadir + 'ASCII/Synthetic_MAUI/'
-    elif save_dir == 'server':
-        save_dir = '/net/nas/proyectos/hots/masblue/obs_iac/spec_opt/IACOB_DB/ASCII/SYNTHETIC/'
-
-    for file in os.listdir(solution_dir):
-        if not file.startswith('._') and file.endswith('.idl'):
-            idlspec = idl(solution_dir + file)
-
-            star_db = spec(idlspec.id, SNR='best')
-
-            if idlspec.filename != star_db.filename[:-5]:
-                print('\nWARNING: %s does not match with best spectrum available.'
-                % idlspec.filename[:-5])
-
-            else:
-                #idlspec.filename = idlspec.filename.replace(str(idlspec.resolution),'85000')
-                new_idlspec = '%s_red%i.dat' % (idlspec.filename,grids_dic[idlspec.gridname][2])
-                np.savetxt(save_dir + new_idlspec, np.c_[idlspec.synwave,idlspec.synflux],
-                    fmt=('%.4f','%.6f'))
-
-                star_idl = spec(new_idlspec, txt=True)
-                star_idl.txtwaveflux(lwl, rwl)
-                #plt.plot(star_idl.wave, star_idl.flux, 'r', lw=.3) # plot to check
-                star_idl.degrade(profile='rotmac', vsini=idlspec.vsini, vmac=idlspec.vmac)
-                #plt.plot(star_idl.wave, star_idl.flux, 'g', lw=.3) # plot to check
-
-                np.savetxt(save_dir + new_idlspec, np.c_[star_idl.wave,star_idl.flux],
-                    fmt=('%.4f','%.6f'))
-
-
-def gen_table_maui(tables_dir='server', input_table='MAUI_ver11.txt', solution_dir='server',
-    check_best=True, grids_table='MAUI_grid_limits.fits', format='fits'):
     '''
     Function to generate a table with the results from MAUI given an input table
     containing the ID of the stars and filename to search in the MAUI-SOLUTION
@@ -368,11 +274,6 @@ def gen_table_maui(tables_dir='server', input_table='MAUI_ver11.txt', solution_d
 
     Parameters
     ----------
-
-    tables_dir : str, optional
-        Enter the directory where to locate the input_table and output fits.
-        Shortcuts are 'local' and 'server'. Default is 'server'.
-
     input_table : str, optional
         Name of the input table contaning the list of stars to search.
 
@@ -384,27 +285,37 @@ def gen_table_maui(tables_dir='server', input_table='MAUI_ver11.txt', solution_d
         True if each spectra from the input_table is checked against the best
         spectrum in the database. Default is True.
 
+    pdfplots : boolean, optional
+        If True, a pdf comparing the synthetic diagnostic lines with the original is made.
+
     grids_table : str, obtional
         Name of the table containing the limits of the grids in MAUI.
 
     format : str, optional
         Enter the output format for the table: 'fits' (default), 'ascii' or 'csv'.
 
-    Returns: Nothing but the output table with the MAUI results is generated.
+    Returns
+    -------
+    Nothing but the output table (+PDFs) with the MAUI results are generated.
     '''
 
+    # Set the paths to the solutions directory
     if solution_dir == 'local':
         solution_dir = mauidir + 'SOLUTION/'
     elif solution_dir == 'server':
         solution_dir = mauidir + 'RESULTS_BSGS_202101/SOLUTION/'
 
-    if tables_dir == 'local':
-        tables_dir = maindir + 'tables/'
-    elif tables_dir == 'server':
-        tables_dir = '/net/nas/proyectos/hots/adeburgos/tables/'
-
+    # Load the tables
     table = findtable(input_table)
     grids = findtable(grids_table)
+
+    # Create pdf file to save the plots of the results
+    if pdfplots == True:
+
+        from RV import RV0
+
+        from matplotlib.backends.backend_pdf import PdfPages
+        pp = PdfPages(maindir + 'plots/MAUI/%s.pdf' % input_table)
 
     param_lst = ['Teff','lgf','He','Micro','logQs','beta','C','N','O','Mg','Si',
                  'S','Fe','Ti','fcl','vcl']
@@ -421,7 +332,7 @@ def gen_table_maui(tables_dir='server', input_table='MAUI_ver11.txt', solution_d
         for file in os.listdir(solution_dir):
             if file.endswith('.idl') and \
             file.split('_sqexp_mat1_')[1][:-14] + 'RV.ascii' == filename:
-                match.append(solution_dir+file)
+                match.append(solution_dir + file)
 
         if len(match) == 0:
             print('\nWARNING: No .idl file found for %s. Continuing...' % filename)
@@ -430,16 +341,24 @@ def gen_table_maui(tables_dir='server', input_table='MAUI_ver11.txt', solution_d
         elif len(match) > 1:
             match = sorted(match, key=lambda x: int(x[-14:-4].replace('-','')), reverse=True)
 
+        # Load the .idl file
         idldata = readsav(match[0])
 
+        # Find which grid has been used for the analysis
         filename = idldata.aa[0][3].decode()
         id = filename.split('_')[0]
         grid  = grids[grids['Model_name'] == idldata.modelgridname.decode()]
 
-        if check_best == True and filename != spec(id,SNR='best').filename[:-5]:
+        # Find the best SNR spectra in the DB
+        if check_best == True or pdfplots == True:
+            best_SNR = spec(id,SNR='best')
+
+        # Check if the input file matches with the best SNR spectra available
+        if check_best == True and filename != best_SNR.filename[:-5]:
             print('\nWARNING: %s does not match with best spectrum available.'
             % filename[:-5])
 
+        # Generate the table with the results of each of the parameters
         data_row = []; data_row.extend([id])
         parameters = [j.decode() for j in idldata.solution.var_label[0]] # 11/13 parameters
         for par_name in param_lst:
@@ -479,7 +398,55 @@ def gen_table_maui(tables_dir='server', input_table='MAUI_ver11.txt', solution_d
         # Append the raw to the table
         data_rows.append(tuple(data_row))
 
+        if pdfplots == True:
+
+            lines_name = [
+                r'H$_{\delta}$',r'H$_{\gamma}$',r'H$_{\beta}$',r'H$_{\alpha}$',
+                'HeI 5016','HeI 5876','HeII 4542','HeII 5412',
+                'SiIV 4116','SiIII 4552','SiIII 4568/75','SiII 6347',
+                'NII 3995','CII 4267','OII 4662','MgII 4881',
+                ]
+
+            lines_lamb = [
+                4101.735,4340.463,4861.325,6562.8,
+                5015.678,5875.62,4541.591,5411.52,
+                4116.103,4552.622,4571.2985,4130.89,
+                3994.997,4267.183,4661.632,4481.126]
+
+            rv0 = RV0(4552.622, findstar(filename+'.fits'), ewcut=50, width=20, tol=150, func='r')
+            best_SNR.rv0 = rv0
+            best_SNR.waveflux()
+            best_SNR.spc()
+
+            fig, ax = plt.subplots(4, 4, figsize=(10,10), tight_layout=True)
+            fig_title = ''
+            for par,val in zip(parameters,idldata.solution[0].sol_max[0]):
+                if par == 'Teff':
+                    val = val*1e4
+                    Teff = val
+                if par == 'lgf':
+                    par = 'logg'
+                    val = val + 4*np.log10(Teff) - 16
+                fig_title += par+'='+str(round(val,2))+'  '
+
+            fig.suptitle(id + ' -- ' + best_SNR.SpC + ' -- ' + match[0].split('/')[-1]
+                + ' -- ' + grid['Model_name'][0] + '\n' + fig_title, fontsize=8)
+
+            axs = ax.flatten()
+            for ax_i,line_lamb,line_name in zip(axs,lines_lamb,lines_name):
+                mask = [(best_SNR.wave > line_lamb-10) & (best_SNR.wave < line_lamb+10)]
+                ax_i.plot(best_SNR.wave[mask], best_SNR.flux[mask], color='gray')
+                mask = [(idldata.xobs_out > line_lamb-10) & (idldata.xobs_out < line_lamb+10)]
+                ax_i.plot(idldata.xobs_out[mask], idldata.yobs_out[mask], color='k')
+                ax_i.plot(idldata.xobs_out[mask],idldata.sol_conv[mask], color='r', ls='--')
+                ax_i.set_title(line_name)
+                ax_i.tick_params(direction='in',top='on')
+
+            pp.savefig(fig); plt.close(fig)
+
         bar.update(i)
+
+    pp.close()
 
     bar.finish()
 
@@ -498,7 +465,7 @@ def gen_table_maui(tables_dir='server', input_table='MAUI_ver11.txt', solution_d
 
     output = Table(rows=data_rows, names=(names))
 
-    full_path = tables_dir + 'MAUI_results.' + format
+    full_path = maindir + 'tables/MAUI_results.' + format
 
     if format == 'ascii':
         format += '.fixed_width_two_line'
@@ -508,26 +475,21 @@ def gen_table_maui(tables_dir='server', input_table='MAUI_ver11.txt', solution_d
     return 'DONE'
 
 
-def gen_gridlim(tables_dir='local'):
+def gen_gridlim(models_dir=mauidir+'MODELS/'):
+
     '''
     Function to generate fits tables for each MAUI grid with the limits for each
     parameter.
 
     Parameters
     ----------
+    models_dir : str, optional
+        Enter the directory where the model files are.
 
-    tables_dir : str, optional
-        Enter the directory where to save the output fits files.
-
-    Returns: Nothing but the fits are generated.
+    Returns
+    -------
+    Nothing but the fits are generated.
     '''
-
-    models_dir = mauidir+'MODELS/'
-
-    if tables_dir == 'local':
-        tables_dir = maindir+'tables/'
-    elif tables_dir == 'server':
-        tables_dir = '/net/nas/proyectos/hots/adeburgos/tables/'
 
     param_dic = {
     'Teff' : ('Teff_UP','Teff_DW'),
@@ -600,7 +562,139 @@ def gen_gridlim(tables_dir='local'):
     names = ['Model_name']
     for i in param_dic: names = names + [j for j in param_dic[i]]
 
-    output = Table(rows=data_rows,names=(names))
-    output.write(tables_dir+'MAUI_grid_limits.fits',format='fits',overwrite=True)
+    output = Table(rows=data_rows, names=(names))
+    output.write(maindir + 'tables/MAUI_grid_limits.fits', format='fits', overwrite=True)
 
     return('DONE')
+
+
+def gen_stars_in_grids(table='IACOB_O9BAs_SNR20.fits', table_results='MAUI_results.fits'):
+
+    '''
+    Function to generate MAUI-input txt lists containing the stars that lie within the
+    boundaries of each MAUI grid.
+
+    Parameters
+    ----------
+    table : str, optional
+        Table containing the input stars
+
+    table_results : str, optional
+        Table containing the MAUI results for the stars in the previous table.
+
+    Returns
+    -------
+    Nothing, but the output lists are created.
+    '''
+
+    import matplotlib.path as mpath
+
+    table = findtable(table)
+    results = findtable(table_results)
+
+    log_Teff = np.asarray(4+np.log10(results['Teff']))
+    log_LLsol = np.asarray(5.39-results['lgf'])
+
+    points = np.column_stack([log_Teff,log_LLsol])
+
+    # Change ...grids_dic][1:] for individual grids
+    for name,_,_,box in [grids_dic[i] for i in grids_dic][1:]:
+        verts = np.array([box[0],box[1]]).T
+        path = mpath.Path(verts)
+        inout = path.contains_points(points)
+        log_Teff_in,log_LLsol_in = points[inout].T
+
+        results_in = results[path.contains_points(points)]['ID']
+        table_red = table[[i['ID'] in results_in for i in table]]
+
+        # QUITAR, ES SOLO PARA SERGIO DE CARA A ORDENAR POR FWHM Hb
+        RVEW = findtable('RVEWFWs_O9BAs.fits')
+        table_red=join(table_red,RVEW,keys='ID')
+        table_red['3414'] = table_red['FW34Hb']-table_red['FW14Hb']
+        table_red.sort('3414')
+        table_red.reverse()
+
+        maui_input(table=table_red, output_name=name, ascii_0=False)
+
+
+class idl():
+    def __init__(self, idlfile):
+
+        '''
+        Parameters
+        ----------
+        idlfile : str
+            Enter the input spectrum full path to the .idl file.
+        '''
+
+        idldata = readsav(idlfile)
+        #for i in idldata.keys():
+        #    try: print(i,len(idldata[i]))
+        #    except: print(i)
+
+        self.filename = idldata.aa[0][3].decode()
+        self.id = self.filename.split('_')[0]
+        self.resolution = int(self.filename.split('_V')[-1][0:5])
+        self.gridname = idldata.modelgridname.decode()
+        self.synwave = idldata.xx_mod
+        self.synflux = idldata.spec_prim
+        self.dx = (idldata.xx_mod[-1]-idldata.xx_mod[0])/len(idldata.xx_mod)
+
+        self.vsini = idldata.obsdat.spectrum[0].VSINI[0]
+        self.vmac = idldata.obsdat.spectrum[0].MACRO[0]
+
+
+def gen_synthetic(save_dir='server', lwl=3900, rwl=5080):
+
+    '''
+    Function to generate the .dat files of the synthetic spectra generated by
+    MAUI in all the .idl files found in the SOLUTION folder.
+
+    Parameters
+    ----------
+    save_dir : str, optional
+        Enter the directory where to save all the output spectra in ascii format.
+
+    lwl : float, optional
+        Sets the start wavelenght of the output spectrum.
+
+    rwl : float, optional
+        Sets the end wavelenght of the output spectrum.
+
+    Returns
+    -------
+    Nothing but the ascii .dat files are generated.
+    '''
+
+    solution_dir = mauidir + 'RESULTS_BSGS_202101/SOLUTION/'
+
+    if save_dir == 'local':
+        save_dir = datadir + 'ASCII/Synthetic_MAUI/'
+        
+    elif save_dir == 'server':
+        save_dir = '/net/nas/proyectos/hots/masblue/obs_iac/spec_opt/IACOB_DB/ASCII/SYNTHETIC/'
+
+    for file in os.listdir(solution_dir):
+        if not file.startswith('._') and file.endswith('.idl'):
+            idlspec = idl(solution_dir + file)
+
+            star_db = spec(idlspec.id, SNR='best')
+
+            if idlspec.filename != star_db.filename[:-5]:
+                print('\nWARNING: %s does not match with best spectrum available.'
+                % idlspec.filename[:-5])
+
+            else:
+                #idlspec.filename = idlspec.filename.replace(str(idlspec.resolution),'85000')
+                new_idlspec = '%s_red%i.dat' % (idlspec.filename,grids_dic[idlspec.gridname][2])
+                np.savetxt(save_dir + new_idlspec, np.c_[idlspec.synwave,idlspec.synflux],
+                    fmt=('%.4f','%.6f'))
+
+                star_idl = spec(new_idlspec, txt=True)
+                star_idl.txtwaveflux(lwl, rwl)
+                #plt.plot(star_idl.wave, star_idl.flux, 'r', lw=.3) # plot to check
+                star_idl.degrade(profile='rotmac', vsini=idlspec.vsini, vmac=idlspec.vmac)
+                #plt.plot(star_idl.wave, star_idl.flux, 'g', lw=.3) # plot to check
+
+                np.savetxt(save_dir + new_idlspec, np.c_[star_idl.wave,star_idl.flux],
+                    fmt=('%.4f','%.6f'))

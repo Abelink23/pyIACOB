@@ -1,13 +1,13 @@
-# Basic packages:
+# Python Standard Library packages:
 import re
 import time
 import os.path
 import platform
-import progressbar as pb
 import warnings; warnings.filterwarnings("ignore")
 
-# Core packages
+# Other main packages
 import numpy as np
+import progressbar as pb
 
 # Astro-packages
 import astropy.units as u
@@ -20,16 +20,25 @@ Simbad.add_votable_fields('flux(B)','flux(V)','sptype')
 
 
 def mainpath(path=None):
+
     '''
-    Function to set the main directory (working directory) where the rams,
-    lists, tables, etc. are.
+    Function to set the main directory (working directory) where the lists, tables,
+    plots, and temporary files are or will be stored.
 
     Parameters
     ----------
     path : str, optional
         If 'default' or 'def', it will choose the default path (see below).
 
-    Returns: Selected main directory path.
+    Returns
+    -------
+    Selected main directory path.
+
+    Notes
+    -----
+    As default, it is configured for the case that you have this folder in a cloud service
+    and therefore a similar path in different computers is needed.
+    This must be modified according to your particular need or case.
     '''
 
     if path in ['def','default']:
@@ -48,7 +57,9 @@ def mainpath(path=None):
     elif path == None:
 
         mainpath = input('Working directory path (default is %s) : ' % defmainpath)
-        if mainpath == '': mainpath = defmainpath
+
+        if mainpath == '':
+            mainpath = defmainpath
 
     else: mainpath = path
 
@@ -57,6 +68,7 @@ def mainpath(path=None):
 maindir = mainpath('def')
 
 def datapath(path=None):
+
     '''
     Function to set the directory where the data (fits) are.
 
@@ -65,7 +77,15 @@ def datapath(path=None):
     path : str, optional
         If 'default' or 'def', it will choose the default path (see below).
 
-    Returns: Selected data directory path.
+    Returns
+    -------
+    Selected data directory path.
+
+    Notes
+    -----
+    As default, it is configured for the case that you have this folder in a cloud service
+    and therefore a similar path in different computers is needed.
+    This must be modified according to your particular need or case.
     '''
 
     if path in ['def','default']:
@@ -93,6 +113,7 @@ def datapath(path=None):
 datadir = datapath('def')
 
 def search(myfile, path):
+
     '''
     Function to search a file within a directory.
 
@@ -104,7 +125,9 @@ def search(myfile, path):
     path : str
         Path where to search for the file.
 
-    Returns: Path to the searched file.
+    Returns
+    -------
+    Path to the searched file.
     '''
 
     f_dir = []
@@ -121,6 +144,7 @@ def search(myfile, path):
 
 
 def findstar(spectra=None, SNR=None):
+
     '''
     Function to get the paths of the searched spectra allowing to limitate the
     results by a minimum SNR if provided in the header, or the one with best SNR.
@@ -137,7 +161,9 @@ def findstar(spectra=None, SNR=None):
         If 'bestMF' same as 'best' but prioritizing spectra from HERMES/FEROS.
         If specified, it returns all the spectra above the chosen SNR.
 
-    Returns: Paths to the files found.
+    Returns
+    -------
+    Paths to the files found.
     '''
 
     if spectra == None:
@@ -215,6 +241,24 @@ def findstar(spectra=None, SNR=None):
 
 
 def searchlines(line, tol=1):
+
+    '''
+    IN DEVELOPMENT - this is to easily find spectral lines in a future included list of
+    spectral lines developed within the IACOB team.
+
+    Parameters
+    ----------
+    line : float
+        Approximate wavelenght of the line to search
+
+    tol : int/float, optional
+        Tolerance in the search of the line
+
+    Returns
+    -------
+    List of lines found for the input line.
+    '''
+
     line = float(line.replace('?', ''))
     linesdb = findlines('synt_lines_OB.lst')
     indexes = [linesdb[0].index(i) for i in linesdb[0] if i > line-tol and i < line+tol]
@@ -226,6 +270,7 @@ def searchlines(line, tol=1):
 
 
 def findlines(list):
+
     '''
     Function to extract atomic lines from a list containing their information or
     provide output format for a given wavelenght.
@@ -236,7 +281,9 @@ def findlines(list):
         Enter the list of lines to fit in .txt/.lst, or coma-separated string
         with wavelenghts, or single float/int wavelenght.
 
-    Returns: List of wavelenghts, element names, and loggf.
+    Returns
+    -------
+    List of wavelenghts, element names, and loggf.
     '''
 
     path = maindir+'lists/lines'
@@ -285,6 +332,7 @@ def findlines(list):
 
 
 def findlist(list):
+
     '''
     Function to extract items in a txt/lst file.
 
@@ -293,7 +341,9 @@ def findlist(list):
     list : str
         Enter the list of items in .txt/.lst.
 
-    Returns: Items contained in the input list.
+    Returns
+    -------
+    Items contained in the input list.
     '''
 
     path = maindir+'lists'
@@ -318,6 +368,7 @@ def findlist(list):
 
 
 def findtable(table, path=None, delimiter=' ', fits_strip_end=True):
+
     '''
     Function to get the data from a FITS-format table.
 
@@ -335,11 +386,13 @@ def findtable(table, path=None, delimiter=' ', fits_strip_end=True):
     fits_strip_end : boolean, optional
         If 'True' it strips all strings within the data of a fits table.
 
-    Returns: Data in table, in table format.
+    Returns
+    -------
+    Data in table, in table format.
     '''
 
     if path == None:
-        path = maindir+'tables'
+        path = maindir + 'tables'
 
     table_dir = search(table, path)
 
@@ -365,7 +418,8 @@ def findtable(table, path=None, delimiter=' ', fits_strip_end=True):
 
 
 def xmatch_table(table1, table2, match_col=None, output_cols=None,
-                 output_name='xmatch_table', format='fits'):
+    output_name='xmatch_table', format='fits'):
+
     '''
     Function to generate xmatched tables with selected output columns and format.
 
@@ -392,7 +446,9 @@ def xmatch_table(table1, table2, match_col=None, output_cols=None,
     format : str, optional
         Enter the output format for the table: 'fits' (default), 'ascii' or 'csv'.
 
-    Returns: Nothing but the output table with cross-match is generated in the
+    Returns
+    -------
+    Nothing but the output table with cross-match is generated in the
     same path where the two input tables are located.
     '''
 
@@ -437,13 +493,14 @@ def xmatch_table(table1, table2, match_col=None, output_cols=None,
         table.remove_columns([i for i in table.colnames if not i in output_cols])
 
     # Saving the file:
-    full_path = maindir+'tables/'+output_name+'.'+format
+    full_path = maindir + 'tables/' + output_name + '.' + format
     if format == 'ascii':
         format += '.fixed_width_two_line'
     table.write(full_path, format=format, overwrite=True)
 
 
 def snr(spectra, snrcut=None, get_MF=None):
+
     '''
     Function to provide the spectrum with best signal to noise ratio, or all the
     spectra above a given value of signal to noise ratio, taken from the header.
@@ -460,7 +517,9 @@ def snr(spectra, snrcut=None, get_MF=None):
         If True, it returns available spectra from either Mercator or Feros with
         SNR within 15% less than the best SNR spectra taken with FIES.
 
-    Returns: Paths to filtered spectrum/spectra.
+    Returns
+    -------
+    Paths to filtered spectrum/spectra.
     '''
 
     names_stars = []
@@ -514,6 +573,7 @@ def snr(spectra, snrcut=None, get_MF=None):
 
 def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None,
     spccode=False, bmag=None, vmag=None, gaia=False, radius=1, skip=None):
+
     '''
     Function to generate a FITS table with information about sources coming from
     IACOB/FEROS database, a list of names or coordinates, allowing to limitate
@@ -568,7 +628,9 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
     skip : str, optional
         Enter a coma separated list of targets to exclude in the table.
 
-    Returns: None (Saves the generated table in the */table/ folder)
+    Returns
+    -------
+    Nothing, but saves the generated table in the */table/ folder.
     '''
 
     if db == 'IACOB':
@@ -926,7 +988,7 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
 
     # Export table
     try:
-        table.write(maindir+'tables/tablestars.fits', format='fits', overwrite=True)
+        table.write(maindir + 'tables/tablestars.fits', format='fits', overwrite=True)
     except:
         print('Table is empty, no sources were found.')
 
@@ -934,6 +996,7 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
 
 
 def spc_code(spc):
+
     '''
     Function to translate input SpC (Spectral Class) into SpT and LC codes.
 
@@ -942,7 +1005,9 @@ def spc_code(spc):
     spc : str
         Enter the spectral class to turn into SpT and LC codes.
 
-    Returns: SpT and LC codes.
+    Returns
+    -------
+    SpT and LC codes.
     '''
 
     spt_dic = {'O': 1, 'B': 2, 'A': 3, 'F': 4, 'G': 5, 'K': 6, 'M': 7}
@@ -984,6 +1049,7 @@ def spc_code(spc):
 
 
 def SB(name=None, ra=None, dec=None, radius='5s'):
+
     '''
     Function to query an object in Simbad database.
 
@@ -1001,7 +1067,9 @@ def SB(name=None, ra=None, dec=None, radius='5s'):
     radius : str, optional
         Enter a string with the radius for the sky search.
 
-    Returns: Queried object in Table format.
+    Returns
+    -------
+    Queried object in Table format.
     '''
 
     if name is not None:
@@ -1046,6 +1114,7 @@ def SB(name=None, ra=None, dec=None, radius='5s'):
 
 
 def zp_edr3(ra, dec, radius=1, IDs=[]):
+
     '''
     Function to obtain avaliable parallax zero-point offsets.
     Input is a list of coordinates in degrees which are used for the Gaia query.
@@ -1067,7 +1136,6 @@ def zp_edr3(ra, dec, radius=1, IDs=[]):
     Returns
     -------
     Table with the queried sources including the zero-point offset.
-
     '''
 
     import sys
@@ -1127,6 +1195,7 @@ def zp_edr3(ra, dec, radius=1, IDs=[]):
 
 
 def checknames(list=None, max_dist=90):
+
     '''
     Function to detect errors in the filenames/headers.
 
@@ -1137,7 +1206,9 @@ def checknames(list=None, max_dist=90):
         Enter the input list, either name(s)/FITS of the source(s) separated by coma,
         or a .txt/.lst file containing the source names or files.
 
-    Returns: None, but a file with the errors found is generated.
+    Returns
+    -------
+    Nothing, but a file with the errors found is generated.
     '''
 
     dir_spectra = findstar(list)
