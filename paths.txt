@@ -1,4 +1,3 @@
-
 main=/Users/abelink/MEGA/PhD/
 data=/Users/abelink/Documents/DB/
 maui=/Users/abelink/Documents/MAUI/

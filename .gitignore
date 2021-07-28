@@ -3,6 +3,7 @@ edr3_zp/__pycache__/
 
 plots/
 scripts/
+old/
 
 .DS_Store
 matplotlibrc

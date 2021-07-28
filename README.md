@@ -38,16 +38,21 @@ database can be downloaded from http://research.iac.es/proyecto/iacob/iacobcat/
 
 # Installation:
 
-1. Change the paths to your working directory by modifying the file "paths.txt"
-NOTE: For mist.py to work, drop me an email and I will send you the needed files (~600mb)
+1. Modify the paths in *paths.txt* to match with your working directories:
+  - *main* path must point to the location of your working directory.
+  - *data* path must point to the directory where the spectra are located.
+  - *maui*, *ib* paths to the respective directories of each of these programs.
+  - *mist* path must point to where the MIST isochrones/tracks are located.
 
-2. Create the main working directories which must contain the following sub-folders:
+2. Create the main working sub-folders that are needed in your working directory:
   - lists/lines/
-  - plots
-  - tables
-  - tmp
+  - plots/
+  - tables/
+  - tmp/
 
-3. Put the included file "ALL_OBs_n4+.txt" inside the tables folder.
+3. Put the included file *ALL_OBs_n4+.txt* inside the tables folder.
+
+NOTE: For mist.py to work, drop me an email and I will send you the needed files (~600mb)
 
 # Overview of the modules:
 
@@ -71,7 +76,6 @@ NOTE: For mist.py to work, drop me an email and I will send you the needed files
 - mist.py contains functions to retrieve either an evolutionary track or an isochrone.
 
 - tools.py contains utility functions which could also be interested.
-
 
 # Sending corrections / comments:
 
