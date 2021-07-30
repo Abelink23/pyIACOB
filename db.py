@@ -20,7 +20,12 @@ Simbad.add_votable_fields('flux(B)','flux(V)','sptype')
 
 
 # Load the working paths:
-with open('paths.txt', 'r') as paths:
+dir = ''
+while not os.path.isfile(dir + 'paths.txt'):
+    print('File paths.txt not found...')
+    dir = input('Please provide the full path to the file now: ')
+
+with open(dir + 'paths.txt', 'r') as paths:
     paths = [i.split('=') for i in paths.read().splitlines() if not i == '']
 
 dirs = {}
@@ -317,6 +322,9 @@ def findtable(table, path=None, delimiter=' ', fits_strip_end=True):
         path = maindir + 'tables'
 
     table_dir = search(table, path)
+
+    if table_dir == None:
+        return None
 
     if '.fits' in table:
         #try:

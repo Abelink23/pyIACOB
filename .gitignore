@@ -7,8 +7,9 @@ old/
 
 .DS_Store
 matplotlibrc
+paths.txt
+
 tmp*.py
 *_bkp.py
-
 ML.py
 binarity.py

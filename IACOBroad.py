@@ -2,54 +2,6 @@ from spec import *
 from scipy.io.idl import readsav
 
 
-def ibpath(path=None):
-
-    '''
-    Function to set the main directory of IACOB broad.
-
-    Parameters
-    ----------
-    path : str, optional
-        If 'default' or 'def', it will choose the default path (see below).
-
-    Returns
-    -------
-    Selected IACOB broad main directory path.
-
-    Notes
-    -----
-    As default, it is configured for the case that you have this folder in a cloud service
-    and therefore a similar path in different computers is needed.
-    This must be modified according to your particular need or case.
-    '''
-
-    if path in ['def','default']:
-        if platform.system() == 'Darwin':
-            defmainpath = '/Users/abelink/MEGA/PhD/programs/idl/broadanalys/'
-
-        elif platform.uname().node == 'msi':
-            defmainpath = '/home/abelink/MEGA/PhD/programs/idl/broadanalys/'
-
-        elif 'iac.es' in platform.uname().node:
-            # Not defined yet
-            defmainpath = '...'
-
-        mainpath = defmainpath
-
-    elif path == None:
-
-        mainpath = input('Working directory path (default is %s) : ' % defmainpath)
-
-        if mainpath == '':
-            mainpath = defmainpath
-
-    else: mainpath = path
-
-    return mainpath
-
-ibdir = ibpath('def')
-
-
 def ib_input(table='IACOB_O9BAs_SNR20.fits', output_name='input_IB.txt'):
 
     '''
