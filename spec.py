@@ -83,6 +83,7 @@ class spec():
                 new_id_star = self.id_star.replace('HD', 'HD ')
                 query = Simbad.query_object(new_id_star)
             self.SpC = query['SP_TYPE'][0]
+            #self.otypes = query['OTYPES'][0]
         except:
             self.SpC = ''
 
@@ -836,7 +837,7 @@ class spec():
 
 
     def plotspec(self, lwl=3800, rwl=8000, poslines=None, ylim=None):
-        
+
         '''
         Function to create a plot of a portion of the spectra and optionally overplot
         tabulated spectral lines in that range taken from a database.

@@ -16,7 +16,7 @@ from astropy.table import Table, join, setdiff, vstack, hstack
 from astropy.coordinates import SkyCoord
 from astroquery.vizier import Vizier
 from astroquery.simbad import Simbad
-Simbad.add_votable_fields('flux(B)','flux(V)','sptype')
+Simbad.add_votable_fields('flux(B)','flux(V)','sptype')#,'otypes')
 
 
 # Load the working paths:
@@ -665,7 +665,7 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
         #=======================================================================
         #=============== Simbad query by object name/coordinates ===============
         if type_list == 'names':
-            simbad = SB(source, OBJRA, OBJDEC)
+            simbad = query_Simbad(source, OBJRA, OBJDEC)
             if simbad == None: continue
 
         elif type_list == 'coords':
@@ -725,7 +725,8 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
 
             else:
                 row['SpC'] = SpC_0
-                row['SpC_ref'] = header['I-SPCREF']
+                try: row['SpC_ref'] = header['I-SPCREF']
+                except: row['SpC_ref'] = '???'
 
         else:
             row['SpC'] = SpC_0 = simbad['SP_TYPE'][0]
@@ -950,6 +951,8 @@ def spc_code(spc):
 
     else:
         # Spectral type
+        spc_c = spc_c.replace('Mn','')
+
         spt_c = re.findall('[O,B,A,F,G,K,M]', spc_c)
         num = len(spt_c)
         spt_c_lst = [spt_dic[i] for i in spt_c]
@@ -978,7 +981,7 @@ def spc_code(spc):
     return spt_c,lc_c
 
 
-def SB(name=None, ra=None, dec=None, radius='5s'):
+def query_Simbad(name=None, ra=None, dec=None, radius='5s'):
 
     '''
     Function to query an object in Simbad database.
@@ -1164,7 +1167,7 @@ def checknames(list=None, max_dist=90):
         filename = spectrum.split('/')[-1]
         id_star = spectrum.split('/')[-1].split('_')[0]
 
-        simbad = SB(id_star)
+        simbad = query_Simbad(id_star)
 
         name_0 = header['OBJECT'].strip().replace(' ', '')
 
