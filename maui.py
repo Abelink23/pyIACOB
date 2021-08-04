@@ -553,17 +553,18 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
 
                 fig, ax = plt.subplots(4, 4, figsize=(10,10), tight_layout=True)
                 fig_title = ''
-                for par,val in zip(param_err,idldata.solution[0].sol_max[0]):
-                    if par == 'Teff':
+                for par_name in param_err:
+                    val = getattr(star, par_name)
+                    if par_name == 'Teff':
                         val = val*1e4
                         Teff = val
-                    elif par == 'lgf':
-                        par = 'logg'
+                    elif par_name == 'lgf':
+                        par_name = 'logg'
                         val = val + 4*np.log10(Teff) - 16
-                    fig_title += par+'='+str(round(val,2))+'  '
+                    fig_title += par_name+'='+str(round(val,2))+'  '
 
-                fig.suptitle(id + ' -- ' + best_SNR.SpC + ' -- ' + match[0].split('/')[-1]
-                    + ' -- ' + grid['Grid_name'][0] + '\n' + fig_title, fontsize=8)
+                fig.suptitle(star.id + ' -- ' + best_SNR.SpC + ' -- ' + match.split('/')[-1]
+                    + ' -- ' + star.gridname + '\n' + fig_title, fontsize=8)
 
                 axs = ax.flatten()
                 for ax_i,line_lamb,line_name in zip(axs,lines_lamb,lines_name):
