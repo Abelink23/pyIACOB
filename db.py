@@ -80,7 +80,7 @@ def findstar(spectra=None, SNR=None):
     ----------
     spectra : str, optional
         Enter the input spectra, either name(s) of the star(s), the fits files
-        separated by coma, a .txt/.lst file containing the filenames, or '*'
+        separated by coma, a .txt/.lst file containing the (file)names, or '*'
         if you want to select all the fits files inside the working folder.
 
     SNR : str/int, optional
@@ -630,7 +630,7 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
             try:
                 row['Name'] = header['I-Name']
             except:
-                row['Name'] = '-'
+                row['Name'] = row['ID'] # '-'
 
             # Reference spectrum (added at the end)
             filename = source.split('/')[-1][:-5]
@@ -699,9 +699,9 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
 
         row['RA_J2000']  = RADEC_0.ra.to_string(unit=u.hour, sep=':', pad=True, alwayssign=True)
         row['DEC_J2000'] = RADEC_0.dec.to_string(unit=u.deg, sep=':', pad=True, alwayssign=True)
-        row['RAdeg_J2000']  = RADEC_0.ra.deg
+        row['RAdeg_J2000']  = round(RADEC_0.ra.deg, 6)
         row['RAdeg_J2000'].unit = u.deg
-        row['DECdeg_J2000'] = RADEC_0.dec.deg
+        row['DECdeg_J2000'] = round(RADEC_0.dec.deg, 6)
         row['DECdeg_J2000'].unit = u.deg
 
         #=======================================================================
@@ -745,7 +745,7 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
                 spt_0 = SpC_0[:SpC_0.index('V')]
                 lc_0 = SpC_0[SpC_0.index('V'):]
 
-            elif len(re.split(':|pe',SpC_0.strip())[0]) <= 4:
+            elif len(re.split(':|p|n|f|\\(|\\)',SpC_0.strip())[0]) <= 4: # e.g. O9.5:npe 4+:npe
                 spt_0 = SpC_0.strip()
 
             if spt != None and not any([j in spt_0 for j in spt]): continue
@@ -776,11 +776,10 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
             bmag_0 = np.nan
 
         if bmag != None and ~np.isnan(bmag_0):
-            bmag_0 = round(bmag_0,2)
             if bmag[0] == '<' and float(bmag[1:]) < bmag_0: continue
             elif bmag[0] == '>' and float(bmag[1:]) > bmag_0: continue
 
-        row['mag_B'] = bmag_0
+        row['mag_B'] = round(bmag_0, 2)
         row['mag_B'].unit = u.mag
 
         vmag_0 = simbad['FLUX_V'][0]
@@ -788,11 +787,10 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
             vmag_0 = np.nan
 
         if vmag != None and ~np.isnan(vmag_0):
-            vmag_0 = round(vmag_0, 2)
             if vmag[0] == '<' and float(vmag[1:]) < vmag_0: continue
             elif vmag[0] == '>' and float(vmag[1:]) > vmag_0: continue
 
-        row['mag_V'] = vmag_0
+        row['mag_V'] = round(vmag_0, 2)
         row['mag_V'].unit = u.mag
 
         #=======================================================================
@@ -821,19 +819,19 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
             row['Ref_file'] = filename
 
             # SNR of the best spectra (prioritizing for M or F)
-            row['SNR_best'] = float(header['I-SNR'])
+            row['SNR_best'] = int(header['I-SNR'])
 
             # SB feature of the star (added at the end)
             try:
                 row['SB'] = header['I-SB']
             except:
-                row['SB'] = '-'
+                row['SB'] = '----'
 
             # Comments in the header (added at the end)
             try:
                 row['Comments'] = header['I-commen']
             except:
-                row['Comments'] = '-'
+                row['Comments'] = '----'
 
         #=======================================================================
         #======================== Get Gaia DR2/3 data ==========================
@@ -917,6 +915,12 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
 
     bar.finish()
 
+    # Some final formatting:
+    table['mag_B'] = table['mag_B'].astype('float32')
+    table['mag_V'] = table['mag_V'].astype('float32')
+    table['SB'] = table['SB'].astype('<U8')
+    table['Comments'] = table['Comments'].astype('<U32')
+
     # Export table
     try:
         table.write(maindir + 'tables/tablestars.fits', format='fits', overwrite=True)
@@ -952,6 +956,9 @@ def spc_code(spc):
     else:
         # Spectral type
         spc_c = spc_c.replace('Mn','')
+
+        if len(re.findall('Ve+[0-9]',spc_c)) != 0:
+            spc_c = spc_c.replace(re.findall('Ve+[0-9]',spc_c)[0], '')
 
         spt_c = re.findall('[O,B,A,F,G,K,M]', spc_c)
         num = len(spt_c)
@@ -1146,17 +1153,28 @@ def checknames(list=None, max_dist=90):
 
     dir_spectra = findstar(list)
 
-    errorslist = open(maindir+'lists/ErrorNames.txt', 'w')
-
     bar = pb.ProgressBar(maxval=len(dir_spectra),
-                        widgets=[pb.Bar('=', '[', ']'), ' ', pb.Percentage()])
+                         widgets=[pb.Bar('=', '[', ']'), ' ', pb.Percentage()])
     bar.start()
 
-    date_0_long = []; errors = 0; i = 0
+    type_errors = {'Simbad':[],'filename':[],'duplicate':[],'baddate':[],'radec0':[],'distance':[]}
+
+    IDs = {'F': [], 'M':[], 'N':[]}
+
+    date_0_long = []; i = 0
     for spectrum in dir_spectra:
 
         bar.update(i + dir_spectra.index(spectrum))
-        time.sleep(0.1)
+        #time.sleep(0.1)
+
+        filename = spectrum.split('/')[-1]
+        id_star = spectrum.split('/')[-1].split('_')[0]
+
+        # Problems quering in Simbad
+        if not id_star in type_errors['Simbad']:
+            simbad = query_Simbad(id_star)
+            if simbad == None:
+                type_errors['Simbad'].append(id_star)
 
         # Retrieve the key values fron the fits header
         hdu = fits.open(spectrum) # Open the fits image file
@@ -1164,14 +1182,15 @@ def checknames(list=None, max_dist=90):
         hdu0 = hdu[0]             # Load the header list of primary header
         header = hdu0.header      # Read the values of the headers
 
-        filename = spectrum.split('/')[-1]
-        id_star = spectrum.split('/')[-1].split('_')[0]
+        if '_F_' in filename: IDs['F'].append(header['DATASUM'])
+        elif '_M_' in filename: IDs['M'].append(str(header['UNSEQ']))
+        elif '_N_' in filename: IDs['N'].append(header['FILENAME'])
 
-        simbad = query_Simbad(id_star)
+        # Catch files with wrong object name comparing filename and header
+        if id_star != header['OBJECT'].replace(' ','').upper():
+            type_errors['filename'].append(filename)
 
-        name_0 = header['OBJECT'].strip().replace(' ', '')
-
-        date_filename = spectrum.split('/')[-1].split('_')[1] # date from the filename
+        # Get the date and time from the header
         if '_N_' in filename or '_M_' in filename:
             date_0 = header['DATE-AVG'] #; print date_0
             date_0_short = str(date_0[0:4]) + str(date_0[5:7]) + str(date_0[8:10])
@@ -1179,51 +1198,69 @@ def checknames(list=None, max_dist=90):
             date_0 = header['ARCFILE']
             date_0_short = str(date_0[6:10]) + str(date_0[11:13]) + str(date_0[14:16])
 
-        RA_0 = header['RA']   # 'RA'
-        DEC_0 = header['DEC'] # 'DEC'
-        RADEC_0 = str(RA_0) + ' ' + str(DEC_0)
-
-        try:
-            RADEC = str(simbad['RA'][0]).replace(' ', ':') \
-                + ' ' + str(simbad['DEC'][0]).replace(' ', ':')
-        except:
-            errorslist.write('Problem quering %s in Simbad\n' % filename)
-            errors = errors + 1
-            continue
-
-        c1 = SkyCoord(RADEC_0, unit=u.deg)
-        c2 = SkyCoord(RADEC, unit=(u.hour,u.deg))
-
-        difcoord = round(c1.separation(c2).arcsec, 3)
-
-        if difcoord > max_dist:
-            errorslist.write('Distance from Simbad query is ' + str(difcoord) + \
-                            ' arcsec for spectrum ' + filename + '\n')
-            errors = errors + 1
-
-        # Catch files with wrong object name comparing filename and header
-        if id_star != name_0.upper():
-            errorslist.write(filename + ' has a wrong object file name!\n')
-            errors = errors + 1
+        # Get the date from the filename
+        date_filename = spectrum.split('/')[-1].split('_')[1]
 
         # Catch two+ files with same date in header but different filenames
         # e.g. HD111111 and HDE111111
         if date_0 not in date_0_long:
             date_0_long.append(date_0)
         else:
-            errorslist.write(filename + ' is duplicated with same full date but different filename!\n')
-            errors = errors + 1
+            type_errors['duplicate'].append(filename)
 
         # Catch wrong dates in the filenames when comparing with the date in the header
         if not date_filename == date_0_short:
-            errorslist.write(filename + ' is a repeated file with wrong name!\n')
-            errors = errors + 1
+            type_errors['baddate'].append(filename)
+
+        # Get the coordinates from the header
+        RA_0 = header['RA']
+        DEC_0 = header['DEC']
+        RADEC_0 = str(RA_0) + ' ' + str(DEC_0)
+
+        # Catch missing RA/DEC:
+        if '0.0000' in str(RA_0) or '0.0000' in str(DEC_0):
+            type_errors['radec0'].append(filename)
+
+        # Catch spectra of different object than the object queried in Simbad
+        if simbad != None and (not '0.0000' in str(RA_0) or not '0.0000' in str(DEC_0)):
+            RADEC = str(simbad['RA'][0]).replace(' ', ':') \
+                + ' ' + str(simbad['DEC'][0]).replace(' ', ':')
+
+            c1 = SkyCoord(RADEC_0, unit=u.deg)
+            c2 = SkyCoord(RADEC, unit=(u.hour,u.deg))
+
+            difcoord = round(c1.separation(c2).arcsec, 3)
+
+            if difcoord > max_dist:
+                type_errors['distance'].append(filename+' -> '+str(difcoord))
 
     bar.finish()
 
-    errorslist.close()
+    # Wrtiting the errors to the file:
+    error_descriptions = [
+    '# Problem querying these objects in Simbad. Correct the name and re-run to check object coordinates.\n',
+    '# File names which has a wrong name for the object when compared to the header.\n',
+    '# Duplicated files with same full date but different name in the file name.\n',
+    '# Files with different date in the header and the file name.\n',
+    '# Spectra with no RA or DEC values in the header. Correct the header and re-run to check object coordinates.\n',
+    '# Distance from Simbad query is above the threshold for these spectra.\n']
 
-    if errors == 0:
-        print('\nEverything is OK...')
-    else:
-        print('\nSome errors found, check ErrorNames.txt')
+    errorsDB = open(maindir+'lists/Errors_DB.txt', 'w')
+    for description,error in zip(error_descriptions,type_errors):
+        if len(type_errors[error]) == 0:
+            continue
+        errorsDB.write(description)
+        [errorsDB.write(i+'\n') for i in type_errors[error]]
+    errorsDB.close()
+
+    # Writing the file unique identificators to a file
+    IDs
+    IDs_spectra = open(maindir+'lists/IDs_spectra.txt', 'w') # TEMPORAL
+    for description,tel in zip(['# FEROS files\n','# HERMES files\n','# FIES files\n'],IDs):
+        if len(IDs[tel]) == 0:
+            continue
+        IDs_spectra.write(description)
+        [IDs_spectra.write(i+'\n') for i in IDs[tel]]
+    IDs_spectra.close()
+
+    return None
