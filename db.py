@@ -678,7 +678,8 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
                 simbad = Simbad.query_region(c, radius=radius*u.arcsec)
             except: # Retry after 2 seconds
                 time.sleep(2)
-                simbad = Simbad.query_region(c, radius=radius*u.arcsec)
+                print('Trying with a larger radius (%i arcsec)' % 2*radius)
+                simbad = Simbad.query_region(c, radius=2*radius*u.arcsec)
 
             try: # For more than one result, takes the first one
                 if len(simbad) > 1: simbad = Table(simbad[0])
@@ -821,17 +822,17 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
             # SNR of the best spectra (prioritizing for M or F)
             row['SNR_best'] = int(header['I-SNR'])
 
-            # SB feature of the star (added at the end)
-            try:
-                row['SB'] = header['I-SB']
-            except:
-                row['SB'] = '----'
+        # SB feature of the star (added at the end)
+        try:
+            row['SB'] = header['I-SB']
+        except:
+            row['SB'] = '----'
 
-            # Comments in the header (added at the end)
-            try:
-                row['Comments'] = header['I-commen']
-            except:
-                row['Comments'] = '----'
+        # Comments in the header (added at the end)
+        try:
+            row['Comments'] = header['I-commen']
+        except:
+            row['Comments'] = '----'
 
         #=======================================================================
         #======================== Get Gaia DR2/3 data ==========================
@@ -915,6 +916,11 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
 
     bar.finish()
 
+    try:
+        print('Table has been successfully created with length %i' % len(table))
+    except:
+        print('Table is empty, no sources were found.')
+
     # Some final formatting:
     table['mag_B'] = table['mag_B'].astype('float32')
     table['mag_V'] = table['mag_V'].astype('float32')
@@ -922,10 +928,7 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
     table['Comments'] = table['Comments'].astype('<U32')
 
     # Export table
-    try:
-        table.write(maindir + 'tables/tablestars.fits', format='fits', overwrite=True)
-    except:
-        print('Table is empty, no sources were found.')
+    table.write(maindir + 'tables/tablestars.fits', format='fits', overwrite=True)
 
     return None
 
