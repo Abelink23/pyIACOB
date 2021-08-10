@@ -1016,19 +1016,19 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s'):
     '''
 
     if name is not None:
-        try:
-            simbad = Simbad.query_object(name)
-        except:
-            time.sleep(3)
-            simbad = Simbad.query_object(name)
-
-    else:
-        name = 'empty'
-        simbad = None
+        # For some reason sometimes adding a whitespace fix some querying issues
+        for name_i in [name, name+' ', ' '+name]:
+            try:
+                simbad = Simbad.query_object(name_i)
+                time.sleep(0.15)
+                break
+            except:
+                simbad = None
 
     while simbad is None: # type(simbad) == type(None)
+
         print('Provide alternative name for %s in Simbad.' % name)
-        print('In some cases try replacing "HD" by "HD ".')
+        print('In some cases try replacing "HD" by "HD " or vice versa.')
 
         if ra != None and dec != None:
             print('Type "sky" to query %s around input ra/dec (if given).' % radius)
@@ -1046,7 +1046,10 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s'):
                 print('No objects found.')
 
         else:
-            simbad = Simbad.query_object(check)
+            try:
+                simbad = Simbad.query_object(check)
+            except:
+                simbad = None
 
         if simbad is not None and len(simbad) > 1:
             print('More than one Simbad result, choosing the brigtest source...')
@@ -1185,7 +1188,7 @@ def checknames(list=None, max_dist=90):
         hdu0 = hdu[0]             # Load the header list of primary header
         header = hdu0.header      # Read the values of the headers
 
-        if '_F_' in filename: IDs['F'].append(header['DATASUM'])
+        if '_F_' in filename: IDs['F'].append(header['ARCFILE'])
         elif '_M_' in filename: IDs['M'].append(str(header['UNSEQ']))
         elif '_N_' in filename: IDs['N'].append(header['FILENAME'])
 
@@ -1257,7 +1260,6 @@ def checknames(list=None, max_dist=90):
     errorsDB.close()
 
     # Writing the file unique identificators to a file
-    IDs
     IDs_spectra = open(maindir+'lists/IDs_spectra.txt', 'w') # TEMPORAL
     for description,tel in zip(['# FEROS files\n','# HERMES files\n','# FIES files\n'],IDs):
         if len(IDs[tel]) == 0:

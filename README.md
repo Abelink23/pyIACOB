@@ -27,7 +27,7 @@ Created by: Abel de Burgos
 - scipy 1.6.2
 - random 1.2.2
 - astropy 4.2.1
-- astroquery 0.4.1
+- astroquery 0.4.3
 - matplotlib 3.3.4
 - progressbar 2.5
 
