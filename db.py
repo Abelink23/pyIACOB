@@ -26,7 +26,7 @@ while not os.path.isfile(dir + 'paths.txt'):
     dir = input('Please provide the full path to the file now: ')
 
 with open(dir + 'paths.txt', 'r') as paths:
-    paths = [i.split('=') for i in paths.read().splitlines() if not i == '']
+    paths = [i.split('=') for i in paths.read().splitlines() if not i == '' and not i.startswith('#')]
 
 dirs = {}
 for i in paths:
