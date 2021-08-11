@@ -1140,7 +1140,7 @@ def zp_edr3(ra, dec, radius=1, IDs=[]):
     return table
 
 
-def checknames(list=None, max_dist=90):
+def checknames(list, max_dist=90):
 
     '''
     Function to detect errors in the filenames/headers.
@@ -1148,9 +1148,13 @@ def checknames(list=None, max_dist=90):
     Parameters
     ----------
 
-    list : str, optional
+    list : str
         Enter the input list, either name(s)/FITS of the source(s) separated by coma,
         or a .txt/.lst file containing the source names or files.
+
+    max_dist : int/float
+        Enter the threshold distance to consider the spectra to point to a different
+        source and not caused by telescope pointing offset.
 
     Returns
     -------
@@ -1269,3 +1273,119 @@ def checknames(list=None, max_dist=90):
     IDs_spectra.close()
 
     return None
+
+
+def checkfits(list, coords_Simbad=True, radius=5, savepath=''):
+
+    '''
+    Function to detect errors in the filenames/headers.
+
+    Parameters
+    ----------
+
+    list : str
+        Enter the input list, either name(s)/FITS of the source(s) separated by coma,
+        or a .txt/.lst file containing the source names or files.
+
+    coords_Simbad : boolean, optional
+        XX
+
+    radius : int
+        Search radius where to find the source by the coordinates, in arcsec.
+
+    savepath : str, optional
+        If set, updated fits files will be saved in that location (full path must be set).
+
+    Returns
+    -------
+    Nothing, but a file with the errors found is generated.
+    '''
+
+    dir_spectra = findstar(list)
+
+    for spectrum in dir_spectra:
+
+        filename = spectrum.split('/')[-1]
+        id_star = spectrum.split('/')[-1].split('_')[0]
+
+        # Retrieve the key values fron the fits header
+        hdu = fits.open(spectrum) # Open the fits image file
+        hdu0 = hdu.verify('fix')  # Fix header keywords
+        hdu0 = hdu[0]             # Load the header list of primary header
+        header = hdu0.header      # Read the values of the headers
+
+        print('\nName (filename) / Name (object)\n%s / %s\n' % (id_star,header['OBJECT']))
+
+        RADEC = SkyCoord(str(header['RA']),str(header['DEC']), unit=u.deg)
+
+        if 'OBJ_RA' in header:
+            RADEC_OBJ = SkyCoord(str(header['OBJ_RA']),str(header['OBJ_DEC']), unit=u.deg)
+        elif 'OBJRA' in header:
+            RADEC_OBJ = SkyCoord(str(header['OBJRA']),str(header['OBJDEC']), unit=(u.hour,u.deg))
+
+        print('RADEC / RADEC_OBJ\n%s / %s' % (RADEC.ra,RADEC_OBJ.ra))
+        print(RADEC.dec,'/',RADEC_OBJ.dec,'\n')
+
+        simbad = query_Simbad(id_star)
+
+        if simbad != None:
+            print('From Simbad (querying ID):\n--------------------------')
+
+            RADEC_SB = SkyCoord(simbad['RA'],simbad['DEC'], unit=(u.hour,u.deg))[0]
+
+            try: # Additional coordinates from SkyCoord package
+                RADEC_SC = SkyCoord.from_name(id_star)
+            except:
+                RADEC_SC = SkyCoord('0 0', unit=u.deg)
+
+            print('RADEC (Simbad) / RADEC (SkyCoord)\n%s / %s' % (RADEC_SB.ra,RADEC_SC.ra))
+            print(RADEC_SB.dec,'/',RADEC_SC.dec,'\n')
+
+            print('SpC (header) / SpC (Simbad)\n%s (%s) / %s\n' %
+                (header['I-SPC'],header['I-SPCREF'],simbad['SP_TYPE'][0]))
+
+        if coords_Simbad == True:
+
+            region = Simbad.query_region(RADEC, radius=radius*u.arcsec)
+
+            if type(region) != type(None):
+                print('From Simbad (querying header RA,DEC):\n-------------------------------------')
+
+                print('Sources found:')
+                [print(i['MAIN_ID']+' ('+i['SP_TYPE']+')') for i in region]
+                print('\n')
+
+        user = '-'; change = False
+        while user != '':
+
+            print("To change something from the header type: '<keyword>:<value>'")
+            print("Type '+<name>' to obtain a list of alternative names for <name> in Simbad.")
+            user = input("Or hit return to continue. Input: ")
+
+            if user.startswith('+') and not ':' in user:
+
+                try:
+                    [print(i['ID']) for i in Simbad.query_objectids('HD2905')]
+                except:
+                    print('No names were found for the input name.')
+
+            if ':' in user:
+                try:
+                    header[user.split(':')[0]] = user.split(':')[1]
+                    change = True
+                except:
+                    print('Entry not valid. Verify the input.')
+
+        if change == True:
+            save = input('FITS file has been modified, do you want to save it? y/n/<filename.fits> ')
+
+            if save.endswith('.fits'):
+                filename = save
+                save = 'y'
+
+            if save == 'y':
+
+                if savepath != '':
+                    spectrum = savepath+filename
+
+                hdu.writeto(spectrum, output_verify='ignore', overwrite=True)
