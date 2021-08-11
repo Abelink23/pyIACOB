@@ -1275,7 +1275,7 @@ def checknames(list, max_dist=90):
     return None
 
 
-def checkfits(list, coords_Simbad=True, radius=5, savepath=''):
+def checkfits(list, coords_Simbad=True, radius=60, savepath=''):
 
     '''
     Function to detect errors in the filenames/headers.
@@ -1292,6 +1292,7 @@ def checkfits(list, coords_Simbad=True, radius=5, savepath=''):
 
     radius : int
         Search radius where to find the source by the coordinates, in arcsec.
+        Default is 60 arcseg.
 
     savepath : str, optional
         If set, updated fits files will be saved in that location (full path must be set).
@@ -1380,12 +1381,15 @@ def checkfits(list, coords_Simbad=True, radius=5, savepath=''):
             save = input('FITS file has been modified, do you want to save it? y/n/<filename.fits> ')
 
             if save.endswith('.fits'):
-                filename = save
+                filename_new = save
                 save = 'y'
 
             if save == 'y':
 
                 if savepath != '':
-                    spectrum = savepath+filename
+                    spectrum = savepath+filename_new
+
+                else:
+                    spectrum = spectrum.replace(filename,filename_new)
 
                 hdu.writeto(spectrum, output_verify='ignore', overwrite=True)
