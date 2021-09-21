@@ -501,8 +501,8 @@ def snr(spectra, snrcut=None, get_MF=None):
     return best_spectra
 
 
-def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=None,
-    spccode=False, bmag=None, vmag=None, gaia=False, radius=1, skip=None):
+def gen_table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None,
+    snrcut=None, spccode=False, bmag=None, vmag=None, gaia=False, radius=1, skip=None):
 
     '''
     Function to generate a FITS table with information about sources coming from
@@ -515,7 +515,7 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
         Enter the input list, either name(s)/FITS of the source(s) separated by coma,
         or a .txt/.lst file containing the source names or coordinates.
         (Coordinates must be provided as h:m:s +-d:m:s or d +-d without comas)
-        (If "db" is "IACOB", type '*' to select all the availabla FITS)
+        (If "db" is "IACOB", type '*' to select all the available FITS)
 
     db : str
         Enter the input database: IACOB/Simbad
@@ -529,6 +529,10 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
         where to measure the distance and the distance [deg] where to find stars.
         e.g. ['12:30:30.2 +40:20:10.3', 3] or ['35.2368 +57.6622',4.5]
 
+    lim_lb : list, optional
+        Enter the galactic l(min,max), b(min,max) coordinates in degrees if you want to
+        filter the sources which lie outside the input boudaries. e.g. [100,150,-15,15]
+
     spt : str, optional
         Enter a desired spectral types to search, separated by coma e.g. 'O,B1'.
 
@@ -538,7 +542,7 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
     snrcut : int, optional
         If specified, it returns all the spectra above the chosen SNR.
 
-    spccode : str, optional
+    spccode : boolean, optional
         If True, it will create separate columns with SpT and LC numbers.
         Default is False.
 
@@ -716,21 +720,30 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
             if RADEC_0.separation(c2).deg > dist: continue
 
         #=======================================================================
+        #============================ Limit by l,b =============================
+        if lim_lb != None:
+            l_0 = RADEC_0.galactic.l.deg
+            b_0 = RADEC_0.galactic.b.deg
+            lim_lb=[float(i) for i in lim_lb]
+            if not (lim_lb[0] < l_0 and lim_lb[1] > l_0 and lim_lb[2] < b_0 and lim_lb[3] > b_0):
+                continue
+
+        #=======================================================================
         #======================= Get the spectral class ========================
         if db == 'IACOB':
 
             SpC_0 = header['I-SPC']
             if (not type(SpC_0) == str or SpC_0.strip() == '-'):
-                row['SpC'] = SpC_0 = simbad['SP_TYPE'][0]
+                row['SpC'] = SpC_0 = simbad['SP_TYPE'][0].replace(' ','')
                 row['SpC_ref'] = 'SIMBAD'
 
             else:
-                row['SpC'] = SpC_0
+                row['SpC'] = SpC_0.replace(' ','')
                 try: row['SpC_ref'] = header['I-SPCREF']
                 except: row['SpC_ref'] = '???'
 
         else:
-            row['SpC'] = SpC_0 = simbad['SP_TYPE'][0]
+            row['SpC'] = SpC_0 = simbad['SP_TYPE'][0].replace(' ','')
             row['SpC_ref'] = 'SIMBAD'
 
         #=======================================================================
@@ -748,6 +761,9 @@ def gen_table_db(list, db, coords=None, limdist=None, spt=None, lc=None, snrcut=
 
             elif len(re.split(':|p|n|f|\\(|\\)',SpC_0.strip())[0]) <= 4: # e.g. O9.5:npe 4+:npe
                 spt_0 = SpC_0.strip()
+
+            else:
+                spt_0 = SpC_0
 
             if spt != None and not any([j in spt_0 for j in spt]): continue
 

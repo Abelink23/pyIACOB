@@ -91,7 +91,6 @@ def ib_results(input_table='input_IB.txt', check_best=True, format='fits'):
     '''
     Function to generate a table with the results from IACOB-broad given an input
     table containing the name of the stars.
-    directory.
 
     Parameters
     ----------

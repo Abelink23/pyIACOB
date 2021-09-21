@@ -143,7 +143,8 @@ class spec():
 
         self.hjd = hjd
 
-        try: I_SNR = header0['I-SNR']   # SNR from header
+        try:
+            I_SNR = header0['I-SNR']  # SNR from header
         except: I_SNR = np.nan
 
         self.snr = I_SNR
@@ -186,7 +187,7 @@ class spec():
 
         self.wave = wave
         self.flux = flux
-
+        
         return wave, flux, hjd
 
 
@@ -402,10 +403,10 @@ class spec():
                     flux_fit = flux_fit_i; popt = popt_i; width = width_i
                     i = i + 1; width_i = FWHM*7
                 elif FWHM < FWHM_min:
-                    print('WARNING: %.3fA FWHM(%.1f) < minimum FWHM.' % (line,FWHM))
+                    print('WARNING: FWHM(%.1f) < minimum FWHM for %.3fA' % (FWHM,line))
                     break
                 elif FWHM > FWHM_max:
-                    print('WARNING: %.3fA FWHM(%.1f) < maximum FWHM.' % (line,FWHM))
+                    print('WARNING: FWHM(%.1f) > maximum FWHM for %.3fA ' % (FWHM,line))
                     break
 
             except: break
@@ -436,7 +437,8 @@ class spec():
 
         #=========================== Calculate the EW ==========================
         # stackoverflow.com/questions/34075111/calculate-equivalent-width-using-python-code
-        EW = .5*abs(fsum((wave[wl-1] - wave[wl])*((1 - flux_fit[wl-1]) +
+        # When emission is considered abs should be removed and 1-flux_fit -> flux_fit-1
+        EW = 0.5*abs(fsum((wave[wl-1] - wave[wl])*((1 - flux_fit[wl-1]) +
              (1 - flux_fit[wl])) for wl in range(1, len(flux_fit))))
         EW = round(1000*EW)
 

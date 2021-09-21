@@ -153,12 +153,12 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input',
     if type(table) is type(Table()): pass # In case the input table is already a table
     else: table = findtable(table) # file where star names and quality flags are
     table_REF = findtable('RVEWFWs_O9BAs.fits') # file where RVs, EWs and FWs are
-    table_IB = findtable('IB_results_ver5.txt') # file where vsini and vmac are
-    results = findtable('MAUI_results.fits') # file with output from MAUI
+    table_IB = findtable('IB_results.fits') # file where vsini and vmac are
+    results = findtable('MAUI_results_20210730_174446.fits') # file with output from MAUI
 
     maui_txt = open(maindir + 'lists/%s.txt' % output_name,'a')
     maui_txt.write(
-        "{:<40}".format('fullname')+"{:<48}".format('filename')+"{:<6}".format('vrad')+\
+        "{:<33}".format('fullname')+"{:<48}".format('filename')+"{:<6}".format('vrad')+\
         "{:<6}".format('vsini')+"{:<7}".format('evsini')+"{:<5}".format('vmac')+\
         "{:<7}".format('evmac')+"{:<7}".format('R')+"{:<4}".format('SNR')+\
         ' ;# SpC       FW34-14 SiIII SiII l lTef l lgf  Grid\n')
@@ -209,7 +209,8 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input',
                 elif int(do_file) == 2: star.filename = match_IB['filename'][0]
 
         if ascii_0 == True and not search(star.filename[:-5]+'_RV.ascii',\
-        os.path.expanduser('~')+'/Documents/MAUI/ASCII/') is None: ascii = False
+        os.path.expanduser('~')+'/Documents/MAUI/ASCII/') is None:
+            ascii = False
 
         # ----------------------------------------------------------------------
         # Extra information appended to the end of each row:
@@ -277,23 +278,27 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input',
         # MAUI input last modifications:
         if star.resolution == 67000: star.resolution = 85000
 
-        if match_IB['vsini'] < 5:
-            match_IB['vsini'] = 0
+        match_IB['evsini'] = abs(match_IB['vsini_GF_eDW'] + match_IB['vsini_GF_eUP'])/2
+
+        if match_IB['vsini_GF'] < 5:
+            match_IB['vsini_GF'] = 0
             match_IB['evsini'] = 0
 
-        if match_IB['vmac'][0] < 10:
-            match_IB['vmac'] = 0
+        match_IB['evmac'] = abs(match_IB['vmac_GF_eDW'] + match_IB['vmac_GF_eUP'])/2
+
+        if match_IB['vmac_GF'][0] < 10:
+            match_IB['vmac_GF'] = 0
             match_IB['evmac'] = 0
 
         if match_REF['SNR_B'][0] > 200:
             match_REF['SNR_B'] = 200
 
         maui_txt.write(
-            "{:<40}".format(star.filename[:-5])+\
+            "{:<33}".format(star.filename.split('_V')[0][:-2])+\
             "{:<48}".format(star.filename[:-5]+'_RV.ascii')+"{:<6}".format('0.0d0')+\
-            "{:<6}".format(str(int(round(match_IB['vsini'][0],0))))+\
+            "{:<6}".format(str(int(round(match_IB['vsini_GF'][0],0))))+\
             "{:<7}".format(str(int(round(match_IB['evsini'][0]))))+\
-            "{:<5}".format(str(int(round(match_IB['vmac'][0]))))+\
+            "{:<5}".format(str(int(round(match_IB['vmac_GF'][0]))))+\
             "{:<7}".format(str(int(round(match_IB['evmac'][0]))))+\
             "{:<7}".format(str(star.resolution)+'.')+\
             "{:<5}".format(str(int(round(match_REF['SNR_B'][0],0))))+';# '+\
