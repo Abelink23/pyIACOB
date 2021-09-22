@@ -412,7 +412,8 @@ class idl():
 
 
 def maui_results(input_list, solution_dir='server', check_best=True, last_only=False,
-    pdfplots=False, grids_table='MAUI_grid_limits.fits', grid_only=[], format='fits'):
+    pdfplots=False, pdflines='diag', grids_table='MAUI_grid_limits.fits', grid_only=[],
+    format='fits'):
 
     '''
     Function to generate a table with the results from MAUI given an input table
@@ -437,6 +438,9 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
 
     pdfplots : boolean, optional
         If True, a pdf comparing the synthetic diagnostic lines with the original is made.
+
+    pdflines : str, optional
+        Choose between 'diag'/'all'/'def' to select the lines to be used in the pdf plots.
 
     grids_table : str, obtional
         Name of the table containing the limits of the grids in MAUI.
@@ -546,25 +550,45 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
 
             if pdfplots == True:
 
-                lines_name = [
-                    r'H$_{\delta}$',r'H$_{\gamma}$',r'H$_{\beta}$',r'H$_{\alpha}$',
-                    'HeI 5016','HeI 5876','HeII 4542','HeII 5412',
-                    'SiIV 4116','SiIII 4552','SiIII 4568/75','SiII 6347',
-                    'NII 3995','CII 4267','OII 4662','MgII 4881',
-                    ]
+                lines_lwl = []; lines_rwl = []; lines_name = [];
 
-                lines_lamb = [
-                    4101.735,4340.463,4861.325,6562.8,
-                    5015.678,5875.62,4541.591,5411.52,
-                    4116.103,4552.622,4571.2985,4130.89,
-                    3994.997,4267.183,4661.632,4481.126]
+                if pdflines in ['diag','all']:
+                    weights = []
+                    for i in ['balmer','helium1','helium2','silicon']:
+                        weights += [j for j in idldata.obsdat.spectrum[0][i][0].weight[0]]
+                        lines_name += [j.decode() for j in idldata.obsdat.spectrum[0][i][0].line[0]]
+                        lines_lwl += [j for j in idldata.obsdat.spectrum[0][i][0].lmin[0]]
+                        lines_rwl += [j for j in idldata.obsdat.spectrum[0][i][0].lmax[0]]
 
-                rv0 = RV0(4552.622, findstar(star.filename+'.fits'), ewcut=50, width=20, tol=150, func='r')
-                best_SNR.rv0 = rv0
-                best_SNR.waveflux()
-                best_SNR.spc()
+                else:
+                    lines_name = [
+                        r'H$_{\delta}$',r'H$_{\gamma}$',r'H$_{\beta}$',r'H$_{\alpha}$',
+                        'HeI 5016','HeI 5876','HeII 4542','HeII 5412',
+                        'SiIV 4116','SiIII 4552','SiIII 4568/75','SiII 6347',
+                        'NII 3995','CII 4267','OII 4662','MgII 4881',
+                        ]
 
-                fig, ax = plt.subplots(4, 4, figsize=(10,10), tight_layout=True)
+                    lines_lamb = [
+                        4101.735,4340.463,4861.325,6562.8,
+                        5015.678,5875.62,4541.591,5411.52,
+                        4116.103,4552.622,4571.2985,4130.89,
+                        3994.997,4267.183,4661.632,4481.126]
+
+                    lines_lwl = [i-10 for i in lines_lamb]
+                    lines_rwl = [i+10 for i in lines_lamb]
+
+                if pdflines == 'diag':
+                    mask = [i == 1. for i in weights]
+
+                    lines_name = np.asarray(lines_name)[mask].tolist()
+                    lines_lwl = np.asarray(lines_name)[mask].tolist()
+                    lines_rwl = np.asarray(lines_name)[mask].tolist()
+
+                n = len(lines_name)
+                nrows, ncols = int(np.ceil(np.sqrt(n))), round(n/np.ceil(np.sqrt(n))+0.4)
+
+
+                fig, ax = plt.subplots(nrows, ncols, figsize=(10,10), tight_layout=True)
                 fig_title = ''
                 for par_name in param_err:
                     val = getattr(star, par_name)
@@ -580,10 +604,11 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
                     + ' -- ' + star.gridname + '\n' + fig_title, fontsize=8)
 
                 axs = ax.flatten()
-                for ax_i,line_lamb,line_name in zip(axs,lines_lamb,lines_name):
-                    mask = [(best_SNR.wave > line_lamb-10) & (best_SNR.wave < line_lamb+10)]
-                    ax_i.plot(best_SNR.wave[mask], best_SNR.flux[mask], color='gray')
-                    mask = [(star.obswave > line_lamb-10) & (star.obswave < line_lamb+10)]
+                for ax_i,line_lwl,line_rwl,line_name in zip(axs,lines_lamb,lines_name):
+                    mask = [(star.synwave > line_lwl) & (star.synwave < line_rwl)]
+                    ax_i.plot(star.synwave[mask], star.synflux[mask], color='gray')
+
+                    mask = [(star.obswave > line_lwl) & (star.obswave < line_rwl)]
                     ax_i.plot(star.obswave[mask], star.obsflux[mask], color='k')
                     ax_i.plot(star.obswave[mask], star.synconv[mask], color='r', ls='--')
                     ax_i.set_title(line_name)
