@@ -15,7 +15,7 @@ grids_dic = {
 [[4.146,4.322,4.322,4.146,4.146],[3.092,3.092,4.391,4.391,3.092]]),
 'astar2013_SOLAR_2_LMC_4_grid_2019-10-24_2019-10-24': ('ASgs_CNOMgSTiFe_Kurucz','purple',5,
 [[3.900,4.114,4.114,3.900,3.900],[3.142,3.142,4.292,4.292,3.142]]),
-'nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1_2021-05-05.idl': ('BSg_CNOSiMg','DeepPink',6,
+'nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1_2021-05-05': ('BSg_CNOSiMg','DeepPink',6,
 [[4.148,4.477,4.477,4.148,4.148],[3.392,3.392,4.386,4.386,3.392]])
 }
 
@@ -112,8 +112,8 @@ def gen_gridlimits(models_dir=mauidir+'MODELS/'):
     return 'DONE'
 
 
-def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input',
-    RV0tol=200,ascii_0=False):
+def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=200,
+    ascii_0=False):
 
     '''
     Function to generate the input table for MAUI given an input table with the
@@ -158,7 +158,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input',
 
     maui_txt = open(maindir + 'lists/%s.txt' % output_name,'a')
     maui_txt.write(
-        "{:<33}".format('fullname')+"{:<48}".format('filename')+"{:<6}".format('vrad')+\
+        "{:<40}".format('fullname')+"{:<48}".format('filename')+"{:<6}".format('vrad')+\
         "{:<6}".format('vsini')+"{:<7}".format('evsini')+"{:<5}".format('vmac')+\
         "{:<7}".format('evmac')+"{:<7}".format('R')+"{:<4}".format('SNR')+\
         ' ;# SpC       FW34-14 SiIII SiII l lTef l lgf  Grid\n')
@@ -294,7 +294,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input',
             match_REF['SNR_B'] = 200
 
         maui_txt.write(
-            "{:<33}".format(star.filename.split('_V')[0][:-2])+\
+            "{:<40}".format(star.filename[:-5])+\
             "{:<48}".format(star.filename[:-5]+'_RV.ascii')+"{:<6}".format('0.0d0')+\
             "{:<6}".format(str(int(round(match_IB['vsini_GF'][0],0))))+\
             "{:<7}".format(str(int(round(match_IB['evsini'][0]))))+\
@@ -335,11 +335,11 @@ class idl():
         #    except: print(i)
 
         # Identifiers
-        self.filename = idldata.aa[0][3].decode()
+        self.filename = idldata.aa.label[0].decode()
         self.id = self.filename.split('_')[0]
 
         # Resolution
-        self.resolution = int(self.filename.split('_V')[-1][0:5])
+        self.resolution = int(idldata.obsdat.spectrum[0].reso_for_obs)
 
         # vsini and vmac used in the input for MAUI
         self.vsini = idldata.obsdat.spectrum[0].VSINI[0]
@@ -454,9 +454,13 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
 
     timenow = time.strftime('%Y%m%d_%H%M%S')
 
-    # Create the input list
+    # Create the input list from a table with the filename column
     if input_list.endswith(('.txt','.fits')):
         stars = findtable(input_list)['filename']
+    # Create the input list from a list which has to be X.lst within list folder
+    elif input_list.endswith('.lst'):
+        stars = findlist(input_list)
+    # Create the input list from a string with comma separated IDs
     else:
         stars = input_list.split(',')
 
@@ -468,6 +472,8 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
         solution_dir = mauidir + 'SOLUTION/'
     elif solution_dir == 'server':
         solution_dir = mauidir + 'RESULTS_BSGS_202101/SOLUTION/'
+    elif not solution_dir.endswith('/'):
+        solution_dir = solution_dir + '/'
 
     # Set the progress bar
     bar = pb.ProgressBar(maxval=len(stars),
@@ -494,9 +500,11 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
         for file in os.listdir(solution_dir):
             if file.endswith('.idl'):
 
+                # If input list contain the filename then this is used
                 if '.ascii' in name and file.split('_sqexp_mat1_')[1][:-14] + 'RV.ascii' == name:
                     matches.append(solution_dir + file)
 
+                # while if the ID of the star is used, it is still contained as _ID_ in the file
                 elif '_'+name+'_' in file.split('_sqexp_mat1')[1][:-14]:
                     matches.append(solution_dir + file)
 
@@ -512,7 +520,7 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
             # Load the idl class for the file
             star = idl(match)
 
-            # Skip the used grid is not selected from the grid_only keyword
+            # Skip the used grid if not selected from the grid_only keyword
             if grid_only != [] and not star.gridname in grid_only: continue
 
             # Find the best SNR spectra in the DB
@@ -577,7 +585,7 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
                     ax_i.plot(best_SNR.wave[mask], best_SNR.flux[mask], color='gray')
                     mask = [(star.obswave > line_lamb-10) & (star.obswave < line_lamb+10)]
                     ax_i.plot(star.obswave[mask], star.obsflux[mask], color='k')
-                    ax_i.plot(star.obswave[mask],star.synconv[mask], color='r', ls='--')
+                    ax_i.plot(star.obswave[mask], star.synconv[mask], color='r', ls='--')
                     ax_i.set_title(line_name)
                     ax_i.tick_params(direction='in',top='on')
 
