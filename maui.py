@@ -441,6 +441,7 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
 
     pdflines : str, optional
         Choose between 'diag'/'all'/'def' to select the lines to be used in the pdf plots.
+        Default is 'diag'.
 
     grids_table : str, obtional
         Name of the table containing the limits of the grids in MAUI.
@@ -486,7 +487,7 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
 
     # Create pdf file to save the plots of the results
     if pdfplots == True:
-        from RV import RV0
+
         from matplotlib.backends.backend_pdf import PdfPages
 
         pp = PdfPages(maindir + 'plots/MAUI/Results_%s.pdf' % timenow)
@@ -587,7 +588,6 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
                 n = len(lines_name)
                 nrows, ncols = int(np.ceil(np.sqrt(n))), round(n/np.ceil(np.sqrt(n))+0.4)
 
-
                 fig, ax = plt.subplots(nrows, ncols, figsize=(10,10), tight_layout=True)
                 fig_title = ''
                 for par_name in param_err:
@@ -604,7 +604,7 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
                     + ' -- ' + star.gridname + '\n' + fig_title, fontsize=8)
 
                 axs = ax.flatten()
-                for ax_i,line_lwl,line_rwl,line_name in zip(axs,lines_lamb,lines_name):
+                for ax_i,line_lwl,line_rwl,line_name in zip(axs,lines_lwl,lines_rwl,lines_name):
                     mask = [(star.synwave > line_lwl) & (star.synwave < line_rwl)]
                     ax_i.plot(star.synwave[mask], star.synflux[mask], color='gray')
 
