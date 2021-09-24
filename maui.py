@@ -276,7 +276,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
             star.export(tail='_RV',extension='.ascii')
 
         # MAUI input last modifications:
-        if star.resolution == 67000: star.resolution = 85000
+        #if star.resolution > 65000: star.resolution = 80000
 
         match_IB['evsini'] = abs(match_IB['vsini_GF_eDW'] + match_IB['vsini_GF_eUP'])/2
 
@@ -409,6 +409,18 @@ class idl():
             setattr(self, 'l_'+par_name, label)
             [setattr(self, par_name+suffix, value) for suffix,value in
                 zip(['','_eUP','_eDW'],[round(sol_max,5),round(err_up,5),round(err_dw,5)])]
+
+        # Lines used in the analysis
+        line_weights = []; line_names = []; line_windows = []
+        for i in ['balmer','helium1','helium2','silicon']:
+            lines = idldata.obsdat.spectrum[0][i][0]
+            line_weights += [j for j in lines.weight[0]]
+            line_names += [j.decode() for j in lines.line[0]]
+            line_windows += [[j,k] for j,k in zip(lines.lmin[0],lines.lmax[0])]
+
+        self.line_weights = line_weights
+        self.line_names = line_names
+        self.line_windows = line_windows
 
 
 def maui_results(input_list, solution_dir='server', check_best=True, last_only=False,
@@ -551,18 +563,24 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
 
             if pdfplots == True:
 
-                lines_lwl = []; lines_rwl = []; lines_name = [];
+                if pdflines == 'diag':
+                    mask = [i == 1. for i in star.line_weights]
 
-                if pdflines in ['diag','all']:
-                    weights = []
-                    for i in ['balmer','helium1','helium2','silicon']:
-                        weights += [j for j in idldata.obsdat.spectrum[0][i][0].weight[0]]
-                        lines_name += [j.decode() for j in idldata.obsdat.spectrum[0][i][0].line[0]]
-                        lines_lwl += [j for j in idldata.obsdat.spectrum[0][i][0].lmin[0]]
-                        lines_rwl += [j for j in idldata.obsdat.spectrum[0][i][0].lmax[0]]
+                    line_names = np.asarray(star.line_names)[mask].tolist()
+                    lines_lwl,lines_rwl = np.asarray(star.line_windows).T
+                    lines_lwl = np.asarray(lines_lwl)[mask].tolist()
+                    lines_rwl = np.asarray(lines_rwl)[mask].tolist()
+                    line_colors = ['g']*len(line_names)
+
+                elif pdflines == 'all':
+                    line_names = star.line_names
+                    lines_lwl,lines_rwl = np.asarray(star.line_windows).T
+                    #lines_lwl = np.asarray(lines_lwl).tolist()
+                    #lines_rwl = np.asarray(lines_rwl).tolist()
+                    line_colors = ['g' if i == 1 else 'r' for i in star.line_weights]
 
                 else:
-                    lines_name = [
+                    line_names = [
                         r'H$_{\delta}$',r'H$_{\gamma}$',r'H$_{\beta}$',r'H$_{\alpha}$',
                         'HeI 5016','HeI 5876','HeII 4542','HeII 5412',
                         'SiIV 4116','SiIII 4552','SiIII 4568/75','SiII 6347',
@@ -578,14 +596,10 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
                     lines_lwl = [i-10 for i in lines_lamb]
                     lines_rwl = [i+10 for i in lines_lamb]
 
-                if pdflines == 'diag':
-                    mask = [i == 1. for i in weights]
+                    line_colors = ['g']*len(line_names)
 
-                    lines_name = np.asarray(lines_name)[mask].tolist()
-                    lines_lwl = np.asarray(lines_name)[mask].tolist()
-                    lines_rwl = np.asarray(lines_name)[mask].tolist()
 
-                n = len(lines_name)
+                n = len(line_names)
                 nrows, ncols = int(np.ceil(np.sqrt(n))), round(n/np.ceil(np.sqrt(n))+0.4)
 
                 fig, ax = plt.subplots(nrows, ncols, figsize=(10,10), tight_layout=True)
@@ -600,17 +614,17 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
                         val = val + 4*np.log10(Teff) - 16
                     fig_title += par_name+'='+str(round(val,2))+'  '
 
-                fig.suptitle(star.id + ' -- ' + best_SNR.SpC + ' -- ' + match.split('/')[-1]
-                    + ' -- ' + star.gridname + '\n' + fig_title, fontsize=8)
+                fig.suptitle(star.id + ' -- ' + match.split('/')[-1]+ ' -- ' + star.gridname
+                    + '\n' + fig_title, fontsize=8)
 
                 axs = ax.flatten()
-                for ax_i,line_lwl,line_rwl,line_name in zip(axs,lines_lwl,lines_rwl,lines_name):
+                for ax_i,line_lwl,line_rwl,line_name,c in zip(axs,lines_lwl,lines_rwl,line_names,line_colors):
                     mask = [(star.synwave > line_lwl) & (star.synwave < line_rwl)]
-                    ax_i.plot(star.synwave[mask], star.synflux[mask], color='gray')
+                    ax_i.plot(star.synwave[mask], star.synflux[mask], color='gray', lw=.3)
 
                     mask = [(star.obswave > line_lwl) & (star.obswave < line_rwl)]
                     ax_i.plot(star.obswave[mask], star.obsflux[mask], color='k')
-                    ax_i.plot(star.obswave[mask], star.synconv[mask], color='r', ls='--')
+                    ax_i.plot(star.obswave[mask], star.synconv[mask], color=c, ls='--')
                     ax_i.set_title(line_name)
                     ax_i.tick_params(direction='in',top='on')
 
