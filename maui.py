@@ -353,7 +353,10 @@ class idl():
         self.obsflux = idldata.yobs_out
 
         self.synwave = idldata.xx_mod
-        self.synflux = idldata.spec_prim
+        try:
+            self.synflux = idldata.spec_prim
+        except:
+            print(idlfile)
 
         self.synconv = idldata.sol_conv # This is flux. Combine with self.obswave
 
@@ -551,7 +554,10 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
         for match in matches:
 
             # Load the idl class for the file
-            star = idl(match)
+            try:
+                star = idl(match)
+            except:
+                print(match); continue
 
             # Skip the used grid if not selected from the grid_only keyword
             if grid_only != [] and not star.gridname in grid_only: continue
