@@ -549,7 +549,7 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
             continue
 
         if len(matches) > 1 and last_only == True:
-            matches = sorted(matches, key=lambda x: int(x[-14:-4].replace('-','')), reverse=True)
+            matches = sorted(matches, key=lambda x: int(x[-14:-4].replace('-','')), reverse=True)[0]
 
         for match in matches:
 
