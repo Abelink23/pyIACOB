@@ -42,14 +42,15 @@ def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='O9BAs_RVEWFWs.fits',
     table = findtable(table)
 
     #===========================================================================
-    try: # Check if the input table already exist
-        output = findtable(output_table)
+    output = findtable(output_table)
+    if output is not None:
         # Remove entries to be re-done
         if redo != 'n':
             try: redo = redo.split(',')
             except: print('Bad input for "redo" parameter. Exitting...'); return None
             for id in redo: output = output[output['ID'] != id]
-    except:
+    else:
+        print('Creating new table %s\n' % output_table)
         format1 = str(table['ID'].info.dtype)[1:]
         format2 = str(table['SpC'].info.dtype)[1:]
 
@@ -66,7 +67,6 @@ def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='O9BAs_RVEWFWs.fits',
         'float64','float64','float64','float64',\
         'float64','float64','float64','float64',\
         'float64','float64','float64','float64','float64','float64','float64'))
-
 
     quit = ''
     for source in table:

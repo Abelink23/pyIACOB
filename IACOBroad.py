@@ -26,11 +26,11 @@ def ib_input(table='IACOB_O9BAs_SNR20.fits', output_name='input_IB.txt'):
     input_IB['i'] = input_IB['i'].astype(str)
 
     i = 0
-    with open(maindir+'tables/input_IB_new.txt','w') as file1,\
-         open(maindir+'tables/input_IB_updated.txt','w') as file2:
+    with open(maindir+'tables/input_IB_new.txt', 'w') as file1,\
+         open(maindir+'tables/input_IB_updated.txt', 'w') as file2:
 
-        file1.write('#i Name path spectrum resol line\n')
-        file2.write('#i Name path spectrum resol line\n')
+        file1.write('#i ID path spectrum resol line QIB\n')
+        file2.write('#i ID path spectrum resol line QIB\n')
 
         bar = pb.ProgressBar(maxval=len(table),
                             widgets=[pb.Bar('=','[',']'),' ',pb.Percentage()])
@@ -47,37 +47,37 @@ def ib_input(table='IACOB_O9BAs_SNR20.fits', output_name='input_IB.txt'):
 
             star = spec(id,SNR='best')
 
-            line = 'SiII6347' # SiIII4567
+            line = 'SiIII4567' # SiIII4567 / SiII6347
 
             # Exists in the old table?
             if len(match_IB) == 1:
                     # Exist with the same filename (i.e. is the best one)?
                     if star.filename == match_IB['spectrum']:
                         # If it has been processed, add "#"
-                        if not search(id+'_'+match_IB['line'][0]+'.ps',ibdir) == None:
+                        if not search(id+'_'+match_IB['line'][0]+'.ps', ibdir) == None:
                             idx = '#'+str(j)
                         else:
                             idx = str(j)
                             print('\nWARNING: %s not processed or is missing the .ps\n' %id)
 
-                        file2.write('%s %s %s %s %i %s\n' % \
+                        file2.write('%s %s %s %s %i %s %i\n' % \
                         (idx,match_IB['ID'][0],match_IB['path'][0],match_IB['spectrum'][0],
-                             match_IB['resol'][0],match_IB['line'][0]))
+                             match_IB['resol'][0],match_IB['line'][0],match_IB['QIB'][0]))
 
                     # Pick the line used in the last best spectrum
                     else: line = match_IB['line'][0]
 
             # Then there is a new one or a better one:
             if len(match_IB) == 0 or (len(match_IB) == 1 and not star.filename == match_IB['spectrum']):
-                file1.write('%i %s %s %s %i %s\n' % \
+                file1.write('%i %s %s %s %i %s %i\n' % \
                 (i,star.id_star,star.spectrum.split(star.filename)[0],\
-                star.filename,star.resolution,line))
+                star.filename,star.resolution,line,-1))
                 i = i + 1
 
                 # ...and add it to the new main list.
-                file2.write('%s %s %s %s %i %s\n' % \
+                file2.write('%s %s %s %s %i %s %i\n' % \
                 (str(j),star.id_star,star.spectrum.split(star.filename)[0],\
-                star.filename,star.resolution,line))
+                star.filename,star.resolution,line,-1))
 
             bar.update(j)
 
@@ -120,6 +120,7 @@ def ib_results(input_table='input_IB.txt', check_best=True, format='fits'):
         id_star = row['ID']
         filename = row['spectrum']
         line = row['line']
+        QIB = row['QIB']
 
         match = []
         for file in os.listdir(ibdir):
@@ -142,7 +143,11 @@ def ib_results(input_table='input_IB.txt', check_best=True, format='fits'):
             print('\nWARNING: %s does not match with best spectrum available.'
             % filename)
 
-        data_rows = vstack([data_rows,Table(idldata.d)])
+        data_row = Table(idldata.d)
+        data_row['filename'] = filename
+        data_row['QIB'] = QIB
+
+        data_rows = vstack([data_rows,data_row])
 
         parameters = [j for j in idldata.d.dtype.names]
 
@@ -173,13 +178,13 @@ def ib_results(input_table='input_IB.txt', check_best=True, format='fits'):
     data_rows['SNR_IB'] = [int(round(row)) for row in data_rows['SNR_IB']]
 
     # Saving the results:
-    names = ['ID','vsini_FT','vmac_FT','vmac_FT_eDW','vmac_FT_eUP','vsini_GF',
+    names = ['ID','filename','vsini_FT','vmac_FT','vmac_FT_eDW','vmac_FT_eUP','vsini_GF',
              'vsini_GF_eDW','vsini_GF_eUP','vmac_GF','vmac_GF_eDW','vmac_GF_eUP',
-             'line_IB','EW_IB','SNR_IB']
+             'line_IB','EW_IB','SNR_IB','QIB']
 
     output = Table(rows=data_rows[names], names=(names))
 
-    full_path = maindir + 'tables/IB_results.' + format
+    full_path = maindir + 'tables/IB_results_new.' + format
     if format == 'ascii':
         format += '.fixed_width_two_line'
 

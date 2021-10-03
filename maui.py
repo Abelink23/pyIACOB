@@ -19,6 +19,7 @@ grids_dic = {
 [[4.148,4.477,4.477,4.148,4.148],[3.392,3.392,4.386,4.386,3.392]])
 }
 
+
 def gen_gridlimits(models_dir=mauidir+'MODELS/'):
 
     '''
@@ -178,7 +179,6 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
             if 'Em' in row['CHb']:
                 if not 'Em(p)' in row['CHb']: continue
             if 'PCyg' in row['CHb']: continue
-        if 'QIB' in table.columns and row['QIB'] < 2: continue
 
         match_REF = table_REF[[i.strip()==id for i in table_REF['ID']]]
         match_IB = table_IB[table_IB['ID']==id]
@@ -425,7 +425,7 @@ class idl():
 
 def maui_results(input_list, solution_dir='server', check_best=True, last_only=False,
     pdfplots=False, pdflines='diag', grids_table='MAUI_grid_limits.fits', grid_only=[],
-    format='fits'):
+    output_table=True, format='fits'):
 
     '''
     Function to generate a table with the results from MAUI given an input table
@@ -460,6 +460,9 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
 
     grid_only : list, optional
         List of grid names to limit the output to those results analysed with such grid.
+
+    output_table : boolean, optional
+        If True, the table with the output data will be created. Default is True.
 
     format : str, optional
         Enter the output format for the table: 'fits' (default), 'ascii' or 'csv'.
@@ -504,6 +507,13 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
 
         pp = PdfPages(maindir + 'plots/MAUI/Results_%s.pdf' % timenow)
 
+        plt.rcParams.update({
+            'xtick.labelsize' : 6,
+            'ytick.labelsize' : 6,
+            'axes.titlesize' : 6,
+            'axes.titlepad' : 3
+            })
+
     # Parameters with errors
     param_err = ['Teff','lgf','He','Micro','logQs','beta',
         'C','N','O','Mg','Si','S','Fe','Ti','fcl','vcl']
@@ -542,7 +552,7 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
 
             # Find the best SNR spectra in the DB
             if check_best == True or pdfplots == True:
-                best_SNR = spec(star.id, SNR='best')
+                best_SNR = spec(star.id, SNR='bestMF')
 
             # Check if the input file matches with the best SNR spectra available
             if check_best == True and star.filename != best_SNR.filename[:-5]:
@@ -603,6 +613,8 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
                 nrows, ncols = int(np.ceil(np.sqrt(n))), round(n/np.ceil(np.sqrt(n))+0.4)
 
                 fig, ax = plt.subplots(nrows, ncols, figsize=(10,10), tight_layout=True)
+                fig.subplots_adjust(wspace=1, hspace=1)
+
                 fig_title = ''
                 for par_name in param_err:
                     val = getattr(star, par_name)
@@ -614,8 +626,8 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
                         val = val + 4*np.log10(Teff) - 16
                     fig_title += par_name+'='+str(round(val,2))+'  '
 
-                fig.suptitle(star.id + ' -- ' + match.split('/')[-1]+ ' -- ' + star.gridname
-                    + '\n' + fig_title, fontsize=8)
+                fig.suptitle(star.id + ' -- ' + match.split('emulated_solution_mcmc_sqexp_mat1_')[-1]
+                    + ' -- ' + star.gridname + '\n' + fig_title, fontsize=8)
 
                 axs = ax.flatten()
                 for ax_i,line_lwl,line_rwl,line_name,c in zip(axs,lines_lwl,lines_rwl,line_names,line_colors):
@@ -625,8 +637,41 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
                     mask = [(star.obswave > line_lwl) & (star.obswave < line_rwl)]
                     ax_i.plot(star.obswave[mask], star.obsflux[mask], color='k')
                     ax_i.plot(star.obswave[mask], star.synconv[mask], color=c, ls='--')
-                    ax_i.set_title(line_name, fontsize=6)
-                    ax_i.tick_params(direction='in',top='on')
+                    if ax_i.get_ylim()[0] > 0.95:
+                        ax_i.set_ylim(bottom = 0.95)
+
+                    blocked = [None if (
+                    (i >= 6521. and i <= 6532.) or # Halpha, exclude CII lines in the red wing
+                    (i > 6575.75 and i < 6585.29) or # Halpha
+                    (i > 4344.42 and i < 4355.83) or # Hgamma, exclude OII lines in the red wing
+                    (i >= 4083.20 and i <= 4085.50) or # Hdelta, exclude metal lines
+                    (i >  4086.29 and i <  4090.53) or
+                    (i >  4092.27 and i <  4093.99) or
+                    (i >= 4096.5  and i <= 4098.) or
+                    (i >= 3953.09 and i <= 3955.05) or # Hepsil, exclude metal lines
+                    (i >  3960.70 and i <  3962.24) or
+                    (i >  3963.38 and i <  3965.76) or
+                    (i >= 3967.00 and i <= 3968.50) or
+                    (i >= 3972.53 and i <= 3974.10) or
+                    (i >  4478.87 and i <  4480.20) or # MgII, exclude the AlIII blend
+                    (i >= 4128.71 and i <= 4130.10) or # SiIII 4130
+                    (i >= 4131.40 and i <= 4134.08) or
+                    (i >= 4547.60 and i <= 4550.99) or # SiIII 4552
+                    (i >= 4554.20 and i <= 4558.96) or
+                    (i >= 4563.08 and i <= 4565.97) or # SiIII 4567
+                    (i >= 4569.925 and i <= 4571.35) or
+                    (i >= 4571.30 and i <= 4573.01) or # SiIII 4575
+                    (i >= 4575.78 and i <= 4579.32) or
+                    (i >= 4113.71 and i <= 4114.81) or # SiIV 4116
+                    (i >= 4117.7 and i <= 4117.80)
+                    ) else np.asarray(ax_i.get_ylim()).mean() for i in star.obswave[mask]]
+
+                    ax_i.plot(star.obswave[mask], blocked, c='cyan', lw=.5, alpha=0.5)
+
+                    ax_i.set_title(line_name)
+                    ax_i.tick_params(direction='in', top='on')
+
+                [fig.delaxes(axs[i]) for i in np.arange(len(line_names), len(axs), 1)]
 
                 pp.savefig(fig); plt.close(fig)
 
@@ -652,7 +697,8 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
     if format == 'ascii':
         format += '.fixed_width_two_line'
 
-    output.write(full_path, format=format, overwrite=True)
+    if output_table == True:
+        output.write(full_path, format=format, overwrite=True)
 
     return 'DONE'
 
