@@ -486,6 +486,7 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
             stars = stars['filename']
         except:
             stars = stars['ID']
+
     # Create the input list from a list which has to be X.lst within list folder
     elif input_list.endswith('.lst'):
         stars = findlist(input_list)
@@ -549,15 +550,16 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
             continue
 
         if len(matches) > 1 and last_only == True:
-            matches = sorted(matches, key=lambda x: int(x[-14:-4].replace('-','')), reverse=True)[0]
-
+            matches = [sorted(matches, key=lambda x: int(x[-14:-4].replace('-','')), reverse=True)[0]]
+                
         for match in matches:
 
             # Load the idl class for the file
             try:
                 star = idl(match)
             except:
-                print(match); continue
+                print('ERROR: Problem loading file: %s, skipping...' % match)
+                continue
 
             # Skip the used grid if not selected from the grid_only keyword
             if grid_only != [] and not star.gridname in grid_only: continue
