@@ -491,7 +491,7 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
     if solution_dir == 'local':
         solution_dir = mauidir + 'SOLUTION/'
     elif solution_dir == 'server':
-        solution_dir = mauidir + 'RESULTS_BSGS_202101/SOLUTION/'
+        solution_dir = mauidir + 'SOLUTION/'
     elif not solution_dir.endswith('/'):
         solution_dir = solution_dir + '/'
 
