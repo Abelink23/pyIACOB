@@ -474,9 +474,15 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
 
     timenow = time.strftime('%Y%m%d_%H%M%S')
 
-    # Create the input list from a table with the filename column
+    # Create the input list from a table.
+    # NOTE: A column named 'ID' or 'filename' is required. If 'filename' if provided, then
+    # the specific file among other possible solution files for the same source will be used.
     if input_list.endswith(('.txt','.fits')):
-        stars = findtable(input_list)['filename']
+        stars = findtable(input_list)
+        try:
+            stars = stars['filename']
+        except:
+            stars = stars['ID']
     # Create the input list from a list which has to be X.lst within list folder
     elif input_list.endswith('.lst'):
         stars = findlist(input_list)
