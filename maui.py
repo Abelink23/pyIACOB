@@ -178,7 +178,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
         if 'CHb' in table.columns:
             if 'Em' in row['CHb']:
                 if not 'Em(p)' in row['CHb']: continue
-            if 'PCyg' in row['CHb']: continue
+            #if 'PCyg' in row['CHb']: continue
 
         match_REF = table_REF[[i.strip()==id for i in table_REF['ID']]]
         match_IB = table_IB[table_IB['ID']==id]
@@ -187,12 +187,16 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
             print('Missing information in RVEWFW or IB tables for %s\n' % id); continue
 
         # Filter based on Si lines properties:
-        if row['QSiII']<3 or match_REF['EWSiII']<50 or np.isnan(match_REF['EWSiII']) or\
-            match_REF['depSiII']<3/match_REF['SNR_B']: SiIIFG = 0
+        if ('QSiII' in table.columns and row['QSiII']<3) \
+          or match_REF['EWSiII']<50 or np.isnan(match_REF['EWSiII']) \
+          or match_REF['depSiII']<3/match_REF['SNR_B']:
+            SiIIFG = 0
         else: SiIIFG = 1
 
-        if row['QSiIII']<3 or match_REF['EWSiIII1']<50 or np.isnan(match_REF['EWSiIII1']) or\
-            match_REF['depSiIII1']<3/match_REF['SNR_B']: SiIIIFG = 0
+        if ('QSiIII' in table.columns and row['QSiIII']<3) \
+          or match_REF['EWSiIII1']<50 or np.isnan(match_REF['EWSiIII1']) \
+          or match_REF['depSiIII1']<3/match_REF['SNR_B']:
+            SiIIIFG = 0
         else: SiIIIFG = 1
 
         if SiIIIFG == 0 and SiIIFG == 0:
@@ -201,7 +205,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
         star = spec(id, SNR='best')
 
         if match_IB['filename'][0] != star.filename:
-            print('Warning: Different files from best SNR and from IB results for %s' % name)
+            print('Warning: Different files from best SNR and from IB results for %s' % id)
             print(star.filename,' vs ',match_IB['filename'][0])
             if ascii_0 == True:
                 do_file = input('Which ascii do you want to create 1 or 2: ')
@@ -551,7 +555,7 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
 
         if len(matches) > 1 and last_only == True:
             matches = [sorted(matches, key=lambda x: int(x[-14:-4].replace('-','')), reverse=True)[0]]
-                
+
         for match in matches:
 
             # Load the idl class for the file
