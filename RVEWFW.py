@@ -2,7 +2,7 @@ from spec import *
 from RV import *
 
 
-def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='O9BAs_RVEWFWs.fits',
+def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='RVEWFWs_O9BAs.fits',
     RV0lines='rv_Bs.lst', RV0tol=150, ewcut=10, tol=100, redo='n'):
 
     '''
@@ -116,13 +116,13 @@ def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='O9BAs_RVEWFWs.fits',
             input(); plt.close()
 
             fit = star.fitline(6347.11,width=wid,tol=tol,func=fun,plot=True)
-            RVSi4,EWSi4,FWSi4,depSi4 = fit['RV_kms'],fit['EW'],fit['FWHM'],fit['depth']
+            RVSi4,EWSi4,FWSi4,depSi4 = fit['RV_kms']+star.rv0,fit['EW'],fit['FWHM'],fit['depth']
             fit = star.fitline(4574.757,width=wid,tol=tol,func=fun,plot=True)
-            RVSi3,EWSi3,FWSi3,depSi3 = fit['RV_kms'],fit['EW'],fit['FWHM'],fit['depth']
+            RVSi3,EWSi3,FWSi3,depSi3 = fit['RV_kms']+star.rv0,fit['EW'],fit['FWHM'],fit['depth']
             fit = star.fitline(4567.84 ,width=wid,tol=tol,func=fun,plot=True)
-            RVSi2,EWSi2,FWSi2,depSi2 = fit['RV_kms'],fit['EW'],fit['FWHM'],fit['depth']
+            RVSi2,EWSi2,FWSi2,depSi2 = fit['RV_kms']+star.rv0,fit['EW'],fit['FWHM'],fit['depth']
             fit = star.fitline(4552.622,width=wid,tol=tol,func=fun,plot=True)
-            RVSi1,EWSi1,FWSi1,depSi1 = fit['RV_kms'],fit['EW'],fit['FWHM'],fit['depth']
+            RVSi1,EWSi1,FWSi1,depSi1 = fit['RV_kms']+star.rv0,fit['EW'],fit['FWHM'],fit['depth']
 
             if EWSi4 != None:
                 if EWSi4 < ewcut: EWSi4 = FWSi4 = np.nan
@@ -163,7 +163,7 @@ def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='O9BAs_RVEWFWs.fits',
             plt.close()
 
             fit = star.fitline(4861.325,width=wid,func=fun,iter=1,info=True,outfit=True,plot=True)
-            RVHb,EWHb,FWHb,depHb = fit['RV_kms'],fit['EW'],fit['FWHM'],fit['depth']
+            RVHb,EWHb,FWHb,depHb = fit['RV_kms']+star.rv0,fit['EW'],fit['FWHM'],fit['depth']
 
             try:
                 gamma = fit['gamma']

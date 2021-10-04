@@ -575,6 +575,7 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
             # Check if the input file matches with the best SNR spectra available
             if check_best == True and star.filename != best_SNR.filename[:-5]:
                 print('\nWARNING: %s does not match with best spectrum available.' % star.filename[:-5])
+                print('Remove: %s != %s' % (star.filename,best_SNR.filename[:-5]))
 
             # Generate the table with the results of each of the parameters (basic and with errors)
             data_row = [star.id,star.filename,star.gridname,star.BC,star.B_V0]
@@ -680,8 +681,8 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
                     (i >= 4569.925 and i <= 4571.35) or
                     (i >= 4571.30 and i <= 4573.01) or # SiIII 4575
                     (i >= 4575.78 and i <= 4579.32) or
-                    (i >= 4113.71 and i <= 4114.81) or # SiIV 4116
-                    (i >= 4117.7 and i <= 4117.80)
+                    (i >= 4114.71 and i <= 4114.81) or # SiIV 4116
+                    (i >= 4117.7 and i <= 4125.10)
                     ) else np.asarray(ax_i.get_ylim()).mean() for i in star.obswave[mask]]
 
                     ax_i.plot(star.obswave[mask], blocked, c='cyan', lw=.5, alpha=0.5)
