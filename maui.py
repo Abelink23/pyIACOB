@@ -575,7 +575,6 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
             # Check if the input file matches with the best SNR spectra available
             if check_best == True and star.filename != best_SNR.filename[:-5]:
                 print('\nWARNING: %s does not match with best spectrum available.' % star.filename[:-5])
-                print('Remove: %s != %s' % (star.filename,best_SNR.filename[:-5]))
 
             # Generate the table with the results of each of the parameters (basic and with errors)
             data_row = [star.id,star.filename,star.gridname,star.BC,star.B_V0]
