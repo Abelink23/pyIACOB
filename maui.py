@@ -650,7 +650,7 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
                 axs = ax.flatten()
                 for ax_i,line_lwl,line_rwl,line_name,c in zip(axs,lines_lwl,lines_rwl,line_names,line_colors):
                     mask = [(star.synwave > line_lwl) & (star.synwave < line_rwl)]
-                    #ax_i.plot(star.synwave[mask], star.synflux[mask], color='gray', lw=.3)
+                    ax_i.plot(star.synwave[mask], star.synflux[mask], color='gray', lw=.3)
 
                     mask = [(star.obswave > line_lwl) & (star.obswave < line_rwl)]
                     ax_i.plot(star.obswave[mask], star.obsflux[mask], color='k')
