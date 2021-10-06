@@ -506,7 +506,7 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
     # Get the input list by the .idl files in the chosen solution folder
     elif input_list == '*':
         stars = [file.split('_sqexp_mat1_')[1].split('_')[0] \
-            for file in os.listdir(maindir+'tmp/') if file.endswith('.idl')]
+            for file in os.listdir(solution_dir) if file.endswith('.idl')]
 
     # Create the input list from a string with one ID or IDs separated by coma
     else:
@@ -540,7 +540,6 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
         'C','N','O','Mg','Si','S','Fe','Ti','fcl','vcl']
 
     # Iteration through the list of stars
-    print(stars)
     data_rows = []
     for i in range(len(stars)):
         name = stars[i]
