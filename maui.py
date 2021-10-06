@@ -540,6 +540,7 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
         'C','N','O','Mg','Si','S','Fe','Ti','fcl','vcl']
 
     # Iteration through the list of stars
+    print(stars)
     data_rows = []
     for i in range(len(stars)):
         name = stars[i]
