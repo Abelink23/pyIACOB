@@ -481,6 +481,14 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
 
     timenow = time.strftime('%Y%m%d_%H%M%S')
 
+    # Set the paths to the solutions directory
+    if solution_dir == 'local':
+        solution_dir = mauidir + 'SOLUTION/'
+    elif solution_dir == 'server':
+        solution_dir = mauidir + 'SOLUTION/'
+    elif not solution_dir.endswith('/'):
+        solution_dir = solution_dir + '/'
+
     # Create the input list from a table.
     # NOTE: A column named 'ID' or 'filename' is required. If 'filename' if provided, then
     # the specific file among other possible solution files for the same source will be used.
@@ -494,20 +502,19 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
     # Create the input list from a list which has to be X.lst within list folder
     elif input_list.endswith('.lst'):
         stars = findlist(input_list)
-    # Create the input list from a string with comma separated IDs
+
+    # Get the input list by the .idl files in the chosen solution folder
+    elif input_list == '*':
+        stars = [file.split('_sqexp_mat1_')[1].split('_')[0] \
+            for file in os.listdir(maindir+'tmp/') if file.endswith('.idl')]
+
+    # Create the input list from a string with one ID or IDs separated by coma
     else:
         stars = input_list.split(',')
 
     # Load the table with the information of the different grids
     grids = findtable(grids_table)
 
-    # Set the paths to the solutions directory
-    if solution_dir == 'local':
-        solution_dir = mauidir + 'SOLUTION/'
-    elif solution_dir == 'server':
-        solution_dir = mauidir + 'SOLUTION/'
-    elif not solution_dir.endswith('/'):
-        solution_dir = solution_dir + '/'
 
     # Set the progress bar
     bar = pb.ProgressBar(maxval=len(stars),
@@ -546,7 +553,7 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
                     matches.append(solution_dir + file)
 
                 # while if the ID of the star is used, it is still contained as _ID_ in the file
-                elif '_'+name+'_' in file.split('_sqexp_mat1')[1][:-14]:
+                elif '_' + name + '_' in file.split('_sqexp_mat1')[1][:-14]:
                     matches.append(solution_dir + file)
 
         if len(matches) == 0:
@@ -649,12 +656,11 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
 
                 axs = ax.flatten()
                 for ax_i,line_lwl,line_rwl,line_name,c in zip(axs,lines_lwl,lines_rwl,line_names,line_colors):
-                    mask = [(star.synwave > line_lwl) & (star.synwave < line_rwl)]
-                    ax_i.plot(star.synwave[mask], star.synflux[mask], color='gray', lw=.3)
+                    #mask = [(star.synwave > line_lwl) & (star.synwave < line_rwl)]
+                    #ax_i.plot(star.synwave[mask], star.synflux[mask], color='gray', lw=.3)
 
                     mask = [(star.obswave > line_lwl) & (star.obswave < line_rwl)]
                     ax_i.plot(star.obswave[mask], star.obsflux[mask], color='k')
-                    ax_i.plot(star.obswave[mask], star.synconv[mask], color=c, ls='--')
                     if ax_i.get_ylim()[0] > 0.95:
                         ax_i.set_ylim(bottom = 0.95)
 
@@ -683,6 +689,15 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
                     (i >= 4114.71 and i <= 4114.81) or # SiIV 4116
                     (i >= 4117.7 and i <= 4125.10)
                     ) else np.asarray(ax_i.get_ylim()).mean() for i in star.obswave[mask]]
+
+                    # This is a visual trick to put the synthetic spectra where the normalization
+                    # feature is putting it as it is not stored but is the way to see its effect
+                    weight = [0 if i == None else 1 for i in blocked]
+                    scale = np.sum(star.obsflux[mask]*star.synconv[mask]*weight)\
+                                /np.sum(star.synconv[mask]*star.synconv[mask]*weight)
+                    star.synconv_scaled = scale * star.synconv[mask]
+
+                    ax_i.plot(star.obswave[mask], star.synconv_scaled, color=c, ls='--')
 
                     ax_i.plot(star.obswave[mask], blocked, c='cyan', lw=.5, alpha=0.5)
 
