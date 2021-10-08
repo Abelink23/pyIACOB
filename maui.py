@@ -527,7 +527,7 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
 
         from matplotlib.backends.backend_pdf import PdfPages
 
-        pp = PdfPages(maindir + 'plots/MAUI/Results_%s.pdf' % timenow)
+        pp = PdfPages(maindir + 'plots/MAUI/MAUI_results_%s.pdf' % timenow)
 
         plt.rcParams.update({
             'xtick.labelsize' : 6,
