@@ -175,10 +175,10 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
 
         # Filer based on properties from the main table:
         if 'SB' in table.columns and 'SB2' in row['SB']: continue
-        if 'CHb' in table.columns:
-            if 'Em' in row['CHb']:
-                if not 'Em(p)' in row['CHb']: continue
-            #if 'PCyg' in row['CHb']: continue
+        #if 'CHb' in table.columns:
+        #    if 'Em' in row['CHb']:
+        #        if not 'Em(p)' in row['CHb']: continue
+        #    if 'PCyg' in row['CHb']: continue
 
         match_REF = table_REF[[i.strip()==id for i in table_REF['ID']]]
         match_IB = table_IB[table_IB['ID']==id]
@@ -403,7 +403,8 @@ class idl():
                 label = 'd'
 
             else:
-                sol_max = idldata.solution[0].sol_max[0][idx] # maximum of distribution
+                sol_max = idldata.solution[0].sol_max[0][idx] # maximum of distribution without smoothing
+                #sol_max = idldata.solution[0].sol_max[1][idx] # maximum of distribution with smoothing
                 err_dw = abs(sol_max-idldata.solution[0].hpd_interval[0][idx])
                 err_up = abs(sol_max-idldata.solution[0].hpd_interval[1][idx])
 
@@ -677,6 +678,9 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
                     (i >  3963.38 and i <  3965.76) or
                     (i >= 3967.00 and i <= 3968.50) or
                     (i >= 3972.53 and i <= 3974.10) or
+                    (i >= 4922.5 and i <= 4926.0) or # HeI 4922
+                    (i >= 5017.5 and i <= 5019.5) or # HeI 5015
+                    (i >= 4544.0 and i <= 4546.0) or # HeII 4541, exclude AlIII lines
                     (i >  4478.87 and i <  4480.20) or # MgII, exclude the AlIII blend
                     (i >= 4128.71 and i <= 4130.10) or # SiIII 4130
                     (i >= 4131.40 and i <= 4134.08) or
@@ -697,7 +701,7 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
                                 /np.sum(star.synconv[mask]*star.synconv[mask]*weight)
                     star.synconv_scaled = scale * star.synconv[mask]
 
-                    ax_i.plot(star.obswave[mask], star.synconv_scaled, color=c, ls='--')
+                    ax_i.plot(star.obswave[mask], star.synconv_scaled, color=c, ls='--', lw=.7)
 
                     ax_i.plot(star.obswave[mask], blocked, c='cyan', lw=.5, alpha=0.5)
 
