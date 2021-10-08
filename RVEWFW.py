@@ -54,6 +54,8 @@ def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='RVEWFWs_O9BAs.fits',
         format1 = str(table['ID'].info.dtype)[1:]
         format2 = str(table['SpC'].info.dtype)[1:]
 
+        # to be included HeI 4387, HeII 5411, SiIV 4116
+
         output = Table(names=(\
         'ID','SNR_B','SNR_V','SNR_R',\
         'RVSiIII1','EWSiIII1','FWSiIII1','depSiIII1',\

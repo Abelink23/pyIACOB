@@ -661,7 +661,7 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
                     #ax_i.plot(star.synwave[mask], star.synflux[mask], color='gray', lw=.3)
 
                     mask = [(star.obswave > line_lwl) & (star.obswave < line_rwl)]
-                    ax_i.plot(star.obswave[mask], star.obsflux[mask], color='k')
+                    ax_i.plot(star.obswave[mask], star.obsflux[mask], color='k', lw=.7)
                     if ax_i.get_ylim()[0] > 0.95:
                         ax_i.set_ylim(bottom = 0.95)
 
@@ -678,7 +678,7 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
                     (i >  3963.38 and i <  3965.76) or
                     (i >= 3967.00 and i <= 3968.50) or
                     (i >= 3972.53 and i <= 3974.10) or
-                    (i >= 4922.5 and i <= 4926.0) or # HeI 4922
+                    (i >= 4923.5 and i <= 4926.0) or # HeI 4922
                     (i >= 5017.5 and i <= 5019.5) or # HeI 5015
                     (i >= 4544.0 and i <= 4546.0) or # HeII 4541, exclude AlIII lines
                     (i >  4478.87 and i <  4480.20) or # MgII, exclude the AlIII blend
@@ -701,7 +701,7 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
                                 /np.sum(star.synconv[mask]*star.synconv[mask]*weight)
                     star.synconv_scaled = scale * star.synconv[mask]
 
-                    ax_i.plot(star.obswave[mask], star.synconv_scaled, color=c, ls='--', lw=.7)
+                    ax_i.plot(star.obswave[mask], star.synconv_scaled, color=c, ls='--', lw=1)
 
                     ax_i.plot(star.obswave[mask], blocked, c='cyan', lw=.5, alpha=0.5)
 
