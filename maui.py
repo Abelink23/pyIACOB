@@ -155,7 +155,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
     else: table = findtable(table) # file where star names and quality flags are
     table_REF = findtable('RVEWFWs_O9BAs.fits') # file where RVs, EWs and FWs are
     table_IB = findtable('IB_results.fits') # file where vsini and vmac are
-    results = findtable('MAUI_results_20210730_174446.fits') # file with output from MAUI
+    #results = findtable('MAUI_results_20210730_174446.fits') # file with output from MAUI
 
     maui_txt = open(maindir + 'lists/%s.txt' % output_name,'a')
     maui_txt.write(
@@ -217,14 +217,14 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
             ascii = False
 
         # ----------------------------------------------------------------------
-        # Extra information appended to the end of each row:
-        match_results = results[results['ID']==id]
-        if len(match_results) == 0:
-            l_Tef = logTf = l_lgf = loggf = grid = 0
-        else:
-            l_Tef = match_results['l_Teff'][0]; logTf = 4+np.log10(match_results['Teff'][0])
-            l_lgf = match_results['l_lgf'][0]; loggf = match_results['lgf'][0];
-            grid = grids_dic[match_results['Grid_name'][0]][0]
+        ## Extra information appended to the end of each row:
+        #match_results = results[results['ID']==id]
+        #if len(match_results) == 0:
+        #    l_Tef = logTf = l_lgf = loggf = grid = 0
+        #else:
+        #    l_Tef = match_results['l_Teff'][0]; logTf = 4+np.log10(match_results['Teff'][0])
+        #    l_lgf = match_results['l_lgf'][0]; loggf = match_results['lgf'][0];
+        #    grid = grids_dic[match_results['Grid_name'][0]][0]
         # ----------------------------------------------------------------------
 
         if ascii == True:
@@ -298,21 +298,22 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
             match_REF['SNR_B'] = 200
 
         maui_txt.write(
-            "{:<40}".format(star.filename[:-5])+\
-            "{:<48}".format(star.filename[:-5]+'_RV.ascii')+"{:<6}".format('0.0d0')+\
-            "{:<6}".format(str(int(round(match_IB['vsini_GF'][0],0))))+\
-            "{:<7}".format(str(int(round(match_IB['evsini'][0]))))+\
-            "{:<5}".format(str(int(round(match_IB['vmac_GF'][0]))))+\
-            "{:<7}".format(str(int(round(match_IB['evmac'][0]))))+\
-            "{:<7}".format(str(star.resolution)+'.')+\
-            "{:<5}".format(str(int(round(match_REF['SNR_B'][0],0))))+';# '+\
-            "{:<12}".format(row['SpC'].strip().replace(' ',''))+' '+\
-            "{:<8}".format(str(round(match_REF['FW34Hb'][0]-match_REF['FW14Hb'][0],1)))+\
-            "{:<5}".format(str(SiIIIFG))+"{:<2}".format(str(SiIIFG))+' '+\
-            str(l_Tef)+' '+"{:<4}".format(str(round(logTf,2)))+' '+\
-            str(l_lgf)+' '+"{:<5}".format(str(round(loggf,2)))+\
-            "{:<15}".format(str(grid))+\
-            '\n')
+            "{:<40}".format(star.filename[:-5])\
+            +"{:<48}".format(star.filename[:-5] + '_RV.ascii') + "{:<6}".format('0.0d0')\
+            +"{:<6}".format(str(int(round(match_IB['vsini_GF'][0],0))))\
+            +"{:<7}".format(str(int(round(match_IB['evsini'][0]))))\
+            +"{:<5}".format(str(int(round(match_IB['vmac_GF'][0]))))\
+            +"{:<7}".format(str(int(round(match_IB['evmac'][0]))))\
+            +"{:<7}".format(str(star.resolution)+'.')\
+            +"{:<5}".format(str(int(round(match_REF['SNR_B'][0],0))))\
+            + ';# '\
+            #+"{:<12}".format(row['SpC'].strip().replace(' ','')) + ' '\
+            #+"{:<8}".format(str(round(match_REF['FW34Hb'][0]-match_REF['FW14Hb'][0],1)))\
+            #"{:<5}".format(str(SiIIIFG)) + "{:<2}".format(str(SiIIFG)) + ' '\
+            #str(l_Tef) + ' ' + "{:<4}".format(str(round(logTf,2))) + ' '\
+            #str(l_lgf) + ' ' + "{:<5}".format(str(round(loggf,2)))\
+            #"{:<15}".format(str(grid))\
+            +'\n')
 
     maui_txt.close()
 
@@ -322,7 +323,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
     return 'DONE'
 
 
-class idl():
+class solution_idl():
     def __init__(self, idlfile, grids_table='MAUI_grid_limits.fits'):
 
         '''
@@ -431,9 +432,9 @@ class idl():
         self.line_windows = line_windows
 
 
-def maui_results(input_list, solution_dir='server', check_best=True, last_only=False,
+def maui_results(input_list, output_dir, check_best=True, last_only=False,
     pdfplots=False, pdflines='diag', grids_table='MAUI_grid_limits.fits', grid_only=[],
-    output_table=True, format='fits'):
+    output_table=True, format_table='fits'):
 
     '''
     Function to generate a table with the results from MAUI given an input table
@@ -445,9 +446,9 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
         Input star, list of stars, or table contaning the 'ID' or 'filename' to search.
         E.g. 'HD2905', 'HD2905,HD7902', 'table.txt/fits'
 
-    solution_dir : str, optional
-        Enter the directory where to locate the input_table and output fits.
-        Shortcuts are 'local' and 'server'. Default is 'server'.
+    output_dir : str
+        Enter the path to the OUTPUT folder where the SOLUTION sub-folder containing the
+        *solution*.idl files are. # Note: this could be your "mauidir" variable itself.
 
     check_best : boolean, optional
         True if each spectra from the input_table is checked against the best
@@ -472,7 +473,7 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
     output_table : boolean, optional
         If True, the table with the output data will be created. Default is True.
 
-    format : str, optional
+    format_table : str, optional
         Enter the output format for the table: 'fits' (default), 'ascii' or 'csv'.
 
     Returns
@@ -481,14 +482,6 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
     '''
 
     timenow = time.strftime('%Y%m%d_%H%M%S')
-
-    # Set the paths to the solutions directory
-    if solution_dir == 'local':
-        solution_dir = mauidir + 'SOLUTION/'
-    elif solution_dir == 'server':
-        solution_dir = mauidir + 'SOLUTION/'
-    elif not solution_dir.endswith('/'):
-        solution_dir = solution_dir + '/'
 
     # Create the input list from a table.
     # NOTE: A column named 'ID' or 'filename' is required. If 'filename' if provided, then
@@ -504,10 +497,10 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
     elif input_list.endswith('.lst'):
         stars = findlist(input_list)
 
-    # Get the input list by the .idl files in the chosen solution folder
+    # Get the input list by the .idl files in the chosen SOLUTION folder
     elif input_list == '*':
         stars = [file.split('_sqexp_mat1_')[1].split('_')[0] \
-            for file in os.listdir(solution_dir) if file.endswith('.idl')]
+            for file in os.listdir(output_dir + 'SOLUTION/') if file.endswith('.idl')]
 
     # Create the input list from a string with one ID or IDs separated by coma
     else:
@@ -515,7 +508,6 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
 
     # Load the table with the information of the different grids
     grids = findtable(grids_table)
-
 
     # Set the progress bar
     bar = pb.ProgressBar(maxval=len(stars),
@@ -527,7 +519,8 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
 
         from matplotlib.backends.backend_pdf import PdfPages
 
-        pp = PdfPages(maindir + 'plots/MAUI/MAUI_results_%s.pdf' % timenow)
+        pdf_solution = PdfPages(maindir + 'plots/MAUI/MAUI_results_lines_%s.pdf' % timenow)
+        pdf_makchain = PdfPages(maindir + 'plots/MAUI/MAUI_results_chain_%s.pdf' % timenow)
 
         plt.rcParams.update({
             'xtick.labelsize' : 6,
@@ -546,16 +539,16 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
         name = stars[i]
 
         matches = []
-        for file in os.listdir(solution_dir):
+        for file in os.listdir(output_dir + 'SOLUTION/'):
             if file.endswith('.idl'):
 
                 # If input list contain the filename then this is used
                 if '.ascii' in name and file.split('_sqexp_mat1_')[1][:-14] + 'RV.ascii' == name:
-                    matches.append(solution_dir + file)
+                    matches.append(output_dir + 'SOLUTION/' + file)
 
                 # while if the ID of the star is used, it is still contained as _ID_ in the file
                 elif '_' + name + '_' in file.split('_sqexp_mat1')[1][:-14]:
-                    matches.append(solution_dir + file)
+                    matches.append(output_dir + 'SOLUTION/' + file)
 
         if len(matches) == 0:
             print('\nWARNING: No .idl file found for %s. Continuing...' % name)
@@ -568,7 +561,7 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
 
             # Load the idl class for the file
             try:
-                star = idl(match)
+                star = solution_idl(match)
             except:
                 print('ERROR: Problem loading file: %s, skipping...' % match)
                 continue
@@ -599,6 +592,7 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
 
             if pdfplots == True:
 
+                # PLOT OF SPECTRAL LINES OUT OF THE IDL SOLUTION FILES
                 if pdflines == 'diag':
                     mask = [i == 1. for i in star.line_weights]
 
@@ -634,11 +628,9 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
 
                     line_colors = ['g']*len(line_names)
 
+                nrows, ncols = even_plot(len(line_names))
 
-                n = len(line_names)
-                nrows, ncols = int(np.ceil(np.sqrt(n))), round(n/np.ceil(np.sqrt(n))+0.4)
-
-                fig, ax = plt.subplots(nrows, ncols, figsize=(10,10), tight_layout=True)
+                fig, ax = plt.subplots(nrows, ncols, figsize=(13,8), tight_layout=True)
                 fig.subplots_adjust(wspace=1, hspace=1)
 
                 fig_title = ''
@@ -710,12 +702,62 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
 
                 [fig.delaxes(axs[i]) for i in np.arange(len(line_names), len(axs), 1)]
 
-                pp.savefig(fig); plt.close(fig)
+                pdf_solution.savefig(fig); plt.close(fig)
+
+                # PLOT OF PROBABILLITY DISTRIBUTIONS OUT OF THE IDL MARKOV-CHAIN FILES
+                mcmc_file = match.split('emulated_solution_')[1]
+                print(output_dir + 'MARKOV_CHAIN/' + mcmc_file)
+                try:
+                    mcmc_data = readsav(output_dir + 'MARKOV_CHAIN/' + mcmc_file)
+                except:
+                    print('%s associated mcmc file not found in MARKOV_CHAIN/ folder' % star.id)
+                    continue
+
+                parameters = [var.decode() for var in mcmc_data.varname]
+
+                nrows, ncols = even_plot(len(parameters))
+
+                fig, ax = plt.subplots(nrows, ncols, figsize=(13,8), tight_layout=True)
+                fig.subplots_adjust(wspace=1, hspace=1)
+
+                fig.suptitle(star.id + ' -- ' + match.split('emulated_solution_mcmc_sqexp_mat1_')[-1]
+                    + ' -- ' + star.gridname + '\n' + fig_title, fontsize=8)
+
+                axs = ax.flatten()
+
+                for j in range(len(parameters)):
+
+                    xin = mcmc_data.chain_final.T[j]*(mcmc_data.xmax[j] - mcmc_data.xmin[j]) + mcmc_data.xmin[j]
+
+                    # Replace lgf by logg
+                    #if 'lgf' in parameters and parameters.index('lgf') == i:
+                    #    idx = parameters.index('Teff')
+                    #    teff = mcmc_data.chain_final.T[idx]*(mcmc_data.xmax[idx] - mcmc_data.xmin[idx]) + mcmc_data.xmin[idx]
+                    #    xin = xin + 4*np.log10(teff)
+                    #    parameters[i] = 'logg'
+
+                    iqr = np.quantile(xin, q=[.25, .75])
+                    fd_bin = 2*np.diff(iqr)/(len(xin)**(0.3))
+
+                    weights = np.ones_like(xin)/float(len(xin))
+                    axs[j].hist(xin, bins=np.arange(min(xin), max(xin) + fd_bin[0], fd_bin[0]),
+                        weights=weights, histtype='stepfilled', fc='gray', ec='g', lw=2, alpha=0.6)
+                    ylim = axs[j].get_ylim()[1]
+                    axs[j].plot([np.median(xin),np.median(xin)], [0,ylim], '--', c='orange')
+                    axs[j].plot([iqr[0],iqr[0]], [0,ylim], '-.', c='orange')
+                    axs[j].plot([iqr[1],iqr[1]], [0,ylim], '-.', c='orange')
+                    axs[j].set_title(parameters[j])
+                    axs[j].tick_params(direction='in', top='on')
+
+                [fig.delaxes(axs[i]) for i in np.arange(len(parameters), len(axs), 1)]
+
+                pdf_makchain.savefig(fig); plt.close(fig)
 
         bar.update(i)
 
     if pdfplots == True:
-        pp.close()
+        pdf_solution.close()
+        pdf_makchain.close()
 
     bar.finish()
 
@@ -729,18 +771,18 @@ def maui_results(input_list, solution_dir='server', check_best=True, last_only=F
 
     output = Table(rows=data_rows, names=(names))
 
-    full_path = (maindir + 'tables/MAUI_results_%s.' + format) % timenow
+    full_path = (maindir + 'tables/MAUI_results_%s.' + format_table) % timenow
 
-    if format == 'ascii':
-        format += '.fixed_width_two_line'
+    if format_table == 'ascii':
+        format_table += '.fixed_width_two_line'
 
     if output_table == True:
-        output.write(full_path, format=format, overwrite=True)
+        output.write(full_path, format=format_table, overwrite=True)
 
     return 'DONE'
 
 
-def gen_stars_in_grids(table='IACOB_O9BAs_SNR20.fits', table_results='MAUI_results.fits'):
+def gen_stars_in_grids(input_table, table_results):
 
     '''
     Function to generate MAUI-input txt lists containing the stars that lie within the
@@ -748,10 +790,10 @@ def gen_stars_in_grids(table='IACOB_O9BAs_SNR20.fits', table_results='MAUI_resul
 
     Parameters
     ----------
-    table : str, optional
-        Table containing the input stars
+    input_table : str
+        Table containing the input stars under an 'ID' column name.
 
-    table_results : str, optional
+    table_results : str
         Table containing the MAUI results for the stars in the previous table.
 
     Returns
@@ -761,7 +803,7 @@ def gen_stars_in_grids(table='IACOB_O9BAs_SNR20.fits', table_results='MAUI_resul
 
     import matplotlib.path as mpath
 
-    table = findtable(table)
+    table = findtable(input_table)
     results = findtable(table_results)
 
     log_Teff = np.asarray(4+np.log10(results['Teff']))
@@ -779,17 +821,10 @@ def gen_stars_in_grids(table='IACOB_O9BAs_SNR20.fits', table_results='MAUI_resul
         results_in = results[path.contains_points(points)]['ID']
         table_red = table[[i['ID'] in results_in for i in table]]
 
-        # QUITAR, ES SOLO PARA SERGIO DE CARA A ORDENAR POR FWHM Hb
-        RVEW = findtable('RVEWFWs_O9BAs.fits')
-        table_red=join(table_red,RVEW,keys='ID')
-        table_red['3414'] = table_red['FW34Hb']-table_red['FW14Hb']
-        table_red.sort('3414')
-        table_red.reverse()
-
         maui_input(table=table_red, output_name=name, ascii_0=False)
 
 
-def gen_synthetic(save_dir='server', lwl=3900, rwl=5080):
+def gen_synthetic(output_dir, save_dir='server', lwl=3900, rwl=5080):
 
     '''
     Function to generate the .dat files of the synthetic spectra generated by
@@ -797,6 +832,10 @@ def gen_synthetic(save_dir='server', lwl=3900, rwl=5080):
 
     Parameters
     ----------
+    output_dir : str
+        Enter the path to the OUTPUT folder where the SOLUTION sub-folder containing the
+        *solution*.idl files are. # Note: this could be your "mauidir" variable itself.
+
     save_dir : str, optional
         Enter the directory where to save all the output spectra in ascii format.
 
@@ -811,17 +850,15 @@ def gen_synthetic(save_dir='server', lwl=3900, rwl=5080):
     Nothing but the ascii .dat files are generated.
     '''
 
-    solution_dir = mauidir + 'RESULTS_BSGS_202101/SOLUTION/'
-
     if save_dir == 'local':
         save_dir = datadir + 'ASCII/Synthetic_MAUI/'
 
     elif save_dir == 'server':
         save_dir = '/net/nas/proyectos/hots/masblue/obs_iac/spec_opt/IACOB_DB/ASCII/SYNTHETIC/'
 
-    for file in os.listdir(solution_dir):
+    for file in os.listdir(output_dir + 'SOLUTION/'):
         if not file.startswith('._') and file.endswith('.idl'):
-            star = idl(solution_dir + file)
+            star = solution_idl(output_dir + 'SOLUTION/' + file)
 
             star_db = spec(star.id, SNR='best')
 
@@ -843,3 +880,21 @@ def gen_synthetic(save_dir='server', lwl=3900, rwl=5080):
 
                 np.savetxt(save_dir + new_star, np.c_[star_idl.wave,star_idl.flux],
                     fmt=('%.4f','%.6f'))
+
+def even_plot(n):
+    '''
+    Function to determine the number of rows, columns needed to have a square plot.
+
+    Parameters
+    ----------
+    n : int
+        Number of elements to be splited.
+
+    Returns
+    -------
+        Number of rows and columns
+    '''
+
+    nrows, ncols = int(np.ceil(np.sqrt(n))), round(n/np.ceil(np.sqrt(n))+0.4)
+
+    return nrows,ncols

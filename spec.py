@@ -187,7 +187,7 @@ class spec():
 
         self.wave = wave
         self.flux = flux
-        
+
         return wave, flux, hjd
 
 
@@ -599,9 +599,9 @@ class spec():
         '''
 
         if method == 'zscore':
-            #www.towardsdatascience.com/removing-spikes-from-raman-spectra-8a9fdda0ac22
+            # www.towardsdatascience.com/removing-spikes-from-raman-spectra-8a9fdda0ac22
 
-            # First we calculated ∇x(i):
+            # First we calculated (nabla)x(i):
             delta_flux = [self.flux[i+1] - self.flux[i] for i in np.arange(len(self.flux) - 1)]
 
             median_int = np.median(delta_flux)
@@ -838,7 +838,7 @@ class spec():
         return None
 
 
-    def plotspec(self, lwl=3800, rwl=8000, poslines=None, ylim=None):
+    def plotspec(self, lwl=3800, rwl=8000, lines=None, ylim=None, path='sp_lines/'):
 
         '''
         Function to create a plot of a portion of the spectra and optionally overplot
@@ -852,11 +852,15 @@ class spec():
         rwl : float, optional
             Sets the end wavelenght of the spectrum.
 
-        poslines : str, optional
-            If 'all' or 'OB', it will overplot position of spectral lines.
+        lines : str, optional
+            Use to overplot position of spectral lines. Current options are:
+            ALL, ALLOB, 35-10K, 35K, 30K, 25K, 20K, 15K, 10K
 
         ylim : tuple/list, optional
             Sets the y-limits for the plot. Input must be like "[ymin,ymax]".
+
+        path : str, optional
+            Path to where the spectral line files are located. Default inside sp_lines/.
 
         Returns
         -------
@@ -872,14 +876,17 @@ class spec():
 
         mask = (self.wave > lwl) & (self.wave < rwl)
 
-        if poslines in ['all','OB']:
+        if lines != None:
             if self.rv0 == 0:
                 print('Spectrum not corrected from RV, lines will have offset.')
 
-            if  poslines == 'all':
-                table = findtable('ALL_all.txt', delimiter=',')
-            elif poslines == 'OB':
-                table = findtable('ALL_OBs_n4+.txt', delimiter=',')
+            if  lines == 'ALL':
+                table = findtable('ALL_all.txt', delimiter=',', path=path)
+            elif lines == 'ALLOB':
+                table = findtable('ALL_OBs_n4+.txt', delimiter=',', path=path)
+            elif lines in ['35-10K','35K','30K','25K','20K','15K','10K']:
+                table = findtable('%s.fits' % lines, path=path)
+                # www.lsw.uni-heidelberg.de/projects/hot-stars/websynspec.php
 
             synlines = table['wl_air']
             elements = table['spc']
@@ -897,8 +904,8 @@ class spec():
                     return None
 
                 # depth line mask = depth deepest line
-                plt.text(synline-.1,1-depth, element, size=5, rotation=-50, clip_on=True)
-                plt.plot([synline,synline], [1.008-depth,np.mean(self.flux[mask])], c='k', lw=10**gf/5)
+                plt.text(synline-.1,1-depth, element, size=6, rotation=-50, clip_on=True)
+                plt.plot([synline,synline], [1.008-depth,np.mean(self.flux[mask])], '-.k', lw=10**gf/5)
                 # 10**gf/5 empiric way to draw thicker lines for instense lines
 
         plt.plot(self.wave[mask], self.flux[mask], lw=.3, label=self.id_star+' '+self.SpC)

@@ -27,7 +27,8 @@ while not os.path.isfile(dir + 'paths.txt'):
 
 with open(dir + 'paths.txt', 'r') as paths:
     paths = [i.split('=') for i in paths.read().splitlines() if not i == '' and not i.startswith('#')]
-
+    paths = [[i[0],i[1]] if i[1].endswith('/') == True else [i[0],i[1]+'/'] for i in paths]
+        
 dirs = {}
 for i in paths:
     dirs[i[0]] = i[1]
@@ -491,7 +492,8 @@ def snr(spectra, snrcut=None, get_MF=None):
                     best_spectra.append(spectrum)
 
         if snrcut == None:
-            if get_MF == True and best_spec_inst=='N' and SNR_best-SNR_best_MF<.15*SNR_best:
+            if get_MF == True and best_spec_inst=='N' and (0.85*SNR_best<SNR_best_MF \
+                or (0.70*SNR_best<SNR_best_MF and SNR_best_MF>100)):
                  best_spec = best_spec_MF
             best_spectra.append(best_spec)
 

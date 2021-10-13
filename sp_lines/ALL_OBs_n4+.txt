@@ -2,7 +2,7 @@
 # Wavelength range: 3800 - 9000   Unit: Angstrom   Type: Air
 # Radial velocity: 0 km/s
 # Wavelength accuracy upper limit: 5%
-# Element/Spectrum: H  I, He I-II, O I-IV, C I-IV, N I-V, Si I-IV, Mg I-IV, S I-IV (missing Ne I-IV, Ar I-IV)
+# Element/Spectrum: H I, He I-II, O I-IV, C I-IV, N I-V, Si I-IV, Mg I-IV, S I-IV (missing Ne I-IV, Ar I-IV)
 # Minimum line strength: no restrictions
 # Include lines without atomic data: true
 # Minimum abundance: no minimum
