@@ -429,7 +429,7 @@ class spec():
             return fitsol
 
         RV_A   = round((line_f - line), 3)
-        RV_kms = round(((line_f - line)/line)*cte.c/1000, 1)
+        RV_kms = round(((line_f - line)/line)*cte.c/1000, 1) # max precision is 100 m/s
         line_f = round(line_f, 3)
 
         if info is True:

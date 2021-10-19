@@ -28,7 +28,7 @@ while not os.path.isfile(dir + 'paths.txt'):
 with open(dir + 'paths.txt', 'r') as paths:
     paths = [i.split('=') for i in paths.read().splitlines() if not i == '' and not i.startswith('#')]
     paths = [[i[0],i[1]] if i[1].endswith('/') == True else [i[0],i[1]+'/'] for i in paths]
-        
+
 dirs = {}
 for i in paths:
     dirs[i[0]] = i[1]
@@ -719,7 +719,7 @@ def gen_table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=
             else:
                 RADEC_f = SkyCoord(RADEC, unit=u.deg)
 
-            if RADEC_0.separation(c2).deg > dist: continue
+            if RADEC_0.separation(RADEC_f).deg > dist: continue
 
         #=======================================================================
         #============================ Limit by l,b =============================

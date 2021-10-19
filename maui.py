@@ -245,8 +245,10 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
                     skip = input('%s - Hit return to continue, type "s" to skip: ' % id)
                     if skip == 's': break
 
-                    if table['SpT_code'] <= 2.5: star.plotspec(4530,4590)
-                    else: star.plotspec(6337.11,6357.11)
+                    if row['SpT_code'] <= 2.5:
+                        star.plotspec(4530, 4590)
+                    else:
+                        star.plotspec(6337.11, 6357.11)
 
                     SpT = '-'
                     while SpT not in ['O','B','A']:
@@ -270,8 +272,10 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
                     star.waveflux() # Applies the rv0 correction
                     #star.cosmic(sigclip=0.005)
 
-                    if table['SpT_code'] <= 2.5: star.plotspec(4530,4590,poslines='OB')
-                    else: star.plotspec(6337.11,6357.11,poslines='OB')
+                    if row['SpT_code'] <= 2.5:
+                        star.plotspec(4530, 4590, lines='35-10K')
+                    else:
+                        star.plotspec(6337.11, 6357.11, lines='35-10K')
 
                     input(); plt.close('all')
 
@@ -706,7 +710,6 @@ def maui_results(input_list, output_dir, check_best=True, last_only=False,
 
                 # PLOT OF PROBABILLITY DISTRIBUTIONS OUT OF THE IDL MARKOV-CHAIN FILES
                 mcmc_file = match.split('emulated_solution_')[1]
-                print(output_dir + 'MARKOV_CHAIN/' + mcmc_file)
                 try:
                     mcmc_data = readsav(output_dir + 'MARKOV_CHAIN/' + mcmc_file)
                 except:
