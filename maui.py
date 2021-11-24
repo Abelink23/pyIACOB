@@ -584,11 +584,11 @@ def maui_results(input_list, output_dir, check_best=True, last_only=False,
         for match in matches:
 
             # Load the idl class for the file
-            #try:
-            star = solution_idl(match)
-            #except:
-            #    print('ERROR: Problem loading file: %s, skipping...' % match)
-            #    continue
+            try:
+                star = solution_idl(match)
+            except:
+                print('ERROR: Problem loading file: %s, skipping...' % match)
+                continue
 
             # Skip the used grid if not selected from the grid_only keyword
             if grid_only != [] and not star.gridname in grid_only: continue
