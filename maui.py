@@ -38,7 +38,8 @@ def gen_gridlimits(models_dir=mauidir+'MODELS/'):
 
     param_dic = {
     'Teff' : ('Teff_UP','Teff_DW'),
-    'logg' : ('lgf_UP','lgf_DW'),
+    'logg' : ('logg_UP','logg_DW'),
+    'lgf' : ('lgf_UP','lgf_DW'),
     'beta' : ('beta_UP','beta_DW'),
     'xf' : ('Micro_UP','Micro_DW'),
     'clf' : ('fcl_UP','fcl_DW'),
@@ -82,10 +83,13 @@ def gen_gridlimits(models_dir=mauidir+'MODELS/'):
             for par_name in param_dic:
 
                 if not par_name in parameters:
-                    data_row.extend([np.nan,np.nan]); continue
+                    if not par_name == 'lgf':
+                        data_row.extend([np.nan,np.nan])
+                    continue
 
                 idx = parameters.index(par_name)
-                if not parameters[0] == 'Teff': print('WARNING: lgf will be wrong!')
+                if not parameters[0] == 'Teff':
+                    print('WARNING: lgf will be wrong!')
 
                 if par_name == 'Teff':
                     data_row.extend(
@@ -93,11 +97,13 @@ def gen_gridlimits(models_dir=mauidir+'MODELS/'):
                     1e-4*idldata.param[idx].min()])
 
                 elif par_name == 'logg':
-                    # NOTE: with this we change from logg to loggf to compare with
-                    # the solution files from MAUI.
+                    # NOTE: with this we add loggf from logg to compare with the solution
+                    # files from MAUI.
+                    data_row.extend([idldata.param[idx].max(),idldata.param[idx].min()])
+
                     data_row.extend([
-                    5.39-(4*np.log10(idldata.param[0])-idldata.param[idx]-10.61).min(),
-                    5.39-(4*np.log10(idldata.param[0])-idldata.param[idx]-10.61).max()])
+                    (idldata.param[1] -4*np.log10(idldata.param[0]) + 16).min(),
+                    (idldata.param[1] -4*np.log10(idldata.param[0]) + 16).max()])
 
                 else:
                     data_row.extend([idldata.param[idx].max(),idldata.param[idx].min()])
@@ -384,11 +390,13 @@ class solution_idl():
         grid  = grids[grids['Grid_name'] == idldata.modelgridname.decode()]
 
         # QSA Parameters
-        param_lst = ['Teff','lgf','He','Micro','logQs','beta',
+        param_lst = ['Teff','logg','lgf','He','Micro','logQs','beta',
             'C','N','O','Mg','Si','S','Fe','Ti','fcl','vcl']
 
         # Fill the class with the parameter values:
         self.parameters = [j.decode() for j in idldata.solution.var_label[0]] # 11/13 param.
+        if 'SOL_LOGG' in idldata.solution.dtype.names:
+            self.parameters.append('logg') # assumes lgf is always
 
         for par_name in param_lst:
 
@@ -399,20 +407,32 @@ class solution_idl():
 
             idx = self.parameters.index(par_name)
 
-            #median = idldata.solution[0].sol[idx] # not used
-            err_sim = idldata.solution[0].err_sol[0][idx] # symetric error of distribution at 67%
-            if err_sim > abs(grid[par_name+'_UP']-grid[par_name+'_DW'])*0.2:
+            if par_name == 'logg':
+                err_sim = (idldata.solution[0].sol_logg[0].elogg_minus
+                    + idldata.solution[0].sol_logg[0].elogg_plus)/2 # symetric error of distribution at 67%
+
+                sol_max = idldata.solution[0].sol_logg[0].map # maximum of distribution without smoothing
+                #sol_max = idldata.solution[0].sol_logg[0].map_smooth # maximum of distribution with smoothing
+                err_dw = abs(sol_max-idldata.solution[0].sol_logg[0].hpdint[0])
+                err_up = abs(sol_max-idldata.solution[0].sol_logg[0].hpdint[1])
+
+            else:
+                #median = idldata.solution[0].sol[idx] # not used
+                err_sim = (idldata.solution[0].err_sol[0][idx]
+                    + idldata.solution[0].err_sol[1][idx])/2 # symetric error of distribution at 67%
+
+                sol_max = idldata.solution[0].sol_max[0][idx] # maximum of distribution without smoothing
+                #sol_max = idldata.solution[0].sol_max[1][idx] # maximum of distribution with smoothing
+                err_dw = abs(sol_max-idldata.solution[0].hpd_interval[0][idx])
+                err_up = abs(sol_max-idldata.solution[0].hpd_interval[1][idx])
+
+            if err_sim > abs(grid[par_name+'_UP']-grid[par_name+'_DW'])*0.2: # 20% of the range to be considered as bad
                 sol_max = np.nan
                 err_dw = grid[par_name+'_DW'][0] # Lower limit of the grid for the param
                 err_up = grid[par_name+'_UP'][0] # Upper limit of the grid for the param
                 label = 'd'
 
             else:
-                sol_max = idldata.solution[0].sol_max[0][idx] # maximum of distribution without smoothing
-                #sol_max = idldata.solution[0].sol_max[1][idx] # maximum of distribution with smoothing
-                err_dw = abs(sol_max-idldata.solution[0].hpd_interval[0][idx])
-                err_up = abs(sol_max-idldata.solution[0].hpd_interval[1][idx])
-
                 if par_name == 'logQs': sol_max -= 10
 
                 if err_up < err_sim/2 and err_dw > err_sim/2: label = '>'
@@ -503,8 +523,8 @@ def maui_results(input_list, output_dir, check_best=True, last_only=False,
 
     # Get the input list by the .idl files in the chosen SOLUTION folder
     elif input_list == '*':
-        stars = [file.split('_sqexp_mat1_')[1].split('_')[0] \
-            for file in os.listdir(output_dir + 'SOLUTION/') if file.endswith('.idl')]
+        stars = [file.split('_sqexp_mat1_')[1].split('.idl')[0][0:-11] for file in \
+            os.listdir(output_dir + 'SOLUTION/') if file.endswith('.idl')]
 
     # Create the input list from a string with one ID or IDs separated by coma
     else:
@@ -534,7 +554,7 @@ def maui_results(input_list, output_dir, check_best=True, last_only=False,
             })
 
     # Parameters with errors
-    param_err = ['Teff','lgf','He','Micro','logQs','beta',
+    param_err = ['Teff','logg','lgf','He','Micro','logQs','beta',
         'C','N','O','Mg','Si','S','Fe','Ti','fcl','vcl']
 
     # Iteration through the list of stars
@@ -643,9 +663,7 @@ def maui_results(input_list, output_dir, check_best=True, last_only=False,
                     if par_name == 'Teff':
                         val = val*1e4
                         Teff = val
-                    elif par_name == 'lgf':
-                        par_name = 'logg'
-                        val = val + 4*np.log10(Teff) - 16
+
                     fig_title += par_name+'='+str(round(val,2))+'  '
 
                 fig.suptitle(star.id + ' -- ' + match.split('emulated_solution_mcmc_sqexp_mat1_')[-1]

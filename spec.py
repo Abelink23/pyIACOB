@@ -47,7 +47,7 @@ class spec():
                 return None
             else: spectrum = spectrum[0]
 
-        if SNR in ['best','bestMF'] and not '.fits' in spectrum and not txt == True:
+        if (SNR in ['best','bestMF'] or '.fits' in spectrum) and not txt == True:
             try: self.spectrum = findstar(spectrum, SNR=SNR)[0]
             except: self.spectrum = None
 

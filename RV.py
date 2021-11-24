@@ -151,6 +151,9 @@ def RV0(lines, spectrum, ewcut=50, width=20, tol=150, func='g', info=False, plot
         Enter the wavelenght(s) of the line(s) to fit, either in a coma-separated
         string, or in a .txt/.lst file containing the lines.
 
+    spectrum : str
+        Enter the filename of the spectrum.
+
     ewcut : float, optional
         Enter the EW threshold value for a line to be used for RV. Default is 30.
 
