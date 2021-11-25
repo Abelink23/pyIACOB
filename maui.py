@@ -525,6 +525,7 @@ def maui_results(input_list, output_dir, check_best=True, last_only=False,
     elif input_list == '*':
         stars = [file.split('_sqexp_mat1_')[1].split('.idl')[0][0:-11] for file in \
             os.listdir(output_dir + 'SOLUTION/') if file.endswith('.idl')]
+        stars = list(set(stars)) # To avoid duplicates if same file had several analyses
 
     # Create the input list from a string with one ID or IDs separated by coma
     else:
