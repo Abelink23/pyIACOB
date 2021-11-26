@@ -274,7 +274,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
 
                     plt.close()
 
-                    star.rv0 = RV0(spt_list,star.spectrum,ewcut=30,width=wid,tol=RV0tol,func=fun)
+                    star.rv0 = RV0(spt_list,star.filename,ewcut=30,width=wid,tol=RV0tol,func=fun)
                     star.waveflux() # Applies the rv0 correction
                     #star.cosmic(sigclip=0.005)
 
