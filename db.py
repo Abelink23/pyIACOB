@@ -503,7 +503,7 @@ def snr(spectra, snrcut=None, get_MF=None):
     return best_spectra
 
 
-def gen_table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None,
+def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None,
     snrcut=None, spccode=False, bmag=None, vmag=None, gaia=False, radius=1, skip=None):
 
     '''

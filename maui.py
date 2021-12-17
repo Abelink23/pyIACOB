@@ -426,10 +426,10 @@ class solution_idl():
                 err_dw = abs(sol_max-idldata.solution[0].hpd_interval[0][idx])
                 err_up = abs(sol_max-idldata.solution[0].hpd_interval[1][idx])
 
-            if err_sim > abs(grid[par_name+'_UP']-grid[par_name+'_DW'])*0.2: # 20% of the range to be considered as bad
-                sol_max = np.nan
-                err_dw = grid[par_name+'_DW'][0] # Lower limit of the grid for the param
-                err_up = grid[par_name+'_UP'][0] # Upper limit of the grid for the param
+            if err_sim > abs(grid[par_name+'_UP']-grid[par_name+'_DW'])*0.33: # 33% of the range to be considered as bad
+                #sol_max = np.nan
+                err_dw = np.nan # grid[par_name+'_DW'][0] # Lower limit of the grid for the param
+                err_up = np.nan # grid[par_name+'_UP'][0] # Upper limit of the grid for the param
                 label = 'd'
 
             else:
