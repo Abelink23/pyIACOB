@@ -11,7 +11,8 @@
 # Maximum for principal quantum number n: 4 (+ no restrictions for H I, + some He n>4 at the bottom, + n5-12 with -log(gf) > 0 for the above elements)
 # Transition types included: Nebular (E1,E2)
 # Transitions from auto-ionizing levels: included
-# Comment code: A-> activity, D -> diagnostic line (global), V -> vsini, Q -> affected by wind, Teff -> used for determination of Teff, RV_O/B/A -> good for RV determination
+# Comment code: A-> activity/wind, D -> diagnostic line (global), V -> vsini, Q -> affected by wind, Teff -> used for determination of Teff, RV_O/B/A -> good for RV determination
+# Some He lines added manually
 
 wl_air	   , dlamb  , spc   , tt, configuration                              , term               , J_i-J_k          , -lg(gf), tpf, level_energy(cm-1)     , ref    ,  name, comment
 3801.1     , 9.1e-01, S I   , E1,      3s2.3p3.(4So).4p-3s2.3p3.(2Do).4d     ,        3P-3So      ,      1 - 1       ,        ,    ,   64888.96 -   91190.00, ASD    ,      ,
@@ -3787,9 +3788,12 @@ wl_air	   , dlamb  , spc   , tt, configuration                              , te
 8995.49    , 7.2e-02, O II  , E1,       2s2.2p2.(3P).4d-2s2.2p2.(1D).4p      ,        2F-2Fo      ,    7/2 - 5/2     , -3.0849,   3,  255466.10 -  266579.73, ASD    ,      ,
 8999.30    , 7.2e-02, O III , E1,       2s2.2p.(2Po).4s-2s2.2p.(2Po).4p      ,       3Po-3S       ,      1 - 1       , -0.4752,   3,  356844.98 -  367953.90, 039    ,      ,
 #
+4009.2565  , 1.1e-06, He I  , E1,                 1s.2p-1s.7d                ,       1Po-1D       ,      1 - 2       , -1.4475,  31,  171134.90 -  196070.13, 112    ,      ,
 4026.185998, 3.3e-07, He I  , E1,                 1s.2p-1s.5d                ,       3Po-3D       ,      2 - 3       , -0.7046,  31,  169086.77 -  193917.15, 112    ,      ,
 4026.198287, 3.3e-07, He I  , E1,                 1s.2p-1s.5d                ,       3Po-3D       ,      1 - 2       , -0.9756,  31,  169086.84 -  193917.15, 112    ,      ,
 4387.929124, 1.3e-06, He I  , E1,                 1s.2p-1s.5d                ,       1Po-1D       ,      1 - 2       , -0.8866,  31,  171134.90 -  193918.29, 112    ,      , D Teff
+4143.759042, 1.2e-06, He I  , E1,                 1s.2p-1s.6d                ,        1Po-1D      ,      1 - 2       , -1.2017,  31,  171134.90 -  195260.77, 112    ,      , D
+4920.6127  ,        , He I  , E2,                 1s.2p-1s.4f                ,        1Po-1Fo     ,      1 - 3       ,        ,    ,  171134.89	-  191451.90,        ,      , E2 NIST
 6233.817   ,   0.021, He II , E1,                    5*-17*                  ,         5-17       ,1/2-9/2 - 1/2-33/2, -0.9162,  28,  421353.16 -  437390.23,   7    ,      ,
 6310.854   ,   0.022, He II , E1,                    5*-16*                  ,         5-16       ,1/2-9/2 - 1/2-31/2, -0.8218,  28,  421353.16 -  437194.47,   7    ,      ,
 6406.38    ,   0.022, He II , E1,                    5*-15*                  ,         5-15       ,1/2-9/2 - 1/2-29/2, -0.7188,  28,  421353.16 -  436958.26,   7    ,      ,
@@ -3808,7 +3812,6 @@ wl_air	   , dlamb  , spc   , tt, configuration                              , te
 4859.319   ,   0.028, He II , E1,                     4*-8*                  ,          4-8       ,1/2-7/2 - 1/2-15/2,  0.0144,  28,  411477.95 -  432051.21,   7    ,      ,
 5411.52    ,   0.032, He II , E1,                     4*-7*                  ,          4-7       ,1/2-7/2 - 1/2-13/2,  0.3214,  28,  411477.95 -  429951.92,   7    ,      , D
 6560.1     ,   0.043, He II , E1,                     4*-6*                  ,          4-6       ,1/2-7/2 - 1/2-11/2,  0.7587,  28,  411477.95 -  426717.44,   7    ,      ,
-4143.759042, 1.2e-06, He I  , E1,                  1s.2p-1s.6d               ,        1Po-1D      ,      1 - 2       , -1.2017,  31,  171134.90 -  195260.77, 112    ,      , D
 #
 3818.7     , 9.2e-01, C III , E1,                 2p.4p-2p.5d                ,        3P-3Do      ,      2 - 3       ,  0.0661,   3,  384405.40 -  410585.00, ASD    ,      ,
 3883.816   , 1.3e-02, C III , E1,                 2s.4d-2s.5f                ,        3D-3Fo      ,      1 - 2       ,  0.0340,   3,  321411.31 -  347151.89, ASD    ,      ,

@@ -170,7 +170,7 @@ def RV0(lines, spectrum, ewcut=50, width=20, tol=150, func='g', info=False, plot
     RVs = []
     for line in lines:
 
-        fit = spec(spectrum).fitline(line,width=width,tol=tol,func=func,info=info,plot=plot)
+        fit = spec(spectrum).fitline(line, width=width, tol=tol, func=func, info=info, plot=plot)
 
         if np.isnan(fit['RV_kms']): continue
         elif fit['EW'] < ewcut: continue

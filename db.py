@@ -14,6 +14,7 @@ import astropy.units as u
 from astropy.io import fits
 from astropy.table import Table, join, setdiff, vstack, hstack
 from astropy.coordinates import SkyCoord
+from astroquery.gaia import Gaia
 from astroquery.vizier import Vizier
 from astroquery.simbad import Simbad
 Simbad.add_votable_fields('flux(B)','flux(V)','sptype')#,'otypes')
@@ -456,7 +457,8 @@ def snr(spectra, snrcut=None, get_MF=None):
     names_stars = []
     for spectrum in spectra:
         id_star = spectrum.split('/')[-1].split('_')[0]
-        if id_star not in names_stars: names_stars.append(id_star)
+        if id_star not in names_stars:
+            names_stars.append(id_star)
 
     best_spectra = []
     for star in names_stars:
@@ -1043,38 +1045,131 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s'):
             except:
                 simbad = None
 
-    while simbad is None: # type(simbad) == type(None)
+        while simbad is None: # type(simbad) == type(None)
 
-        print('Provide alternative name for %s in Simbad.' % name)
-        print('In some cases try replacing "HD" by "HD " or vice versa.')
+            print('Provide alternative name for %s in Simbad.' % name)
+            print('In some cases try replacing "HD" by "HD " or vice versa.')
 
-        if ra != None and dec != None:
-            print('Type "sky" to query %s around input ra/dec (if given).' % radius)
+            if ra != None and dec != None:
+                print('Type "sky" to query %s around input ra/dec (if given).' % radius)
 
-        print('Hit return to skip this source.')
+            print('Hit return to skip this source.')
 
-        check = input('Name: ')
-        if check == '':
-            print('Skipping source: %s\n' % name)
-            break
+            check = input('Alternative: ')
+            if check == '':
+                print('Skipping source: %s\n' % name)
+                break
 
-        elif check == 'sky' and ra != None and dec != None:
-            simbad = Simbad.query_region(SkyCoord(ra, dec, unit='deg'), radius=radius)
-            if type(simbad) == type(None):
-                print('No objects found.')
+            elif check == 'sky' and ra != None and dec != None:
+                simbad = Simbad.query_region(SkyCoord(ra, dec, unit='deg'), radius=radius)
+                if simbad is None: # type(simbad) == type(None)
+                    print('No objects found.')
 
-        else:
-            try:
-                simbad = Simbad.query_object(check)
-            except:
-                simbad = None
+            else:
+                try:
+                    simbad = Simbad.query_object(check)
+                except:
+                    simbad = None
 
-        if simbad is not None and len(simbad) > 1:
+            if simbad is not None and len(simbad) > 1:
+                print('More than one Simbad result, choosing the brigtest source...')
+                simbad.sort('FLUX_V')
+                simbad = Table(simbad[0])
+
+        return simbad
+
+    elif ra != None and dec != None:
+        simbad = Simbad.query_region(SkyCoord(ra, dec, unit='deg'), radius=radius)
+
+        if simbad is None: # type(simbad) == type(None)
+            print('No objects found.')
+
+        elif len(simbad) > 1:
             print('More than one Simbad result, choosing the brigtest source...')
             simbad.sort('FLUX_V')
             simbad = Table(simbad[0])
 
-    return simbad
+        return simbad
+
+    else:
+        print('\nERROR: Name or RA+DEC is required for the query...')
+        return None
+
+
+def query_Gaia(name=None, ra=None, dec=None, radec=None, radius=5):
+
+    '''
+    Function to query an object in Gaia EDR3 database.
+
+    Parameters
+    ----------
+    name : str, optional
+        Enter the name of the source to query.
+
+    ra : float, optional
+        Enter the right ascension of the source, in degrees.
+
+    dec : float, optional
+        Enter the declination of the source, in degrees.
+
+    radec : str, optional
+        Enter the string with the coordinates as hh(:)mm(:)ss.sss(:) +-dd(:)mm(:)ss(:)
+
+    radius : int, optional
+        Enter an integer with the radius for the sky search in arcseconds. Default is 5.
+
+    Returns
+    -------
+    Queried object in Table format.
+    '''
+
+    if name is not None:
+
+        RADEC = SkyCoord.from_name(name)
+
+        while RADEC is None: # type(simbad) == type(None)
+
+            print('Provide alternative name for %s in Gaia.' % name)
+            print('In some cases try replacing "HD" by "HD " or vice versa.')
+            print('Hit return to skip this source.')
+
+            check = input('Alternative: ')
+            if check == '':
+                print('Skipping source: %s\n' % name)
+                break
+
+            else:
+                try:
+                    RADEC = SkyCoord.from_name(check)
+                except:
+                    RADEC = None
+
+    elif ra != None and dec != None:
+
+        RADEC = SkyCoord(ra=ra, dec=dec, unit=(u.deg,u.deg), frame='icrs')
+
+        if RADEC is None: # type(simbad) == type(None)
+            print('No objects found .')
+
+    elif radec != None:
+
+        RADEC = SkyCoord(radec, unit=(u.hour,u.deg), frame='icrs')
+
+    else:
+        print('\nERROR: Name or RA+DEC is required for the query...')
+        return None
+
+    width  = u.Quantity(5, u.arcsec)
+    height = u.Quantity(5, u.arcsec)
+
+    query = Gaia.query_object_async(coordinate=RADEC, width=width, height=height)
+
+    if query is not None and len(query) > 1:
+        print('More than one Gaia result, choosing the brigtest source...')
+        query.sort('phot_g_mean_mag')
+        query = Table(query[0])
+
+    return query
 
 
 def zp_edr3(ra, dec, radius=1, IDs=[]):

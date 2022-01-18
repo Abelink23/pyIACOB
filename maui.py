@@ -300,7 +300,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
 
         match_IB['evmac'] = abs(match_IB['vmac_GF_eDW'] + match_IB['vmac_GF_eUP'])/2
 
-        if match_IB['vmac_GF'][0] < 10:
+        if (match_IB['vmac_GF'][0] < 10) or (match_IB['vsini_GF'] > 130):
             match_IB['vmac_GF'] = 0
             match_IB['evmac'] = 0
 
@@ -350,7 +350,7 @@ class solution_idl():
         #    except: print(i)
 
         # Identifiers
-        self.filename = idldata.aa.label[0].decode()
+        self.filename = idldata.aa.label[0].decode() + '.fits'
         self.id = self.filename.split('_')[0]
 
         # Resolution
@@ -408,36 +408,37 @@ class solution_idl():
             idx = self.parameters.index(par_name)
 
             if par_name == 'logg':
-                err_sim = (idldata.solution[0].sol_logg[0].elogg_minus
-                    + idldata.solution[0].sol_logg[0].elogg_plus)/2 # symetric error of distribution at 67%
-
                 sol_max = idldata.solution[0].sol_logg[0].map # maximum of distribution without smoothing
                 #sol_max = idldata.solution[0].sol_logg[0].map_smooth # maximum of distribution with smoothing
-                err_dw = abs(sol_max-idldata.solution[0].sol_logg[0].hpdint[0])
-                err_up = abs(sol_max-idldata.solution[0].sol_logg[0].hpdint[1])
+                hpd_dw = idldata.solution[0].sol_logg[0].hpdint[0]
+                hpd_up = idldata.solution[0].sol_logg[0].hpdint[1]
 
             else:
-                #median = idldata.solution[0].sol[idx] # not used
-                err_sim = (idldata.solution[0].err_sol[0][idx]
-                    + idldata.solution[0].err_sol[1][idx])/2 # symetric error of distribution at 67%
-
                 sol_max = idldata.solution[0].sol_max[0][idx] # maximum of distribution without smoothing
                 #sol_max = idldata.solution[0].sol_max[1][idx] # maximum of distribution with smoothing
-                err_dw = abs(sol_max-idldata.solution[0].hpd_interval[0][idx])
-                err_up = abs(sol_max-idldata.solution[0].hpd_interval[1][idx])
+                hpd_dw = idldata.solution[0].hpd_interval[0][idx]
+                hpd_up = idldata.solution[0].hpd_interval[1][idx]
 
-            if err_sim > abs(grid[par_name+'_UP']-grid[par_name+'_DW'])*0.33: # 33% of the range to be considered as bad
-                #sol_max = np.nan
-                err_dw = np.nan # grid[par_name+'_DW'][0] # Lower limit of the grid for the param
-                err_up = np.nan # grid[par_name+'_UP'][0] # Upper limit of the grid for the param
-                label = 'd'
+            # logQs is given as logQs-10:
+            if par_name == 'logQs':
+                sol_max -= 10
+                hpd_up -= 10
+                hpd_dw -= 10
+
+            # Use 60% of the range to be considered as a degenerated case
+            if abs(hpd_up-hpd_dw) > abs(grid[par_name+'_UP']-grid[par_name+'_DW'])*0.6:
+                label, err_dw, err_up = 'd', hpd_dw, hpd_up
+                # Alternatively given by lower/upper limit of the grid for the param
+                # label, err_dw, err_up = 'd', grid[par_name+'_DW'][0], grid[par_name+'_UP'][0]
+
+            if hpd_dw * 0.99 < grid[par_name+'_DW'][0]:
+                label, err_dw, err_up = '<', grid[par_name+'_DW'][0], hpd_up
+
+            elif hpd_up * 1.01 > grid[par_name+'_UP'][0]:
+                label, err_dw, err_up = '>', hpd_dw, grid[par_name+'_UP'][0]
 
             else:
-                if par_name == 'logQs': sol_max -= 10
-
-                if err_up < err_sim/2 and err_dw > err_sim/2: label = '>'
-                elif err_up > err_sim/2 and err_dw < err_sim/2: label = '<'
-                else: label = '='
+                label, err_dw, err_up = '=', abs(sol_max - hpd_dw), abs(sol_max - hpd_up)
 
             setattr(self, 'l_'+par_name, label)
             [setattr(self, par_name+suffix, value) for suffix,value in
@@ -468,7 +469,7 @@ def maui_results(input_list, output_dir, check_best=True, last_only=False,
     ----------
     input_list : str
         Input star, list of stars, or table contaning the 'ID' or 'filename' to search.
-        E.g. 'HD2905', 'HD2905,HD7902', 'table.txt/fits'
+        E.g. 'HD2905', 'HD2905,HD7902', 'table.txt/fits', '*' (to select all .idl in output_dir)
 
     output_dir : str
         Enter the path to the OUTPUT folder where the SOLUTION sub-folder containing the
@@ -599,8 +600,8 @@ def maui_results(input_list, output_dir, check_best=True, last_only=False,
                 best_SNR = spec(star.id, SNR='bestMF')
 
             # Check if the input file matches with the best SNR spectra available
-            if check_best == True and star.filename != best_SNR.filename[:-5]:
-                print('\nWARNING: %s does not match with best spectrum available.' % star.filename[:-5])
+            if check_best == True and star.filename != best_SNR.filename:
+                print('\nWARNING: %s does not match with best spectrum available.' % star.filename)
 
             # Generate the table with the results of each of the parameters (basic and with errors)
             data_row = [star.id,star.filename,star.gridname,star.BC,star.B_V0]
@@ -656,16 +657,17 @@ def maui_results(input_list, output_dir, check_best=True, last_only=False,
                 nrows, ncols = even_plot(len(line_names))
 
                 fig, ax = plt.subplots(nrows, ncols, figsize=(13,8), tight_layout=True)
-                fig.subplots_adjust(wspace=1, hspace=1)
+                fig.subplots_adjust(wspace=.5, hspace=.5)
 
                 fig_title = ''
                 for par_name in param_err:
                     val = getattr(star, par_name)
+                    label = getattr(star, 'l_'+par_name)
                     if par_name == 'Teff':
                         val = val*1e4
                         Teff = val
 
-                    fig_title += par_name+'='+str(round(val,2))+'  '
+                    fig_title += par_name+label+str(round(val,2))+'  '
 
                 fig.suptitle(star.id + ' -- ' + match.split('emulated_solution_mcmc_sqexp_mat1_')[-1]
                     + ' -- ' + star.gridname + '\n' + fig_title, fontsize=8)
@@ -677,8 +679,8 @@ def maui_results(input_list, output_dir, check_best=True, last_only=False,
 
                     mask = [(star.obswave > line_lwl) & (star.obswave < line_rwl)]
                     ax_i.plot(star.obswave[mask], star.obsflux[mask], color='k', lw=.7)
-                    if ax_i.get_ylim()[0] > 0.95:
-                        ax_i.set_ylim(bottom = 0.95)
+                    if ax_i.get_ylim()[0] > 0.9:
+                        ax_i.set_ylim(bottom=0.9)
 
                     blocked = [None if (
                     (i >= 6521. and i <= 6532.) or # Halpha, exclude CII lines in the red wing
@@ -721,7 +723,7 @@ def maui_results(input_list, output_dir, check_best=True, last_only=False,
                     ax_i.plot(star.obswave[mask], blocked, c='cyan', lw=.5, alpha=0.5)
 
                     ax_i.set_title(line_name)
-                    ax_i.tick_params(direction='in', top='on')
+                    ax_i.tick_params(direction='in', top='on', right='on')
 
                 [fig.delaxes(axs[i]) for i in np.arange(len(line_names), len(axs), 1)]
 
@@ -884,9 +886,9 @@ def gen_synthetic(output_dir, save_dir='server', lwl=3900, rwl=5080):
 
             star_db = spec(star.id, SNR='best')
 
-            if star.filename != star_db.filename[:-5]:
+            if star.filename != star_db.filename:
                 print('\nWARNING: %s does not match with best spectrum available.'
-                % star.filename[:-5])
+                % star.filename)
 
             else:
                 #star.filename = star.filename.replace(str(star.resolution),'85000')

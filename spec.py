@@ -14,6 +14,7 @@ from astropy.stats import sigma_clip
 
 # Plot packages
 import matplotlib.pyplot as plt
+from matplotlib.ticker import AutoMinorLocator
 
 
 class spec():
@@ -494,14 +495,14 @@ class spec():
 
         #=======================================================================
         #================= Packing the results in a dictionary =================
-        fitsol = {'sol': 1, 'line': line_f, 'RV_A': RV_A, 'RV_kms': RV_kms,
-                   'EW': EW, 'FWHM': FWHM, 'depth': depth, 'q_fit': q_fit}
+        fitsol = {'sol':1, 'line':line_f, 'RV_A':RV_A, 'RV_kms':RV_kms,
+                   'EW':EW, 'FWHM':FWHM, 'depth':depth, 'q_fit':q_fit}
         for f_par,par in zip(fit_dic[func.split('_')[0]], popt):
             fitsol[f_par] = round(par, 3)
 
         if outfit == True:
             fitsol['wave'] = wave
-            fitsol['flux'] = flux
+            #fitsol['flux'] = flux
             fitsol['flux_norm'] = flux_norm
             fitsol['flux_fit'] = flux_fit
 
@@ -877,36 +878,46 @@ class spec():
         mask = (self.wave > lwl) & (self.wave < rwl)
 
         if lines != None:
+
+            try:
+                depth = max(self.flux[mask]) - min(self.flux[mask]) # or 1-min
+            except:
+                print('Problem finding max/min in masked flux.')
+                return None
+
             if self.rv0 == 0:
                 print('Spectrum not corrected from RV, lines will have offset.')
 
             if  lines == 'ALL':
                 table = findtable('ALL_all.txt', delimiter=',', path=path)
+                table = table[table['-lg(gf)'] > -1]
             elif lines == 'ALLOB':
                 table = findtable('ALL_OBs_n4+.txt', delimiter=',', path=path)
+                table = table[table['-lg(gf)'] > -1]
             elif lines in ['35-10K','35K','30K','25K','20K','15K','10K']:
                 table = findtable('%s.fits' % lines, path=path)
                 # www.lsw.uni-heidelberg.de/projects/hot-stars/websynspec.php
 
-            synlines = table['wl_air']
-            elements = table['spc']
-            gfs = table['-lg(gf)']
+            table = table[(table['wl_air'] >= lwl) & (table['wl_air'] <= rwl)]
 
-            # Aqui falta definir mejor los constrains para plotear lineas loggf por ejemplo
-            for synline,element,gf in zip(synlines, elements, gfs):
+            if '-lg(gf)' in table.columns:
+                table['width'] = 10**table['-lg(gf)']/np.max(10**table['-lg(gf)']) * 4
+                # 10**gf/5 empiric way to draw thicker lines for instense lines
+            elif 'strength' in table.columns:
+                table['width'] = table['strength']/np.max(table['strength']) * 4
 
-                if synline < lwl or synline > rwl or gf <= -1: continue
+            at_color = {'HI':'gray', 'HeI':'turquoise', 'OI':'r', 'NI':'b', 'CI':'k', 'SI':'gold',
+                'Si':'tan', 'Mg':'g', 'Fe':'chocolate', 'Ne':'teal', 'Al':'rosybrown'}
 
-                try:
-                    depth = max(self.flux[mask]) - min(self.flux[mask]) # or 1-min
-                except:
-                    print('Problem finding max/min in masked flux.')
-                    return None
+            for line in table:
+                try: c = at_color[line['spc'].replace(' ','')[:2]]
+                except: c = 'dimgray'
+
+                plt.plot([line['wl_air'],line['wl_air']], [1.008-depth,np.median(self.flux[mask])],
+                c=c, linestyle='dotted', lw=line['width'])
 
                 # depth line mask = depth deepest line
-                plt.text(synline-.1,1-depth, element, size=6, rotation=-50, clip_on=True)
-                plt.plot([synline,synline], [1.008-depth,np.mean(self.flux[mask])], '-.k', lw=10**gf/5)
-                # 10**gf/5 empiric way to draw thicker lines for instense lines
+                plt.text(line['wl_air'],1-depth, line['spc'], c=c, size=6, rotation=-90, clip_on=True)
 
         plt.plot(self.wave[mask], self.flux[mask], lw=.3, label=self.id_star+' '+self.SpC)
         plt.tick_params(direction='in', top='on')

@@ -79,18 +79,22 @@ def table_zp_edr3(table, ra, dec, search_radius=0.5):
 # Atomic lines and wavelenghts conversions.
 #===============================================================================
 
-def atline(lwl, rwl, elements=None, source='ALL'):
+def atline(lwl, rwl, elements=None, unit='angstrom', source='ALL'):
 
     '''
     Function to retrieve spectral lines from the Atomic Line databases.
+    Input and output is given in Air confitions.
 
     Parameters
     ----------
-    lwl : float
+    lwl : float/int
         Sets the start wavelenght.
 
-    rwl : float
+    rwl : float/int
         Sets the end wavelenght.
+
+    unit : str
+        Units of the input wavelengths in lwl and rwl (nm/angstrom). Default is angstrom.
 
     elements : str, optional
         Enter a string with the elements associated to the lines.
@@ -104,7 +108,14 @@ def atline(lwl, rwl, elements=None, source='ALL'):
     List with the spectral lines.
     '''
 
-    wavelength_range = (lwl*u.Angstrom,rwl*u.Angstrom)
+    if unit == 'angstrom':
+        wavelength_range = (lwl*u.Angstrom,rwl*u.Angstrom)
+    elif unit == 'nanometer' or unit == 'nm':
+        wavelength_range = (lwl*u.nm,rwl*u.nm)
+    else:
+        print('ERROR: wrong input units for the wavelength range. Exitting...')
+        return None
+
     if elements == 'OB':
         elements = 'H I, He I-II, O I-IV, C I-IV, Ne I-III, Fe I-III, N I-IV, \
         Si I-IV, Mg I-IV, S I-IV, V I-II, Cr I-II, Ni I-II, Sc I-II, Ti I-II, \
@@ -112,12 +123,13 @@ def atline(lwl, rwl, elements=None, source='ALL'):
 
     if source == 'ALL':
         columns = ['spec', 'type', 'conf', 'term', 'angm', 'prob']
-        list = AtomicLineList.query_object(wavelength_range,wavelength_type='Air',\
-        wavelength_accuracy=20,element_spectrum=elements,output_columns=columns)
+        list = AtomicLineList.query_object(wavelength_range, wavelength_type='Air',
+            wavelength_accuracy=20, element_spectrum=elements, output_columns=columns,
+            cache=False)
 
     elif source == 'NIST':
-        list = Nist.query(lwl*u.Angstrom,rwl*u.Angstrom,wavelength_type='vac+air',\
-               linename=elements)
+        list = Nist.query(lwl*u.Angstrom,rwl*u.Angstrom,wavelength_type='vac+air',
+            linename=elements)
 
     return list
 
