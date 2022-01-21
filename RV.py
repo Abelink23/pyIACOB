@@ -140,7 +140,8 @@ def RV1_cc(spectra1, spectra2, windows=[(3950,4160),(4310,4360),(4370,4490),(454
     return RV_A,RV_kms
 
 
-def RV0(lines, spectrum, ewcut=50, width=20, tol=150, func='g', info=False, plot=False):
+
+def RV0(lines, spectrum, ewcut=50, width=20, tol=150, func='g', check_fits=False, plot=False):
 
     '''
     Function to...
@@ -157,6 +158,14 @@ def RV0(lines, spectrum, ewcut=50, width=20, tol=150, func='g', info=False, plot
     ewcut : float, optional
         Enter the EW threshold value for a line to be used for RV. Default is 30.
 
+    check_fits : boolean, optional
+        True if you want to see the individual information of each fitting and discard
+        potential bad fittings from a plot. Note: this set the plot option to True.
+        Default is False.
+
+    plot : boolean, optional
+        True if you want to see a plot with the invidivual line fittings. Default is False.
+
     Other parameters : optional
         See help for spec and spec.fitline
 
@@ -167,30 +176,65 @@ def RV0(lines, spectrum, ewcut=50, width=20, tol=150, func='g', info=False, plot
 
     lines = findlines(lines)[0]
 
-    RVs = []
+    RVs = []; i = 0
     for line in lines:
 
-        fit = spec(spectrum).fitline(line, width=width, tol=tol, func=func, info=info, plot=plot)
+        fit = spec(spectrum).fitline(line, width=width, tol=tol, func=func, info=check_fits, outfit=True)
 
         if np.isnan(fit['RV_kms']): continue
         elif fit['EW'] < ewcut: continue
         else: RVs.append(fit['RV_kms'])
+
+        if plot == True or check_fits == True:
+
+            if i == 0:
+                fig, axs = plt.subplots(1,len(lines), tight_layout=True, figsize=(16,2))
+                fig.subplots_adjust(wspace=0, hspace=0)
+                axs = axs.flatten()
+
+            axs[i].plot(fit['wave'], fit['flux_norm'], c='b', lw=.5)
+            axs[i].plot(fit['wave'], fit['flux_fit'], c='g', lw=.5)
+            axs[i].set_title('Line: ' + str(fit['line'])
+                + ' - RV[A/Kms]= ' + str(fit['RV_A']) + '/' + str(fit['RV_kms']), fontsize=5)
+            axs[i].set_yticks([]); axs[i].set_xticks([])
+
+            i += 1
 
     if len(RVs) == 0:
         print('\tWARNING: No lines were fitted for RV0 calculation.\n')
         return 0
 
     try:
-        RVs = sigma_clip(RVs, sigma_lower=1.7, sigma_upper=1.7, masked=False)
+        RVs_f = sigma_clip(RVs, sigma_lower=1.7, sigma_upper=1.7, masked=False)
+        idx_bad = [j for j in range(len(RVs)) if RVs[j] not in RVs_f]
         #print(RVs)
     except:
         print('Not enought values for sigma clipping. Skipping... ')
         return 0
 
-    RV_0 = np.mean(RVs)
+    if plot == True or check_fits == True:
+        # Remove plots with failed fittings
+        [fig.delaxes(axs[j]) for j in np.arange(i, len(axs), 1)]
+        # Remove plots with distarded fittings after the sigma clipping
+        [fig.delaxes(axs[j]) for j in idx_bad if idx_bad != []]
+
+        # Set the minimum y-value of all the plots based on the global minimum
+        ymin = np.min([axs[j].get_ylim()[0] for j in range(i) if i != 0 and not j in idx_bad])
+        [axs[j].set_ylim(bottom=ymin) for j in range(i) if i != 0 and not j in idx_bad]
+
+        plt.show(block=False)
+
+        if check_fits == True:
+            remove = input('Which lines from the plotted ones you want to remove'\
+            '(e.g. 0,3). Hit return to continue.\n').split(',')
+            remove = [int(j) for j in remove if not remove == ['']]
+
+            RVs_f = [RVs_f[j] for j in range(len(RVs_f)) if not j in remove]
+
+    RV_0 = np.mean(RVs_f)
 
     print('\nRV0=%s (%s/%s lines used with std=%s [km/s])\n' %
-        (round(RV_0,2),len(RVs),len(lines),round(np.std(RVs),2)))
+        (round(RV_0,2),len(RVs_f),len(lines),round(np.std(RVs_f),2)))
 
     return RV_0
 

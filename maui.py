@@ -16,7 +16,9 @@ grids_dic = {
 'astar2013_SOLAR_2_LMC_4_grid_2019-10-24_2019-10-24': ('ASgs_CNOMgSTiFe_Kurucz','purple',5,
 [[3.900,4.114,4.114,3.900,3.900],[3.142,3.142,4.292,4.292,3.142]]),
 'nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1_2021-05-05': ('BSg_CNOSiMg','DeepPink',6,
-[[4.148,4.477,4.477,4.148,4.148],[3.392,3.392,4.386,4.386,3.392]])
+[[4.148,4.477,4.477,4.148,4.148],[3.392,3.392,4.386,4.386,3.392]]),
+'nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1ehot_2022-01-19': ('O9BSg_CNOSiMg','turquoise',7,
+[[4.148,4.543,4.543,4.148,4.148],[3.391,3.391,4.394,4.394,3.391]]),
 }
 
 
@@ -102,8 +104,9 @@ def gen_gridlimits(models_dir=mauidir+'MODELS/'):
                     data_row.extend([idldata.param[idx].max(),idldata.param[idx].min()])
 
                     data_row.extend([
+                    (idldata.param[1] -4*np.log10(idldata.param[0]) + 16).max(),
                     (idldata.param[1] -4*np.log10(idldata.param[0]) + 16).min(),
-                    (idldata.param[1] -4*np.log10(idldata.param[0]) + 16).max()])
+                    ])
 
                 else:
                     data_row.extend([idldata.param[idx].max(),idldata.param[idx].min()])
@@ -387,7 +390,10 @@ class solution_idl():
             grids = findtable(grids_table)
         except:
             print('Cannot find table with the MAUI grid boudaries (rquiered)')
+
         grid  = grids[grids['Grid_name'] == idldata.modelgridname.decode()]
+        if len(grid) == 0:
+            print('Cannot find the used grid in the grid database.')
 
         # QSA Parameters
         param_lst = ['Teff','logg','lgf','He','Micro','logQs','beta',
@@ -426,15 +432,15 @@ class solution_idl():
                 hpd_dw -= 10
 
             # Use 60% of the range to be considered as a degenerated case
-            if abs(hpd_up-hpd_dw) > abs(grid[par_name+'_UP']-grid[par_name+'_DW'])*0.6:
+            if abs(hpd_up-hpd_dw) > abs(grid[par_name+'_UP']-grid[par_name+'_DW'])[0]*0.6:
                 label, err_dw, err_up = 'd', hpd_dw, hpd_up
                 # Alternatively given by lower/upper limit of the grid for the param
                 # label, err_dw, err_up = 'd', grid[par_name+'_DW'][0], grid[par_name+'_UP'][0]
 
-            if hpd_dw * 0.99 < grid[par_name+'_DW'][0]:
+            elif round(hpd_dw * 0.99, 3) < grid[par_name+'_DW'][0]:
                 label, err_dw, err_up = '<', grid[par_name+'_DW'][0], hpd_up
 
-            elif hpd_up * 1.01 > grid[par_name+'_UP'][0]:
+            elif round(hpd_up * 1.01, 3) > grid[par_name+'_UP'][0]:
                 label, err_dw, err_up = '>', hpd_dw, grid[par_name+'_UP'][0]
 
             else:
@@ -443,6 +449,11 @@ class solution_idl():
             setattr(self, 'l_'+par_name, label)
             [setattr(self, par_name+suffix, value) for suffix,value in
                 zip(['','_eUP','_eDW'],[round(sol_max,5),round(err_up,5),round(err_dw,5)])]
+
+        # In most cases l_logg should be 'd' but is not due to 60% is not enough
+        if 'Teff' in self.parameters and 'lgf' in self.parameters:
+            if getattr(self, 'l_Teff') == 'd' or getattr(self, 'l_lgf') == 'd':
+                self.l_logg = 'd'
 
         # Lines used in the analysis
         line_weights = []; line_names = []; line_windows = []
@@ -662,7 +673,10 @@ def maui_results(input_list, output_dir, check_best=True, last_only=False,
                 fig_title = ''
                 for par_name in param_err:
                     val = getattr(star, par_name)
+                    if np.isnan(val) == True: continue
+
                     label = getattr(star, 'l_'+par_name)
+                    if label == 'd': label = '=d.'
                     if par_name == 'Teff':
                         val = val*1e4
                         Teff = val
@@ -680,7 +694,7 @@ def maui_results(input_list, output_dir, check_best=True, last_only=False,
                     mask = [(star.obswave > line_lwl) & (star.obswave < line_rwl)]
                     ax_i.plot(star.obswave[mask], star.obsflux[mask], color='k', lw=.7)
                     if ax_i.get_ylim()[0] > 0.9:
-                        ax_i.set_ylim(bottom=0.9)
+                        ax_i.set_ylim(bottom=0.895)
 
                     blocked = [None if (
                     (i >= 6521. and i <= 6532.) or # Halpha, exclude CII lines in the red wing
@@ -742,7 +756,7 @@ def maui_results(input_list, output_dir, check_best=True, last_only=False,
                 nrows, ncols = even_plot(len(parameters))
 
                 fig, ax = plt.subplots(nrows, ncols, figsize=(13,8), tight_layout=True)
-                fig.subplots_adjust(wspace=1, hspace=1)
+                fig.subplots_adjust(wspace=.5, hspace=.5)
 
                 fig.suptitle(star.id + ' -- ' + match.split('emulated_solution_mcmc_sqexp_mat1_')[-1]
                     + ' -- ' + star.gridname + '\n' + fig_title, fontsize=8)

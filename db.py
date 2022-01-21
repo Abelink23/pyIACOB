@@ -336,15 +336,16 @@ def findtable(table, path=None, delimiter=' ', fits_strip_end=True):
 
         data = Table.read(table_dir, format='fits')
         if fits_strip_end == True:
-            tostrip = [data.colnames[i] for i in range(len(data.dtype)) if data.dtype[i].char == 'S']
+            tostrip = [i for i in data.colnames if data.dtype[i].type in [np.str_,np.bytes_]]
+            #tostrip = [data.colnames[i] for i in range(len(data.dtype)) if data.dtype[i].char == 'S'] # old kept just in case
             for col in tostrip:
-                 data[col] = [i.strip() for i in data[col]]
+                 data[col] = [i.strip() if np.ma.is_masked(i) == False else i for i in data[col]]
 
     elif '.csv' in table:
-        data = Table.read(table_dir, format='csv')
+        data = Table.read(table_dir, format='csv', fill_values=None)
 
     else:
-        data = Table.read(table_dir, format='ascii', delimiter=delimiter)
+        data = Table.read(table_dir, format='ascii', delimiter=delimiter, fill_values=None)
 
     return data
 
@@ -997,7 +998,7 @@ def spc_code(spc):
             else:
                 spt_c = sum(spt_c_lst)/num
         except:
-            print(source,spt_c_lst,num)
+            print(spc,spt_c_lst,num)
 
         # Luminosity class
         lc_c = re.findall('[I,V]+', spc_c)
