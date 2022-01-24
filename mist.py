@@ -1,5 +1,18 @@
 from db import *
 
+# Tracks and isochrones are downloaded from:
+# https://waps.cfa.harvard.edu/MIST/interp_tracks.html
+# https://waps.cfa.harvard.edu/MIST/interp_isos.html
+# MIST version 1.2
+# For a "list of ages" splitted in two (for Log10 Scale):
+# 1) 6.0 6.301 6.477 6.602 6.699 6.778 6.845 6.903 6.954 7.0 7.041 7.079 7.114 7.146 7.176
+#    7.204 7.23 7.255 7.279 7.301 7.342 7.38 7.415 7.447 7.477 7.505 7.544 7.58 7.613 7.653
+# 2) 7.699 7.778 7.845 7.903 7.954 8.0 8.041 8.079 8.114 8.146 8.176 8.204 8.23 8.255 8.279
+#    8.301 8.322 8.342 8.362 8.38 8.398 8.415 8.431 8.447 8.462 8.477 8.491 8.505 8.519 8.531
+#    8.544 8.556 8.568 8.58 8.591 8.602
+
+#  Synthetic Photometry: UBV(RI)c + 2MASS + Kepler + Hipparcos + Gaia (DR2/MAW/EDR3) + Tess
+
 def isomist(myr=None, logmyr=None, av=1.0, vr=0.4):
 
     '''
@@ -111,7 +124,7 @@ def trackmist(mass=None, av=0.0, vr=0.4):
 #path = os.path.expanduser('~')+'/Documents/MIST/'
 #for file in os.listdir(path):
 #    if file.endswith('.cmd'):
-#        try: t_mist = Table.read(path+file,format='ascii')
+#        try: t_mist = Table.read(path+file, format='ascii')
 #        except: print(file,' could not be read. Check the file.')
 #        mass = str(round(t_mist['star_mass'][0],1)).replace('.','')
 #        digit = 4-len(mass); mass = '0'*digit+mass

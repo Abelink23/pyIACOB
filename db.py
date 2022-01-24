@@ -11,7 +11,7 @@ import progressbar as pb
 
 # Astro-packages
 import astropy.units as u
-from astropy.io import fits
+from astropy.io import fits,ascii
 from astropy.table import Table, join, setdiff, vstack, hstack
 from astropy.coordinates import SkyCoord
 from astroquery.gaia import Gaia
@@ -345,7 +345,8 @@ def findtable(table, path=None, delimiter=' ', fits_strip_end=True):
         data = Table.read(table_dir, format='csv', fill_values=None)
 
     else:
-        data = Table.read(table_dir, format='ascii', delimiter=delimiter, fill_values=None)
+        data = ascii.read(table_dir, delimiter=delimiter)
+        #data = Table.read(table_dir, format='ascii', delimiter=delimiter, fill_values=None)
 
     return data
 

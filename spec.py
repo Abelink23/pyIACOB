@@ -15,6 +15,10 @@ from astropy.stats import sigma_clip
 # Plot packages
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator
+plt.rc('xtick', direction='in', top='on')
+#plt.rc('xtick.minor', visible=True)
+plt.rc('ytick', direction='in', right='on')
+#plt.rc('ytick.minor', visible=True)
 
 
 class spec():
