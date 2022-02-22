@@ -155,7 +155,8 @@ class spec():
         self.snr = I_SNR
 
         # Make lists with wavelenght and flux for each spectrum
-        if width >= 200: width = 200; \
+        if width >= 200:
+            width = 200
             print('\nWARNING: Width value %f is too large, setting it to 200. ' %width)
 
         wave = lam0 + dlam*(np.arange(spec_length) - pix0 + 1)
@@ -692,7 +693,7 @@ class spec():
 
         lambda0 = np.mean(self.wave)
 
-        if profile == 'g':
+        if profile == 'g' and (vsini==None and vmac==None):
             sigma = lambda0/(2.35482*float(resol))
 
             x = np.arange(-10*sigma, 10*sigma+self.dlam, self.dlam)
@@ -700,7 +701,7 @@ class spec():
             kernel = gauss/np.trapz(gauss)
             self.resolution = resol
 
-        elif profile == 'rotmac':
+        elif profile == 'rotmac' and (vsini!=None and vmac!=None):
             x = np.arange(-9, 9+self.dlam, self.dlam)
             rotmac = f_rotmac(x, lambda0, vsini, vmac)
             kernel = rotmac/np.trapz(rotmac)

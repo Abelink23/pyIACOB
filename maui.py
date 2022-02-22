@@ -18,9 +18,12 @@ grids_dic = {
 'nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1_2021-05-05': ('BSg_CNOSiMg','DeepPink',6,
 [[4.148,4.477,4.477,4.148,4.148],[3.392,3.392,4.386,4.386,3.392]]),
 'nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1ehot_2022-01-19': ('O9BSg_CNOSiMg','turquoise',7,
-[[4.148,4.543,4.543,4.148,4.148],[3.391,3.391,4.394,4.394,3.391]]),
+[[4.148,4.543,4.543,4.148,4.148],[3.54,3.54,4.394,4.394,3.54]]),
 }
-
+# IMPORTANT NOTE: O9BSg_CNOSiMg has the upper value of the logL (lgf) changed to 3.54 (1.85) because it
+# is cut a posteriori in user_defined_model_set_fastwind_....pro
+# Miguel is changing this so that we recover the original upper limit but I manually changed
+# the value in the table created with gen_gridlimits()
 
 def gen_gridlimits(models_dir=mauidir+'MODELS/'):
 
@@ -382,8 +385,11 @@ class solution_idl():
         self.dx = (idldata.xx_mod[-1]-idldata.xx_mod[0])/len(idldata.xx_mod)
 
         # Photometric information
-        self.BC = idldata.phot_prim[0]
-        self.B_V0 = idldata.phot_prim[2]
+        if idldata.phot_prim.dtype == 'int16':
+            self.BC = self.B_V0 = np.nan
+        else:
+            self.BC = round(idldata.phot_prim[0], 3)
+            self.B_V0 = round(idldata.phot_prim[2], 3)
 
         # Load table with the boundaries of each MAUI grid:
         try:

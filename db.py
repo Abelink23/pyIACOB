@@ -1,6 +1,7 @@
 # Python Standard Library packages:
 import re
 import time
+import sys
 import os.path
 import platform
 import warnings; warnings.filterwarnings("ignore")
@@ -14,11 +15,12 @@ import astropy.units as u
 from astropy.io import fits,ascii
 from astropy.table import Table, join, setdiff, vstack, hstack
 from astropy.coordinates import SkyCoord
-from astroquery.gaia import Gaia
 from astroquery.vizier import Vizier
 from astroquery.simbad import Simbad
 Simbad.add_votable_fields('flux(B)','flux(V)','sptype')#,'otypes')
-
+from astroquery.gaia import Gaia
+sys.path.append(os.path.expanduser('~') + '/MEGA/PhD/programs/python/edr3_zp')
+import zpt; zpt.load_tables()
 
 # Load the working paths:
 dir = ''
@@ -296,7 +298,7 @@ def findlist(list):
     return items
 
 
-def findtable(table, path=None, delimiter=' ', fits_strip_end=True):
+def findtable(table, path=None, delimiter=' ', header_start=None, fits_strip_end=True, fix_missing=False):
 
     '''
     Function to get the data from a FITS-format table.
@@ -309,11 +311,17 @@ def findtable(table, path=None, delimiter=' ', fits_strip_end=True):
     path : str, optional
         Path where to search for the file.
 
-    delimiter :
-    The string used to separate values. Default is whitespace.
+    delimiter : str, optional
+        The string used to separate values. Default is a whitespace.
+
+    header_start : int, optional
+        Index of the row which contains the header. Default is None.
 
     fits_strip_end : boolean, optional
         If 'True' it strips all strings within the data of a fits table.
+
+    fix_missing : boolean, optional
+        If 'True' it will replace missing strings by '' abd missing floats by float 'nan'.
 
     Returns
     -------
@@ -342,11 +350,22 @@ def findtable(table, path=None, delimiter=' ', fits_strip_end=True):
                  data[col] = [i.strip() if np.ma.is_masked(i) == False else i for i in data[col]]
 
     elif '.csv' in table:
-        data = Table.read(table_dir, format='csv', fill_values=None)
+        data = Table.read(table_dir, format='csv')
+
+    elif header_start != None:
+        data = ascii.read(table_dir, header_start=header_start, delimiter=delimiter)
 
     else:
         data = ascii.read(table_dir, delimiter=delimiter)
-        #data = Table.read(table_dir, format='ascii', delimiter=delimiter, fill_values=None)
+        #    data = Table.read(table_dir, format='ascii', delimiter=delimiter, fill_values=None)
+        # header_start is not included as a keyword as it slows down the process when is None
+
+    if fix_missing == True:
+        for j in [i for i in data.colnames if data.dtype[i].type in [np.str_,np.bytes_]]:
+            data[j].fill_value = ''
+        for j in [i for i in data.colnames if data.dtype[i].type in [np.float64]]:
+            data[j].fill_value = np.nan
+        data = data.filled()
 
     return data
 
@@ -1098,15 +1117,18 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s'):
         return None
 
 
-def query_Gaia(name=None, ra=None, dec=None, radec=None, radius=5):
+def query_Gaia(gaia='edr3', name=None, ra=None, dec=None, radec=None, radius=5, get_zp=False):
 
     '''
     Function to query an object in Gaia EDR3 database.
 
     Parameters
     ----------
+    gaia : str, optional
+        Enter the Gaia data you want to query, either 'dr2' or 'edr3' (default)
+
     name : str, optional
-        Enter the name of the source to query.
+        Enter the name (ID) of the source to query.
 
     ra : float, optional
         Enter the right ascension of the source, in degrees.
@@ -1124,6 +1146,14 @@ def query_Gaia(name=None, ra=None, dec=None, radec=None, radius=5):
     -------
     Queried object in Table format.
     '''
+
+    if gaia not in ['dr2','DR2','edr3','EDR3']:
+        print('Input Gaia catalog not selected bewteen dr2 and edr3. Exiting...\n')
+        return None
+    elif gaia in ['dr2','DR2']:
+        Gaia.MAIN_GAIA_TABLE = "gaiadr2.gaia_source"
+    elif gaia in ['edr3','EDR3']:
+        Gaia.MAIN_GAIA_TABLE = "gaiaedr3.gaia_source"
 
     if name is not None:
 
@@ -1151,7 +1181,7 @@ def query_Gaia(name=None, ra=None, dec=None, radec=None, radius=5):
         RADEC = SkyCoord(ra=ra, dec=dec, unit=(u.deg,u.deg), frame='icrs')
 
         if RADEC is None: # type(simbad) == type(None)
-            print('No objects found .')
+            print('No objects found.')
 
     elif radec != None:
 
@@ -1166,93 +1196,34 @@ def query_Gaia(name=None, ra=None, dec=None, radec=None, radius=5):
 
     query = Gaia.query_object_async(coordinate=RADEC, width=width, height=height)
 
-    if query is not None and len(query) > 1:
+    if len(query) == 0:
+        print('Gaia query failed for object with RA DEC =',RADEC.ra,RADEC.dec)
+        return None
+
+    if len(query) > 1:
         print('More than one Gaia result, choosing the brigtest source...')
         query.sort('phot_g_mean_mag')
         query = Table(query[0])
 
-    return query
+    if get_zp == True and gaia in ['edr3','EDR3']:
+        if query['astrometric_params_solved'] <= 3:
+            print('Astrometric parameters solved is <3. Skipping source_id =',str(query['source_id'][0]))
+            zp_offset = 0.0
 
-
-def zp_edr3(ra, dec, radius=1, IDs=[]):
-
-    '''
-    Function to obtain avaliable parallax zero-point offsets.
-    Input is a list of coordinates in degrees which are used for the Gaia query.
-
-    Parameters
-    ----------
-    ra : float,list
-        Enter the right ascension of the source in degrees, or a list with them.
-
-    dec : float,list
-        Enter the declination of the source in degrees, or a list with them.
-
-    radius : int,float
-        Enter the search radius in arcsec for the Gaia query. Default is 1.
-
-    IDs : str,list, optional
-        Enter the ID of the input coordinates.
-
-    Returns
-    -------
-    Table with the queried sources including the zero-point offset.
-    '''
-
-    import sys
-    sys.path.append(os.path.expanduser('~') + '/MEGA/PhD/programs/python/edr3_zp')
-    import zpt; zpt.load_tables()
-    from astroquery.gaia import Gaia
-
-    radius = radius/60/60
-
-    if len(IDs) == 0:
-        IDs = np.arange(1, len(ra)+1, 1)
-
-    IDs = IDs.tolist()
-
-    bar = pb.ProgressBar(maxval=len(IDs),
-                         widgets=[pb.Bar('=', '[', ']'), ' ', pb.Percentage()])
-    bar.start()
-
-    first = True
-    for ra_i,dec_i,ID_i in zip(ra, dec, IDs):
-        job = Gaia.launch_job("select TOP 1 * FROM gaiaedr3.gaia_source "
-                    "WHERE 1=CONTAINS(POINT('ICRS',ra,dec), "
-                    "CIRCLE('ICRS',%f,%f,%f))" % (ra_i,dec_i,radius)).get_results()
-
-        bar.update(IDs.index(ID_i))
-
-        if len(job) == 0:
-            continue
-        elif len(job) > 1:
-            job.sort('phot_g_mean_mag')
-            job = job[0]
-
-        if first == True:
-            table = job
-            table['ID'] = ID_i
-            first = False
         else:
-            job['ID'] = ID_i
-            table.add_row(job[0])
+            query['zp_offset'] = zpt.get_zpt(
+                query['phot_g_mean_mag'], query['nu_eff_used_in_astrometry'], \
+                query['pseudocolour'], query['ecl_lat'], query['astrometric_params_solved'])
 
-    bar.finish()
+    if name is None:
+        name = ['--']
 
-    if first == True:
-        print('No objects were found for the input coordinates.')
-        return None
+    query['ID'] = name
 
-    table = table[table['astrometric_params_solved'] > 3]
-    zpvals = zpt.get_zpt(table['phot_g_mean_mag'],table['nu_eff_used_in_astrometry'],\
-           table['pseudocolour'],table['ecl_lat'],table['astrometric_params_solved'])
-    table.add_column(zpvals, name='zp_offset')
+    query = query[['ID'] + [i for i in query.colnames][:-1]]
+    query.remove_column('designation')
 
-    table.remove_column('designation')
-
-    table = table[['ID','zp_offset'] + [i for i in table.colnames][:-2]]
-
-    return table
+    return query
 
 
 def checknames(list, max_dist=90):
