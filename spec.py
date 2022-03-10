@@ -906,10 +906,11 @@ class spec():
             table = table[(table['wl_air'] >= lwl) & (table['wl_air'] <= rwl)]
 
             if '-lg(gf)' in table.columns:
-                table['width'] = 10**table['-lg(gf)']/np.max(10**table['-lg(gf)']) * 4
+                table['width'] = 10**table['-lg(gf)']/np.max(10**table['-lg(gf)']) * 3
                 # 10**gf/5 empiric way to draw thicker lines for instense lines
             elif 'strength' in table.columns:
-                table['width'] = table['strength']/np.max(table['strength']) * 4
+                table['strength'] = [i if i<800 else 800 for i in table['strength']]
+                table['width'] = table['strength']/np.max(table['strength']) * 3
 
             at_color = {'HI':'gray', 'HeI':'turquoise', 'OI':'r', 'NI':'b', 'CI':'k', 'SI':'gold',
                 'Si':'tan', 'Mg':'g', 'Fe':'chocolate', 'Ne':'teal', 'Al':'rosybrown'}
@@ -922,7 +923,7 @@ class spec():
                 c=c, linestyle='dotted', lw=line['width'])
 
                 # depth line mask = depth deepest line
-                plt.text(line['wl_air'],1-depth, line['spc'], c=c, size=6, rotation=-90, clip_on=True)
+                plt.text(line['wl_air'],1.004-depth, line['spc'], c=c, size=6, rotation=-90, clip_on=True)
 
         plt.plot(self.wave[mask], self.flux[mask], lw=.3, label=self.id_star+' '+self.SpC)
         plt.tick_params(direction='in', top='on')

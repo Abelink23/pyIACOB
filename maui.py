@@ -16,14 +16,20 @@ grids_dic = {
 'astar2013_SOLAR_2_LMC_4_grid_2019-10-24_2019-10-24': ('ASgs_CNOMgSTiFe_Kurucz','purple',5,
 [[3.900,4.114,4.114,3.900,3.900],[3.142,3.142,4.292,4.292,3.142]]),
 'nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1_2021-05-05': ('BSg_CNOSiMg','DeepPink',6,
-[[4.148,4.477,4.477,4.148,4.148],[3.392,3.392,4.386,4.386,3.392]]),
+[[4.146,4.477,4.477,4.146,4.146],[3.392,3.392,4.386,4.386,3.392]]),
 'nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1ehot_2022-01-19': ('O9BSg_CNOSiMg','turquoise',7,
-[[4.148,4.543,4.543,4.148,4.148],[3.54,3.54,4.394,4.394,3.54]]),
+[[4.146,4.543,4.543,4.146,4.146],[3.54,3.54,4.394,4.394,3.54]]),
+'nlte_10.4.7_obgiants_SOLAR_noclump_n12345o123c234mg2si234djl_v1ehot_2022-02-21': ('O9BGs_CNOSiMg','lime',8,
+[[4.204,4.543,4.543,4.204,4.204],[2.937,2.937,3.791,3.791,2.937]]),
 }
-# IMPORTANT NOTE: O9BSg_CNOSiMg has the upper value of the logL (lgf) changed to 3.54 (1.85) because it
-# is cut a posteriori in user_defined_model_set_fastwind_....pro
-# Miguel is changing this so that we recover the original upper limit but I manually changed
-# the value in the table created with gen_gridlimits()
+''' IMPORTANT NOTE:
+-   O9BSg_CNOSiMg has the upper limit of the logL (lgf) constraint <= 3.54 (1.85)
+    also the upper limit of logQs <= -12.5
+-   O9BGs_CNOSiMg has Teff > 16000K, logQs <= -12.5 and lgf <= 2.4
+
+    These are cuts a posteriori in user_defined_model_set_fastwind_....pro in PRO_BASE_USER
+    and are introduced manually in gen_gridlimits()
+'''
 
 def gen_gridlimits(models_dir=mauidir+'MODELS/'):
 
@@ -120,13 +126,25 @@ def gen_gridlimits(models_dir=mauidir+'MODELS/'):
     for i in param_dic: names = names + [j for j in param_dic[i]]
 
     output = Table(rows=data_rows, names=(names))
+
+    # Ad-hoc for one particular grid:
+    if 'nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1ehot_2022-01-19' in output['Grid_name']:
+        output['Teff_DW'][output['Grid_name']=='nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1ehot_2022-01-19'] = 1.4
+        output['lgf_UP'][output['Grid_name']=='nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1ehot_2022-01-19'] = 1.85
+        output['logQs_UP'][output['Grid_name']=='nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1ehot_2022-01-19'] = -12.5
+
+    if 'nlte_10.4.7_obgiants_SOLAR_noclump_n12345o123c234mg2si234djl_v1ehot_2022-02-21' in output['Grid_name']:
+        output['Teff_DW'][output['Grid_name']=='nlte_10.4.7_obgiants_SOLAR_noclump_n12345o123c234mg2si234djl_v1ehot_2022-02-21'] = 1.6
+        output['lgf_UP'][output['Grid_name']=='nlte_10.4.7_obgiants_SOLAR_noclump_n12345o123c234mg2si234djl_v1ehot_2022-02-21'] = 2.40
+        output['logQs_UP'][output['Grid_name']=='nlte_10.4.7_obgiants_SOLAR_noclump_n12345o123c234mg2si234djl_v1ehot_2022-02-21'] = -12.5
+
     output.write(maindir + 'tables/MAUI_grid_limits.fits', format='fits', overwrite=True)
 
     return 'DONE'
 
 
 def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=200,
-    ascii_0=False):
+    ascii=False):
 
     '''
     Function to generate the input table for MAUI given an input table with the
@@ -154,7 +172,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
     RV0tol : int, optional
         Enter the input radial velocity tolerance for the radial velocity correction.
 
-    ascii_0 : boolean, optional
+    ascii : boolean, optional
         If True, ascii files will be created for each of the input sources.
         Default is False.
 
@@ -179,7 +197,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
     quit = ''
     for row in table:
 
-        ascii = ascii_0
+        do_ascii = ascii
 
         if quit == 'quit': break
 
@@ -196,7 +214,8 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
         match_IB = table_IB[table_IB['ID']==id]
 
         if len(match_REF) == 0 or len(match_IB) == 0:
-            print('Missing information in RVEWFW or IB tables for %s\n' % id); continue
+            print('Info: Missing information in RVEWFW or IB tables for %s, skipping...\n' % id)
+            continue
 
         # Filter based on Si lines properties:
         if ('QSiII' in table.columns and row['QSiII']<3) \
@@ -212,21 +231,23 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
         else: SiIIIFG = 1
 
         if SiIIIFG == 0 and SiIIFG == 0:
-            print('No SiIII/SiII found for %s\n' % id); continue
+            print('Info: No SiIII/SiII found for %s, skipping...\n' % id)
+            continue
 
         star = spec(id, SNR='best')
 
         if match_IB['filename'][0] != star.filename:
-            print('Warning: Different files from best SNR and from IB results for %s' % id)
+            print('WARNING: Different files from best SNR and from IB results for %s' % id)
             print(star.filename,' vs ',match_IB['filename'][0])
-            if ascii_0 == True:
+            if ascii == True:
                 do_file = input('Which ascii do you want to create 1 or 2: ')
                 if int(do_file) == 1: star.filename = star.filename
                 elif int(do_file) == 2: star.filename = match_IB['filename'][0]
 
-        if ascii_0 == True and not search(star.filename[:-5]+'_RV.ascii',\
-        os.path.expanduser('~')+'/Documents/MAUI/ASCII/') is None:
-            ascii = False
+        if do_ascii == True and not search(star.filename[:-5]+'_RV.ascii',\
+        os.path.expanduser('~')+'/Documents/MAUI/SPECTRA/') is None:
+            print('Info: ascii file for %s already exists' % star.filename[:-5])
+            do_ascii = False
 
         # ----------------------------------------------------------------------
         ## Extra information appended to the end of each row:
@@ -239,7 +260,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
         #    grid = grids_dic[match_results['Grid_name'][0]][0]
         # ----------------------------------------------------------------------
 
-        if ascii == True:
+        if do_ascii == True:
 
             from RV import RV0
 
@@ -257,7 +278,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
                     skip = input('%s - Hit return to continue, type "s" to skip: ' % id)
                     if skip == 's': break
 
-                    if row['SpT_code'] <= 2.5:
+                    if 'SpT_code' not in table.colnames or row['SpT_code'] <= 2.5:
                         star.plotspec(4530, 4590)
                     else:
                         star.plotspec(6337.11, 6357.11)
@@ -284,7 +305,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
                     star.waveflux() # Applies the rv0 correction
                     #star.cosmic(sigclip=0.005)
 
-                    if row['SpT_code'] <= 2.5:
+                    if 'SpT_code' not in table.colnames or row['SpT_code'] <= 2.5:
                         star.plotspec(4530, 4590, lines='35-10K')
                     else:
                         star.plotspec(6337.11, 6357.11, lines='35-10K')
@@ -293,7 +314,7 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
 
                     next = input('Type "n" to repeat, hit return to move to the next star. ')
 
-            star.export(tail='_RV',extension='.ascii')
+            star.export(tail='_RV', extension='.ascii')
 
         # MAUI input last modifications:
         #if star.resolution > 65000: star.resolution = 80000
@@ -866,6 +887,45 @@ def gen_stars_in_grids(input_table, table_results):
         table_red = table[[i['ID'] in results_in for i in table]]
 
         maui_input(table=table_red, output_name=name, ascii_0=False)
+
+
+def phot_table(input_table):
+
+    '''
+    Function to generate an ascii table which contains the input for an IDL program
+    that computes the photometric parameters for stars analysed with MAUI
+
+    Parameters
+    ----------
+    input_table : str
+        Enter the name of the table (located in table/ folder) that contains the results
+        of the stars from MAUI.
+
+    Returns
+    -------
+    Nothing but the ascii table is generated.
+    '''
+
+    table = findtable(input_table)[0:10]
+
+    cols = ['Teff','lgf','He','Micro','logQs','beta','C','N','O','Mg','Si','fcl','vcl','Grid_name']
+    if any([i not in table.colnames for i in cols]):
+        print('WARNING: missing column names. Exiting...\n')
+        return None
+
+    table['Teff'] = [('%.3f') % i +'d0' for i in table['Teff']]
+    table['logf'] = [('%.3f') % i +'d0' for i in table['lgf']]
+    table['He'] = [('%.2f') % i for i in table['He']]
+    table['mic'] = [('%.0f') % i+'.' for i in table['Micro']]
+    table['logQ+10'] = [('%.2f') % (i+10) +'d0' for i in table['logQs']]
+    table['beta'] = [('%.2f') % i for i in table['beta']]
+    for i in ['C','N','O','Mg','Si']:
+        table[i] = [('%.2f') % i +'d0' for i in table[i]]
+    table['fcl'] = [('%.2f') % i if i != 'nan' else 1.00 for i in table['fcl']]
+    table['vcl'] = [('%.0f') % i+'.' if i != 'nan' else 100 for i in table['vcl']]
+
+    table = table['ID','Teff','logf','He','mic','logQ+10','beta','C','N','O','Mg','Si','fcl','vcl','Grid_name']
+    table.write(maindir+'tables/%s_phot.txt' % input_table.split('.')[0], format='ascii.fixed_width_two_line')
 
 
 def gen_synthetic(output_dir, save_dir='server', lwl=3900, rwl=5080):
