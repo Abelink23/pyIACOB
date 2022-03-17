@@ -286,8 +286,8 @@ class spec():
         fitted line, and the fitting parameters.
         '''
 
-        fitsol = {'sol': 0, 'line': np.nan, 'RV_A': np.nan, 'RV_kms': np.nan,
-                  'EW': np.nan, 'FWHM': np.nan, 'depth': np.nan, 'q_fit': np.nan}
+        fitsol = {'sol': 0, 'line': np.nan, 'RV_A': np.nan, 'RV_kms': np.nan, 'EW': np.nan,
+            'FWHM': np.nan, 'depth': np.nan, 'q_fit': np.nan, 'snr': np.nan}
 
         #============================== Parameters =============================
         # Catch line input containing more than one line
@@ -317,7 +317,7 @@ class spec():
         if func == 'g':
             fitfunc = f_gaussian1
             bounds  = ([-1,line-tol_aa,0],
-                       [ 0,line+tol_aa,6])
+                       [ 0,line+tol_aa,3]) # 3/6 for narrow/broad lines (default 6)
 
         # Fitting function: Lorentzian | A,lam0,gamma,y
         elif func == 'l':
@@ -487,8 +487,8 @@ class spec():
 
             ax.plot(wave, np.where(mask==False, 1, np.nan) + 0.01, 'k', lw=.5)
 
-            ax.set_title('%s | %.2f | RV: %d | EW: %d | FWHM: %.2f' %
-                (self.id_star,line_f,RV_kms,EW,FWHM))
+            ax.set_title('%s | %.2f | RV: %d | EW: %d | FWHM: %.2f | SNR: %d' %
+                (self.id_star,line_f,RV_kms,EW,FWHM,snr), fontsize=7)
 
             ax.set_yticks([])
             ax.set_xlabel('$\lambda$ $[\AA]$', size=13)
@@ -501,7 +501,7 @@ class spec():
         #=======================================================================
         #================= Packing the results in a dictionary =================
         fitsol = {'sol':1, 'line':line_f, 'RV_A':RV_A, 'RV_kms':RV_kms,
-                   'EW':EW, 'FWHM':FWHM, 'depth':depth, 'q_fit':q_fit}
+                   'EW':EW, 'FWHM':FWHM, 'depth':depth, 'q_fit':q_fit, 'snr':snr}
         for f_par,par in zip(fit_dic[func.split('_')[0]], popt):
             fitsol[f_par] = round(par, 3)
 

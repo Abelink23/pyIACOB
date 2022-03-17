@@ -495,7 +495,7 @@ class solution_idl():
         self.line_windows = line_windows
 
 
-def maui_results(input_list, output_dir, check_best=True, last_only=False,
+def maui_results(input_list, output_dir, check_best=True, last_only=False, FR=False,
     pdfplots=False, pdflines='diag', grids_table='MAUI_grid_limits.fits', grid_only=[],
     output_table=True, format_table='fits'):
 
@@ -519,6 +519,10 @@ def maui_results(input_list, output_dir, check_best=True, last_only=False,
 
     last_only : boolean, optional
         True if only the last analysed .idl results want to be kept.
+
+    FR : boolean, optional
+        True if the analyses correspond to Fast Rotator stars for which whe MAUI windows
+        are different. Default is False.
 
     pdfplots : boolean, optional
         If True, a pdf comparing the synthetic diagnostic lines with the original is made.
@@ -723,34 +727,57 @@ def maui_results(input_list, output_dir, check_best=True, last_only=False,
                     if ax_i.get_ylim()[0] > 0.9:
                         ax_i.set_ylim(bottom=0.895)
 
-                    blocked = [None if (
-                    (i >= 6521. and i <= 6532.) or # Halpha, exclude CII lines in the red wing
-                    (i > 6575.75 and i < 6585.29) or # Halpha
-                    (i > 4344.42 and i < 4355.83) or # Hgamma, exclude OII lines in the red wing
-                    (i >= 4083.20 and i <= 4085.50) or # Hdelta, exclude metal lines
-                    (i >  4086.29 and i <  4090.53) or
-                    (i >  4092.27 and i <  4093.99) or
-                    (i >= 4096.5  and i <= 4098.) or
-                    (i >= 3953.09 and i <= 3955.05) or # Hepsil, exclude metal lines
-                    (i >  3960.70 and i <  3962.24) or
-                    (i >  3963.38 and i <  3965.76) or
-                    (i >= 3967.00 and i <= 3968.50) or
-                    (i >= 3972.53 and i <= 3974.10) or
-                    (i >= 4923.5 and i <= 4926.0) or # HeI 4922
-                    (i >= 5017.5 and i <= 5019.5) or # HeI 5015
-                    (i >= 4544.0 and i <= 4546.0) or # HeII 4541, exclude AlIII lines
-                    (i >  4478.87 and i <  4480.20) or # MgII, exclude the AlIII blend
-                    (i >= 4128.71 and i <= 4130.10) or # SiIII 4130
-                    (i >= 4131.40 and i <= 4134.08) or
-                    (i >= 4547.60 and i <= 4550.99) or # SiIII 4552
-                    (i >= 4554.20 and i <= 4558.96) or
-                    (i >= 4563.08 and i <= 4565.97) or # SiIII 4567
-                    (i >= 4569.925 and i <= 4571.35) or
-                    (i >= 4571.30 and i <= 4573.01) or # SiIII 4575
-                    (i >= 4575.78 and i <= 4579.32) or
-                    (i >= 4114.71 and i <= 4114.81) or # SiIV 4116
-                    (i >= 4117.7 and i <= 4125.10)
-                    ) else np.asarray(ax_i.get_ylim()).mean() for i in star.obswave[mask]]
+                    if FR == False:
+                        blocked = [None if (
+                            (i >= 6521. and i <= 6532.) or # Halpha, exclude CII lines in the red wing
+                            (i > 6575.75 and i < 6585.29) or # Halpha
+                            (i > 4344.42 and i < 4355.83) or # Hgamma, exclude OII lines in the red wing
+                            (i >= 4083.20 and i <= 4085.50) or # Hdelta, exclude metal lines
+                            (i >  4086.29 and i <  4090.53) or
+                            (i >  4092.27 and i <  4093.99) or
+                            (i >= 4096.5  and i <= 4098.) or
+                            (i >= 3953.09 and i <= 3955.05) or # Hepsil, exclude metal lines
+                            (i >  3960.70 and i <  3962.24) or
+                            (i >  3963.38 and i <  3965.76) or
+                            (i >= 3967.00 and i <= 3968.50) or
+                            (i >= 3972.53 and i <= 3974.10) or
+                            (i >= 4923.5 and i <= 4926.0) or # HeI 4922
+                            (i >= 5017.5 and i <= 5019.5) or # HeI 5015
+                            (i >= 4544.0 and i <= 4546.0) or # HeII 4541, exclude AlIII lines
+                            (i >  4478.87 and i <  4480.20) or # MgII, exclude the AlIII blend
+                            (i >= 4128.71 and i <= 4130.10) or # SiIII 4130
+                            (i >= 4131.40 and i <= 4134.08) or
+                            (i >= 4547.60 and i <= 4550.99) or # SiIII 4552
+                            (i >= 4554.20 and i <= 4558.96) or
+                            (i >= 4563.08 and i <= 4565.97) or # SiIII 4567
+                            (i >= 4569.925 and i <= 4571.35) or
+                            (i >= 4571.30 and i <= 4573.01) or # SiIII 4575
+                            (i >= 4575.78 and i <= 4579.32) or
+                            (i >= 4114.71 and i <= 4114.81) or # SiIV 4116
+                            (i >= 4117.7 and i <= 4125.10)
+                            ) else np.asarray(ax_i.get_ylim()).mean() for i in star.obswave[mask]]
+
+                    elif FR == True:
+                        blocked = [None if (
+                            (i >= 6521. and i <= 6532.) or # Halpha, exclude CII lines in the red wing
+                            (i > 6575.75 and i < 6585.29) or # Halpha
+                            (i > 4344.42 and i < 4355.83) or # Hgamma, exclude OII lines in the red wing
+                            (i >= 4083.20 and i <= 4090.53) or # Hdelta, exclude metal lines
+                            (i >  4092.27 and i <  4093.99) or
+                            (i >= 4096.5  and i <= 4098.) or
+                            (i >= 3953.09 and i <= 3955.05) or # Hepsil, exclude metal lines
+                            (i >  3960.70 and i <  3962.24) or
+                            (i >  3963.38 and i <  3965.76) or
+                            (i >= 3967.00 and i <= 3968.50) or
+                            (i >= 3972.53 and i <= 3974.10) or
+                            (i >= 4923.5 and i <= 4926.0) or # HeI 4922
+                            (i >= 5017.5 and i <= 5019.5) or # HeI 5015
+                            (i >= 4544.0 and i <= 4546.0) or # HeII 4541, exclude AlIII lines
+                            (i >= 4128.71 and i <= 4130.10) or # SiIII 4130
+                            (i >= 4131.40 and i <= 4134.08) or
+                            (i >= 4110.90 and i <= 4111.00) or # SiIV 4116
+                            (i >= 4117.7 and i <= 4126.10)
+                            ) else np.asarray(ax_i.get_ylim()).mean() for i in star.obswave[mask]]
 
                     # This is a visual trick to put the synthetic spectra where the normalization
                     # feature is putting it as it is not stored but is the way to see its effect

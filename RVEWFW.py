@@ -1,9 +1,8 @@
-from spec import *
 from RV import *
 
 
-def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='RVEWFWs_O9BAs.fits',
-    RV0lines='rv_Bs.lst', RV0tol=150, ewcut=10, tol=100, redo='n'):
+def RVEWFW(lines, table='IACOB_O9BAs_SNR20.fits', output_table='RVEWFWs_O9BAs.fits',
+    RV0lines='rv_Bs.lst', RV0tol=150, ewcut=10, snrcut=100, tol=100, redo='n'):
 
     '''
     Function to interactively calculate and store radial velocity, equivalent
@@ -12,6 +11,10 @@ def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='RVEWFWs_O9BAs.fits',
 
     Parameters
     ----------
+    lines : str, list
+        Enter the wavelenght(s) of the line(s) to fit, either in a coma-separated
+        string, or in a .txt/.lst file containing the lines.
+
     table : str
         Name of the input table contaning the list of stars to analyze.
 
@@ -28,6 +31,10 @@ def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='RVEWFWs_O9BAs.fits',
     ewcut : float, optional
         EW threshold value for a line to be considered as detected. Default is 10.
 
+    snrcut : float/int, optional
+        Cut in the SNR of a line window for the SNR to be replaced by 100. It is then used
+        to prevent the line properties to be exported if 3/ snr(line) > depth(line)
+
     redo : str, optional
         Coma separated string with the list of stars for which next the analysis.
 
@@ -39,45 +46,47 @@ def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='RVEWFWs_O9BAs.fits',
     Nothing, but the output table with the results is created.
     '''
 
+    lines = findlines(lines)[0]
+
     table = findtable(table)
 
     #===========================================================================
     output = findtable(output_table)
+
     if output is not None:
         # Remove entries to be re-done
         if redo != 'n':
-            try: redo = redo.split(',')
-            except: print('Bad input for "redo" parameter. Exitting...'); return None
-            for id in redo: output = output[output['ID'] != id]
+            try:
+                redo = redo.split(',')
+            except:
+                print('Bad input for "redo" parameter. Exitting...')
+                return None
+
+            for id in redo:
+                output = output[output['ID'] != id]
+
     else:
-        print('Creating new table %s\n' % output_table)
-        format1 = str(table['ID'].info.dtype)[1:]
-        format2 = str(table['SpC'].info.dtype)[1:]
+        print('Creating new table: %s\n' % output_table)
 
-        # to be included HeI 4387, HeII 4542/5411, SiIV 4116
-        # Cambiar 6347.11 por 4128.054
-
-        output = Table(names=(\
-        'ID','SNR_B','SNR_V','SNR_R',\
-        'RVSiIII1','EWSiIII1','FWSiIII1','depSiIII1',\
-        'RVSiIII2','EWSiIII2','FWSiIII2','depSiIII2',\
-        'RVSiIII3','EWSiIII3','FWSiIII3','depSiIII3',\
-        'RVSiII','EWSiII','FWSiII','depSiII',\
-        'RVHb','EWHb','FWHb','FW14Hb','FW34Hb','gamma','depHb'),\
-        dtype=('S16','float64','float64','float64',\
-        'float64','float64','float64','float64',\
-        'float64','float64','float64','float64',\
-        'float64','float64','float64','float64',\
-        'float64','float64','float64','float64',\
-        'float64','float64','float64','float64','float64','float64','float64'))
+        output = Table(
+            names = (
+                ['ID','SNR_B','SNR_V','SNR_R']
+                + [j+i for i in [str(round(k)) for k in lines] for j in ['RV_','EW_','FW_','dep_','snr_']]
+                + ['RV_Hb','EW_Hb','FW_Hb','FW14_Hb','FW34_Hb','dep_Hb','gamma_Hb']),
+            dtype = (
+                ['S16','float64','float64','float64']
+                + ['float64']*(5*len(lines)+7))
+            )
 
     quit = ''
     for source in table:
         if quit == 'q': break
 
         id = source['ID']
-        try: spt  = source['SpC']
-        except: spt=''
+        try:
+            spt  = source['SpC']
+        except:
+            spt = ''
 
         if id in [i.strip() for i in output['ID']]: continue
 
@@ -88,7 +97,7 @@ def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='RVEWFWs_O9BAs.fits',
 
             if skip == 's': break
 
-            star = spec(id,SNR='best')
+            star = spec(id, SNR='best')
 
             snr_b = star.snrcalc(zone='B')
             snr_v = star.snrcalc(zone='V')
@@ -112,29 +121,31 @@ def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='RVEWFWs_O9BAs.fits',
 
             plt.close()
 
-            star.rv0 = RV0(RV0lines,star.spectrum,func=fun,ewcut=30,tol=RV0tol)
-            star.waveflux(4500,6380); star.cosmic()
-            star.plotspec(4500,4600,poslines='OB')
+            star.rv0 = RV0(RV0lines, star.filename, func=fun, ewcut=30, tol=RV0tol)
+            star.waveflux(min(lines)-30, max(lines)+30) # PONER MIN MAX EN FUNCION DE LOS LIM DE LINES
+            star.cosmic()
+            star.plotspec(4500,4600, lines='35-10K')
 
             input(); plt.close()
 
-            fit = star.fitline(6347.11,width=wid,tol=tol,func=fun,plot=True)
-            RVSi4,EWSi4,FWSi4,depSi4 = fit['RV_kms']+star.rv0,fit['EW'],fit['FWHM'],fit['depth']
-            fit = star.fitline(4574.757,width=wid,tol=tol,func=fun,plot=True)
-            RVSi3,EWSi3,FWSi3,depSi3 = fit['RV_kms']+star.rv0,fit['EW'],fit['FWHM'],fit['depth']
-            fit = star.fitline(4567.84 ,width=wid,tol=tol,func=fun,plot=True)
-            RVSi2,EWSi2,FWSi2,depSi2 = fit['RV_kms']+star.rv0,fit['EW'],fit['FWHM'],fit['depth']
-            fit = star.fitline(4552.622,width=wid,tol=tol,func=fun,plot=True)
-            RVSi1,EWSi1,FWSi1,depSi1 = fit['RV_kms']+star.rv0,fit['EW'],fit['FWHM'],fit['depth']
+            T_source = Table([[id],[snr_b],[snr_v],[snr_r]], names=('ID','SNR_B','SNR_V','SNR_R'))
+            for line in lines:
+                fit = star.fitline(line, width=wid, tol=tol, func=fun, plot=True)
+                RV,EW,FW,dep,snr = fit['RV_kms']+star.rv0, fit['EW'], fit['FWHM'], fit['depth'], fit['snr']
 
-            if EWSi4 != None:
-                if EWSi4 < ewcut: EWSi4 = FWSi4 = np.nan
-            if EWSi3 != None:
-                if EWSi3 < ewcut: EWSi3 = FWSi3 = np.nan
-            if EWSi2 != None:
-                if EWSi2 < ewcut: EWSi2 = FWSi2 = np.nan
-            if EWSi1 != None:
-                if EWSi1 < ewcut: EWSi1 = FWSi1 = np.nan
+                if EW != None:
+                    if EW < ewcut:
+                        EW = FW = np.nan
+
+                if snr > snrcut:
+                    snr_min = 100
+                else: snr_min = snr
+
+                if 3/snr_min > dep:
+                    RV = EW = FW = dep = snr = np.nan
+
+                for par,val in zip(['RV_','EW_','FW_','dep_','snr_'],[RV,EW,FW,dep,snr]):
+                    T_source[par+str(round(line))] = val
 
             next = input("Type 'n' to repeat, hit return to move to the Hb line. ")
             plt.close('all')
@@ -148,7 +159,7 @@ def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='RVEWFWs_O9BAs.fits',
             print('\nAnalyzing H beta line...\n')
 
             star.waveflux(4801,4921); star.cosmic()
-            star.plotspec(4821,4901,poslines='OB')
+            star.plotspec(4821,4901, lines='35-10K')
 
             fun = '-'; iter = 3
             while fun not in ['vr_H','vrg_H']:
@@ -165,18 +176,18 @@ def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='RVEWFWs_O9BAs.fits',
 
             plt.close()
 
-            fit = star.fitline(4861.325,width=wid,func=fun,iter=1,info=True,outfit=True,plot=True)
-            RVHb,EWHb,FWHb,depHb = fit['RV_kms']+star.rv0,fit['EW'],fit['FWHM'],fit['depth']
+            fit = star.fitline(4861.325, width=wid, func=fun, iter=1, info=True, outfit=True, plot=True)
+            RV,EW,FW,dep = fit['RV_kms']+star.rv0,fit['EW'],fit['FWHM'],fit['depth']
+
+            for par,val in zip(['RV_Hb','EW_Hb','FW_Hb','dep_Hb'],[RV,EW,FW,dep]):
+                T_source[par] = val
 
             try:
-                gamma = fit['gamma']
-
                 wave = fit['wave']; flux_fit = fit['flux_fit']
                 lowval = (max(flux_fit) + 3*min(flux_fit))/4
                 uppval = (3*max(flux_fit) + min(flux_fit))/4
 
-                FWs = []
-                for val in lowval,uppval:
+                for par,val in zip(['FW14_Hb','FW34_Hb'],[lowval,uppval]):
                     medpos = [np.where(flux_fit <= val)[0][value] for value in (0,-1)]
                     try: l_val = np.interp(val,[flux_fit[medpos[0]],flux_fit[medpos[0]-1]],
                                                    [wave[medpos[0]],wave[medpos[0]-1]])
@@ -184,32 +195,30 @@ def RVEWFW(table='IACOB_O9BAs_SNR20.fits', output_table='RVEWFWs_O9BAs.fits',
                     try: r_val = np.interp(val,[flux_fit[medpos[1]],flux_fit[medpos[1]+1]],
                                                   [wave[medpos[1]],wave[medpos[1]+1]])
                     except: r_val = wave[medpos[1]]
-                    FWs.append(round(r_val-l_val,3))
+
+                    T_source[par] = round(r_val-l_val, 3)
+                    T_source['gamma_Hb'] = fit['gamma']
+
             except:
                 print('Line could not be fitted...')
-                FWs = [np.nan,np.nan]; gamma = np.nan
+                T_source['FW14_Hb'] =  T_source['FW34_Hb'] = T_source['gamma_Hb'] = np.nan
 
             next = input("\nRepeat Hb / continue to the next star / save and exit ['n'/''/'q']: ")
             plt.close()
             if next == 'n': continue
 
             else:
-                output.add_row(([id],[snr_b],[snr_v],[snr_r],\
-                    [RVSi1],[EWSi1],[FWSi1],[depSi1],\
-                    [RVSi2],[EWSi2],[FWSi2],[depSi2],\
-                    [RVSi3],[EWSi3],[FWSi3],[depSi3],\
-                    [RVSi4],[EWSi4],[FWSi4],[depSi4],\
-                    [RVHb],[EWHb],[FWHb],[FWs[0]],[FWs[1]],[gamma],[depHb]))
+                output = vstack([output,T_source])
 
                 if next == 'q': quit = next
 
-    output.write(maindir+'tables/'+output_table,format='fits',overwrite=True)
+    output.write(maindir+'tables/'+output_table, format='fits', overwrite=True)
 
     return 'DONE'
 
 
-def auto_measure(table='emulated_all.txt', output_table='Emul_RVEWFWs.fits',
-    lines='emulated.lst', func='vrg_H', width=20, ewcut=10, tol=150, txt=False):
+def auto_measure(lines, table='IACOB_new_N+M_ToDo.fits', output_table='new_RVEWFW.fits',
+    func='g', width=20, ewcut=10, tol=150, txt=False, table_fit_param=False):
 
     '''
     Function to automatically calculate and store radial velocity, equivalent
@@ -217,15 +226,15 @@ def auto_measure(table='emulated_all.txt', output_table='Emul_RVEWFWs.fits',
 
     Parameters
     ----------
+    lines : str, list
+        Enter the wavelenght(s) of the line(s) to fit, either in a coma-separated
+        string, or in a .txt/.lst file containing the lines.
+
     table : str
         Name of the input table contaning the list of stars to analyze.
 
     output_table : str
         Name of the output (new) table contaning the results.
-
-    lines : str, list
-        Enter the name of .txt/.lst file containing the lines and identifiers.
-        (e.g. 4861.325 Hb)
 
     ewcut : float, optional
         EW threshold value for a line to be considered as detected. Default is 10.
@@ -242,20 +251,21 @@ def auto_measure(table='emulated_all.txt', output_table='Emul_RVEWFWs.fits',
     '''
 
     from matplotlib.backends.backend_pdf import PdfPages
-    pp = PdfPages(maindir+'tmp_plots/RVEWFW.pdf')
+    pp = PdfPages(maindir+'tmp_plots/auto_RVEWFW.pdf')
+
+    lines,elements,_ = findlines(lines)
 
     table = findtable(table)
 
     IDs = []; A1 = []; x0 = []; sig = []; sig1 = []; gamma = []; vsini = []; A2 = []; sig2 = []
 
     '''============================ Create table ============================'''
-    lines,elements,_ = findlines(lines)
 
-    columns = ['RV','EW','FW','dep','FW14','FW34']
+    columns = ['RV_','EW_','FW_','dep_','snr_','FW14_','FW34_']
 
-    names = ['ID']+([j+i for i in elements for j in columns])
+    names = ['ID']+([j+i for i in [str(round(k)) for k in lines] for j in columns])
     dtypes =['S%i' % len(sorted(table['ID'],key=len)[-1]+' ')]
-    dtypes += ['float64' for i in elements for j in columns]
+    dtypes += ['float64']*len(columns)*len(lines)
 
     output = Table(names=(names),dtype=(dtypes))
 
@@ -285,40 +295,61 @@ def auto_measure(table='emulated_all.txt', output_table='Emul_RVEWFWs.fits',
 
         #if int(re.findall('[0-9]+',id)[2]) >= 175: continue
 
-        star = spec(id,SNR='best',txt=txt)
+        star = spec(id, SNR='best', txt=txt)
 
-        fig = plt.figure()
-        fig.suptitle(id,fontsize=9)
+        fig = plt.figure(figsize=(12,10))
+        fig.suptitle(id, fontsize=9)
 
         row_data = []; nplot = 1
         for line,element in zip(lines,elements):
 
-            print('\nAnalyzing %s...\n' % element)
-
-            plt.subplot(nrows,ncols,nplot)
+            print('\nAnalyzing %s...\n' % (element+' - '+str(line)))
 
             #star.cosmic()
 
-            fitting = star.fitline(line,width=width,func=func,iter=iter,output=True)
-            row_data += fitting[2:6]
+            fit = star.fitline(line, width=width, func=func, iter=iter, outfit=True)
 
-            try:
-                wave,flux,flux_norm,flux_fit,popt = fitting[-1]
+            if fit['sol'] == 0:
+                row_data += [np.nan]*7
 
-                IDs.append(id)
-                if func in ['vrg_H','vrg_Z']:
-                    A1.append(popt[0]);x0.append(popt[1]);sig1.append(popt[2]);gamma.append(popt[3])
-                    vsini.append(popt[4]);A2.append(popt[5]);sig2.append(popt[6])
-                elif func in ['vr_H','vr_Z']:
-                    A1.append(popt[0]);x0.append(popt[1]);sig.append(popt[2]);gamma.append(popt[3])
-                    vsini.append(popt[4])
-                elif func in ['r']:
-                    A1.append(popt[0]);x0.append(popt[1]);sig.append(popt[2]);vsini.append(popt[3])
-                elif func in ['v']:
-                    A1.append(popt[0]);x0.append(popt[1]);sig.append(popt[2]);gamma.append(popt[3])
-                elif func in ['g','l']:
-                    A1.append(popt[0]);x0.append(popt[1]);sig.append(popt[2])
+            else:
 
+                plt.subplot(nrows, ncols, nplot)
+
+                row_data += fit['RV_kms']+star.rv0, fit['EW'], fit['FWHM'], fit['depth'], fit['snr']
+
+                wave,flux_norm,flux_fit = fit['wave'], fit['flux_norm'], fit['flux_fit']
+
+                if table_fit_param == True:
+                    IDs.append(id)
+                    if func in ['vrg_H','vrg_Z']:
+                        x0.append(fit['lam0'])
+                        A1.append(fit['A1'])
+                        sig1.append(fit['sigma1'])
+                        gamma.append(fit['gamma'])
+                        vsini.append(fit['vsini'])
+                        A2.append(fit['A2'])
+                        sig2.append(fit['sigma2'])
+                    elif func in ['vr_H','vr_Z']:
+                        A1.append(fit['A'])
+                        x0.append(fit['lam0'])
+                        sig.append(fit['sigma'])
+                        gamma.append(fit['gamma'])
+                        vsini.append(fit['vsini'])
+                    elif func in ['r']:
+                        A1.append(fit['A'])
+                        x0.append(fit['lam0'])
+                        sig.append(fit['sigma'])
+                        vsini.append(fit['vsini'])
+                    elif func in ['v']:
+                        A1.append(fit['A'])
+                        x0.append(fit['lam0'])
+                        sig.append(fit['sigma'])
+                        gamma.append(fit['gamma'])
+                    elif func in ['g','l']:
+                        A1.append(fit['A'])
+                        x0.append(fit['lam0'])
+                        sig.append(fit['sigma'])
 
                 lowval = (max(flux_fit) + 3*min(flux_fit))/4
                 uppval = (3*max(flux_fit) + min(flux_fit))/4
@@ -333,23 +364,18 @@ def auto_measure(table='emulated_all.txt', output_table='Emul_RVEWFWs.fits',
                     except: r_val = wave[medpos[1]]
                     row_data += [round(r_val-l_val,3)]
 
-            except:
-                row_data += [np.nan]*2
-                wave,flux,flux_norm,flux_fit,popt = [np.nan]*5
+                plt.plot(wave, flux_norm, 'b', lw=.5)
+                plt.plot(wave, flux_fit, 'g', lw=.5)
 
-            plt.plot(wave,flux,'orange',lw=.5)
-            plt.plot(wave,flux_norm,'b',lw=.5)
-            plt.plot(wave,flux_fit,'g',lw=.5)
+                plt.title(str(line)+' '+element, size=7, pad=4)
+                plt.tick_params(direction='in', top='on')
+                plt.ylim(ymax=1.03, ymin=0.4)
 
-            plt.title(str(line)+' '+element,size=9,pad=4)
-            plt.tick_params(direction='in',top='on')
-            plt.ylim(ymax=1.03,ymin=0.4)
-            plt.tight_layout()
+                nplot += 1
 
-            plt.close('all')
-            nplot += 1
-
-        pp.savefig(fig); plt.close(fig)
+        fig.tight_layout()
+        pp.savefig(fig)
+        plt.close(fig)
 
         output.add_row(([id]+row_data))
 
@@ -357,26 +383,24 @@ def auto_measure(table='emulated_all.txt', output_table='Emul_RVEWFWs.fits',
 
     pp.close()
 
-    output.write(maindir+'tables/'+output_table,format='fits',overwrite=True)
+    output.write(maindir+'tables/'+output_table, format='fits', overwrite=True)
 
     bar.finish()
 
-    # TO REMOVE TIL RETURN
-    table = Table(); table['ID'] = IDs
-    if func in ['vrg_H','vrg_Z']:
-        table['A1'] = A1; table['x0'] = x0; table['sig1'] = sig1; table['gamma'] = gamma
-        table['vsini'] = vsini; table['A2'] = A2; table['sig2'] = sig2
-    else:
-        table['A1'] = A1; table['x0'] = x0; table['sig'] = sig
-        if func in ['vr_H','vr_Z']:
-            table['gamma'] = gamma; table['vsini'] = vsini
-        elif func == 'r':
-            table['vsini'] = vsini
-        elif func == 'v':
-            table['gamma'] = gamma
-    table = join(output,table,keys='ID',join_type='outer')
-    table.write(maindir+'tables/'+output_table,format='fits',overwrite=True)
-    # # # # # # # #
+    if table_fit_param == True:
+        table = Table(); table['ID'] = IDs
+        if func in ['vrg_H','vrg_Z']:
+            table['A1'] = A1; table['x0'] = x0; table['sig1'] = sig1; table['gamma'] = gamma
+            table['vsini'] = vsini; table['A2'] = A2; table['sig2'] = sig2
+        else:
+            table['A1'] = A1; table['x0'] = x0; table['sig'] = sig
+            if func in ['vr_H','vr_Z']:
+                table['gamma'] = gamma; table['vsini'] = vsini
+            elif func == 'r':
+                table['vsini'] = vsini
+            elif func == 'v':
+                table['gamma'] = gamma
+        table.write(maindir+'tables/param_'+output_table, format='fits', overwrite=True)
 
     return 'DONE'
 

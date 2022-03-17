@@ -22,14 +22,15 @@ Created by: Abel de Burgos
 
 # Python Requirements:
 
-- Python 3.8.2 or above
-- numpy 1.20.2
-- scipy 1.6.2
+- Python 3.8.5 or above
+- numpy 1.21.2
+- scipy 1.7.3
 - random 1.2.2
-- astropy 4.2.1
+- astropy 5.0
 - astroquery 0.4.3
-- matplotlib 3.3.4
+- matplotlib 3.5
 - progressbar 2.5
+- lightkurve 2.1.0
 
 # Other Requirements:
 
