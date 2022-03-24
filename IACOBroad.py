@@ -45,7 +45,7 @@ def ib_input(table='IACOB_O9BAs_SNR20.fits', output_name='input_IB.txt'):
 
             match_IB = input_IB[input_IB['ID'] == id]
 
-            star = spec(id,SNR='best')
+            star = spec(id, SNR='best')
 
             line = 'SiIII4567' # SiIII4567 / SiII6347
 
@@ -144,7 +144,7 @@ def ib_results(input_table='input_IB.txt', check_best=True, format='fits'):
             % filename)
 
         data_row = Table(idldata.d)
-        data_row['filename'] = filename
+        data_row['Ref_file'] = filename
         data_row['QIB'] = QIB
 
         data_rows = vstack([data_rows,data_row])
@@ -178,7 +178,7 @@ def ib_results(input_table='input_IB.txt', check_best=True, format='fits'):
     data_rows['SNR_IB'] = [int(round(row)) for row in data_rows['SNR_IB']]
 
     # Saving the results:
-    names = ['ID','filename','vsini_FT','vmac_FT','vmac_FT_eDW','vmac_FT_eUP','vsini_GF',
+    names = ['ID','Ref_file','vsini_FT','vmac_FT','vmac_FT_eDW','vmac_FT_eUP','vsini_GF',
              'vsini_GF_eDW','vsini_GF_eUP','vmac_GF','vmac_GF_eDW','vmac_GF_eUP',
              'line_IB','EW_IB','SNR_IB','QIB']
 

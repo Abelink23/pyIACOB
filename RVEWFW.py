@@ -1,7 +1,7 @@
 from RV import *
 
 
-def RVEWFW(lines, table='IACOB_O9BAs_SNR20.fits', output_table='RVEWFWs_O9BAs.fits',
+def RVEWFW(lines, table, output_table,
     RV0lines='rv_Bs.lst', RV0tol=150, ewcut=10, snrcut=100, tol=100, redo='n'):
 
     '''
@@ -70,12 +70,13 @@ def RVEWFW(lines, table='IACOB_O9BAs_SNR20.fits', output_table='RVEWFWs_O9BAs.fi
 
         output = Table(
             names = (
-                ['ID','SNR_B','SNR_V','SNR_R']
+                ['ID','Ref_file','SNR_B','SNR_V','SNR_R','RV0']
                 + [j+i for i in [str(round(k)) for k in lines] for j in ['RV_','EW_','FW_','dep_','snr_']]
                 + ['RV_Hb','EW_Hb','FW_Hb','FW14_Hb','FW34_Hb','dep_Hb','gamma_Hb']),
             dtype = (
-                ['S16','float64','float64','float64']
-                + ['float64']*(5*len(lines)+7))
+                ['S16','S50','int64','int64','int64','float64']
+                + ['float64','int64','float64','float64','int64']*len(lines)
+                + ['float64','int64','float64','float64','float64','float64','float64'])
             )
 
     quit = ''
@@ -97,7 +98,7 @@ def RVEWFW(lines, table='IACOB_O9BAs_SNR20.fits', output_table='RVEWFWs_O9BAs.fi
 
             if skip == 's': break
 
-            star = spec(id, SNR='best')
+            star = spec(id, SNR='bestMF')
 
             snr_b = star.snrcalc(zone='B')
             snr_v = star.snrcalc(zone='V')
@@ -121,17 +122,24 @@ def RVEWFW(lines, table='IACOB_O9BAs_SNR20.fits', output_table='RVEWFWs_O9BAs.fi
 
             plt.close()
 
-            star.rv0 = RV0(RV0lines, star.filename, func=fun, ewcut=30, tol=RV0tol)
+            star.rv0 = RV0(RV0lines, star.filename, func='g', ewcut=30, tol=RV0tol)
             star.waveflux(min(lines)-30, max(lines)+30) # PONER MIN MAX EN FUNCION DE LOS LIM DE LINES
             star.cosmic()
             star.plotspec(4500,4600, lines='35-10K')
 
             input(); plt.close()
 
-            T_source = Table([[id],[snr_b],[snr_v],[snr_r]], names=('ID','SNR_B','SNR_V','SNR_R'))
+            T_source = Table(
+                [[id],[star.filename],[snr_b],[snr_v],[snr_r],[round(star.rv0, 2)]],
+                names=('ID','Ref_file','SNR_B','SNR_V','SNR_R','RV0'))
             for line in lines:
                 fit = star.fitline(line, width=wid, tol=tol, func=fun, plot=True)
-                RV,EW,FW,dep,snr = fit['RV_kms']+star.rv0, fit['EW'], fit['FWHM'], fit['depth'], fit['snr']
+
+                RV = round(fit['RV_kms']+star.rv0, 2)
+                EW = fit['EW']
+                FW = fit['FWHM']
+                dep = fit['depth']
+                snr = fit['snr']
 
                 if EW != None:
                     if EW < ewcut:
@@ -177,7 +185,11 @@ def RVEWFW(lines, table='IACOB_O9BAs_SNR20.fits', output_table='RVEWFWs_O9BAs.fi
             plt.close()
 
             fit = star.fitline(4861.325, width=wid, func=fun, iter=1, info=True, outfit=True, plot=True)
-            RV,EW,FW,dep = fit['RV_kms']+star.rv0,fit['EW'],fit['FWHM'],fit['depth']
+
+            RV = round(fit['RV_kms']+star.rv0, 2)
+            EW = fit['EW']
+            FW = fit['FWHM']
+            dep = fit['depth']
 
             for par,val in zip(['RV_Hb','EW_Hb','FW_Hb','dep_Hb'],[RV,EW,FW,dep]):
                 T_source[par] = val
@@ -197,7 +209,7 @@ def RVEWFW(lines, table='IACOB_O9BAs_SNR20.fits', output_table='RVEWFWs_O9BAs.fi
                     except: r_val = wave[medpos[1]]
 
                     T_source[par] = round(r_val-l_val, 3)
-                    T_source['gamma_Hb'] = fit['gamma']
+                    T_source['gamma_Hb'] = round(fit['gamma'], 3)
 
             except:
                 print('Line could not be fitted...')
@@ -295,7 +307,7 @@ def auto_measure(lines, table='IACOB_new_N+M_ToDo.fits', output_table='new_RVEWF
 
         #if int(re.findall('[0-9]+',id)[2]) >= 175: continue
 
-        star = spec(id, SNR='best', txt=txt)
+        star = spec(id, SNR='bestMF', txt=txt)
 
         fig = plt.figure(figsize=(12,10))
         fig.suptitle(id, fontsize=9)
@@ -367,7 +379,9 @@ def auto_measure(lines, table='IACOB_new_N+M_ToDo.fits', output_table='new_RVEWF
                 plt.plot(wave, flux_norm, 'b', lw=.5)
                 plt.plot(wave, flux_fit, 'g', lw=.5)
 
-                plt.title(str(line)+' '+element, size=7, pad=4)
+                plt.title('%s | RV: %d | EW: %d | FWHM: %.2f | SNR: %d' %
+                (line,fit['RV_kms']+star.rv0,fit['EW'],fit['FWHM'],fit['snr']), fontsize=7, pad=4)
+
                 plt.tick_params(direction='in', top='on')
                 plt.ylim(ymax=1.03, ymin=0.4)
 

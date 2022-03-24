@@ -398,7 +398,7 @@ class spec():
                 # Calculate the empirical approximate FWHM
                 medval = (max(flux_fit_i) + min(flux_fit_i))/2
                 medpos = [np.where(flux_fit_i <= medval)[0][value] for value in (0,-1)]
-                FWHM = round(wave[medpos[1]] - wave[medpos[0]],2)
+                FWHM = round(wave[medpos[1]] - wave[medpos[0]], 2)
 
                 # Checking step results
                 # The min FWHM will be defined by either 3 times the dlam, or 3/4 of the
@@ -435,7 +435,7 @@ class spec():
             return fitsol
 
         RV_A   = round((line_f - line), 3)
-        RV_kms = round(((line_f - line)/line)*cte.c/1000, 1) # max precision is 100 m/s
+        RV_kms = round(((line_f - line)/line)*cte.c/1000, 2) # max precision is 100 m/s
         line_f = round(line_f, 3)
 
         if info is True:
@@ -461,10 +461,10 @@ class spec():
                 [wave[medpos[1]], wave[medpos[1]+1]])
         except:
             r_val = wave[medpos[1]]
-        FWHM = round(r_val - l_val, 2)
+        FWHM = round(r_val - l_val, 3)
 
         #======================= Calculate the line depth ======================
-        depth = round(1 - min(flux_fit), 2)
+        depth = round(1 - min(flux_fit), 3)
 
         #===================== Calculate the SNR continuum =====================
         sigma_cont = np.std(flux_norm[mask])
@@ -488,7 +488,7 @@ class spec():
             ax.plot(wave, np.where(mask==False, 1, np.nan) + 0.01, 'k', lw=.5)
 
             ax.set_title('%s | %.2f | RV: %d | EW: %d | FWHM: %.2f | SNR: %d' %
-                (self.id_star,line_f,RV_kms,EW,FWHM,snr), fontsize=7)
+                (self.id_star,line_f,RV_kms,EW,FWHM,snr), fontsize=8)
 
             ax.set_yticks([])
             ax.set_xlabel('$\lambda$ $[\AA]$', size=13)
@@ -518,7 +518,7 @@ class spec():
         #elif func == 'l': jFWHM = 2*abs(popt[2])
         #elif func == 'v': jFWHM = 2*(.5346*popt[3]+np.sqrt(.2166*(popt[3]**2)+popt[2]**2))
         #elif func == 'r': jFWHM = 1.7*popt[3]*line*1000/cte.c
-        #jFWHM = round(jFWHM, 2)
+        #jFWHM = round(jFWHM, 3)
 
 
     def snrcalc(self, zone='v'):

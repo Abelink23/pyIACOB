@@ -15,12 +15,13 @@ import astropy.units as u
 from astropy.io import fits,ascii
 from astropy.table import Table, join, setdiff, vstack, hstack
 from astropy.coordinates import SkyCoord
-from astroquery.vizier import Vizier
+from astroquery.vizier import Vizier # Only used to query in Gaia DR2
 from astroquery.simbad import Simbad
-Simbad.add_votable_fields('flux(B)','flux(V)','sptype')#,'otypes')
+Simbad.add_votable_fields('flux(B)','flux(V)','sptype')
 from astroquery.gaia import Gaia
 sys.path.append(os.path.expanduser('~') + '/MEGA/PhD/programs/python/edr3_zp')
 import zpt; zpt.load_tables()
+
 
 # Load the working paths:
 dir = ''
@@ -662,7 +663,7 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
                 row['Name'] = row['ID'] # '-'
 
             # Reference spectrum (added at the end)
-            filename = source.split('/')[-1][:-5]
+            filename = source.split('/')[-1]
 
             # Gather the coordinates:
             if '_M_' in filename:
@@ -1032,7 +1033,7 @@ def spc_code(spc):
     return spt_c,lc_c
 
 
-def query_Simbad(name=None, ra=None, dec=None, radius='5s'):
+def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False):
 
     '''
     Function to query an object in Simbad database.
@@ -1051,10 +1052,17 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s'):
     radius : str, optional
         Enter a string with the radius for the sky search.
 
+    otypes : boolean, optional
+        If True, the object types will be also queried. Default is False.
+        Note that sometimes this issues some errors.
+
     Returns
     -------
     Queried object in Table format.
     '''
+
+    if otypes is True:
+        Simbad.add_votable_fields('otypes')
 
     if name is not None:
         # For some reason sometimes adding a whitespace fix some querying issues
