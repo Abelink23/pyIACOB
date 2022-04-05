@@ -233,7 +233,7 @@ def RV0(lines, spectrum, ewcut=50, width=20, tol=150, func='g', check_fits=False
 
     RV_0 = np.mean(RVs_f)
 
-    print('\nRV0=%s (%s/%s lines used with std=%s [km/s])\n' %
+    print('\nRV0=%s (%s/%s lines used with std=%s [km/s])' %
         (round(RV_0,2),len(RVs_f),len(lines),round(np.std(RVs_f),2)))
 
     return RV_0

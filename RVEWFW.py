@@ -1,8 +1,8 @@
 from RV import *
 
 
-def RVEWFW(lines, table, output_table,
-    RV0lines='rv_Bs.lst', RV0tol=150, ewcut=10, snrcut=100, tol=100, redo='n'):
+def RVEWFW(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150,
+    ewcut=10, snrcut=100, tol=100, redo='n'):
 
     '''
     Function to interactively calculate and store radial velocity, equivalent
@@ -36,7 +36,7 @@ def RVEWFW(lines, table, output_table,
         to prevent the line properties to be exported if 3/ snr(line) > depth(line)
 
     redo : str, optional
-        Coma separated string with the list of stars for which next the analysis.
+        Coma separated string with the list of stars for which repeat the analysis.
 
     Other parameters : optional
         See help for see spec and spec.fitline
@@ -83,13 +83,17 @@ def RVEWFW(lines, table, output_table,
     for source in table:
         if quit == 'q': break
 
-        id = source['ID']
-        try:
+        if 'Ref_file' in source.colnames:
+            id = source['Ref_file']
+        else:
+            id = source['ID']
+
+        if 'SpC' in source.colnames:
             spt  = source['SpC']
-        except:
+        else:
             spt = ''
 
-        if id in [i.strip() for i in output['ID']]: continue
+        if source['ID'] in [i.strip() for i in output['ID']]: continue
 
         skip = input("%s (%s) - Hit return to continue, type 's' to skip: " % (id,spt))
 
@@ -106,7 +110,7 @@ def RVEWFW(lines, table, output_table,
 
             #===================================================================
             print('\nAnalyzing Si III triplet...\n')
-            star.plotspec(4500,4600)
+            star.plotspec(4510,4600)
 
             fun = '-'
             while fun not in ['g','r','vr_Z','vrg_Z']:
@@ -122,15 +126,15 @@ def RVEWFW(lines, table, output_table,
 
             plt.close()
 
-            star.rv0 = RV0(RV0lines, star.filename, func='g', ewcut=30, tol=RV0tol)
+            star.rv0 = RV0(RV0lines, star.filename, func=RV0fun, ewcut=30, tol=RV0tol)
             star.waveflux(min(lines)-30, max(lines)+30) # PONER MIN MAX EN FUNCION DE LOS LIM DE LINES
             star.cosmic()
-            star.plotspec(4500,4600, lines='35-10K')
+            star.plotspec(4510,4600, lines='35-10K')
 
             input(); plt.close()
 
             T_source = Table(
-                [[id],[star.filename],[snr_b],[snr_v],[snr_r],[round(star.rv0, 2)]],
+                [[star.id_star],[star.filename],[snr_b],[snr_v],[snr_r],[round(star.rv0, 2)]],
                 names=('ID','Ref_file','SNR_B','SNR_V','SNR_R','RV0'))
             for line in lines:
                 fit = star.fitline(line, width=wid, tol=tol, func=fun, plot=True)

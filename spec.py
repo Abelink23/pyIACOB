@@ -576,7 +576,8 @@ class spec():
 
         self.snr = np.nanmean(snr_all)
 
-        return int(round(np.nanmean(snr_all)))
+        if not np.isnan(np.nanmean(snr_all)):
+            return int(round(np.nanmean(snr_all)))
 
 
     def cosmic(self, method='zscore', sigclip=1.5, iter=3, sig_g=None):
