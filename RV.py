@@ -68,7 +68,7 @@ def RV_cc(id_star, windows=[(3950,4160),(4310,4360),(4370,4490),(4540,4690),(484
     ax.figure.subplots_adjust(top=.9,bottom=.1,right=.95,left=.15)
 
     completeName = os.path.join(maindir+'tmp_plots/','RVCC_%s.eps' % id_star)
-    ax.figure.savefig(completeName,dpi=300)
+    fig.savefig(completeName,dpi=300)
 
     plt.show(block=False)
 
@@ -141,7 +141,7 @@ def RV1_cc(spectra1, spectra2, windows=[(3950,4160),(4310,4360),(4370,4490),(454
 
 
 
-def RV0(lines, spectrum, ewcut=50, width=20, tol=150, func='g', check_fits=False, plot=False):
+def RV0(lines, spectrum, txt=False, ewcut=50, width=20, tol=150, func='g', check_fits=False, plot=False):
 
     '''
     Function to...
@@ -179,7 +179,7 @@ def RV0(lines, spectrum, ewcut=50, width=20, tol=150, func='g', check_fits=False
     RVs = []; i = 0
     for line in lines:
 
-        fit = spec(spectrum).fitline(line, width=width, tol=tol, func=func, info=check_fits, outfit=True)
+        fit = spec(spectrum, txt=txt).fitline(line, width=width, tol=tol, func=func, info=check_fits, outfit=True)
 
         if np.isnan(fit['RV_kms']): continue
         elif fit['EW'] < ewcut: continue
@@ -420,9 +420,9 @@ def RV(lines, spectra, SNR=None, linesRV0=None, linecut=1, ewcut=25, width=None,
     ax.set_xlabel('MBJD',size=13)
     ax.set_ylabel('V$_{r}$ [km/s]',size=13)
     ax.tick_params(direction='in',top='on')
-    ax.figure.subplots_adjust(top=.9,bottom=.1,right=.95,left=.15)
+    fig.subplots_adjust(top=.9,bottom=.1,right=.95,left=.15)
 
     completeName = os.path.join(maindir+'tmp_plots/','%s.eps' % ('RV_'+spectrum.id_star))
-    ax.figure.savefig(completeName,dpi=300)
+    fig.savefig(completeName,dpi=300)
 
     plt.show(block=False)

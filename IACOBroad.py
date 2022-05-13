@@ -86,7 +86,7 @@ def ib_input(table='IACOB_O9BAs_SNR20.fits', output_name='input_IB.txt'):
     return 'DONE'
 
 
-def ib_results(input_table='input_IB.txt', check_best=True, format='fits'):
+def ib_results(input_table='input_IB.txt', check_best=False, format='fits'):
 
     '''
     Function to generate a table with the results from IACOB-broad given an input
@@ -139,7 +139,7 @@ def ib_results(input_table='input_IB.txt', check_best=True, format='fits'):
 
         idldata = readsav(match[0])
 
-        if check_best == True and filename != spec(id_star,SNR='best').filename:
+        if check_best == True and filename != spec(id_star,SNR='bestMF').filename:
             print('\nWARNING: %s does not match with best spectrum available.'
             % filename)
 
@@ -172,8 +172,8 @@ def ib_results(input_table='input_IB.txt', check_best=True, format='fits'):
     data_rows['vmac_GF_eUP'] = [i[1] for i in data_rows['EVMGOF']]
 
     # Post calculation modifications:
-    data_rows['vmac_GF_eUP'][data_rows['vmac_GF'] > 120] = np.nan
-    data_rows['vmac_GF_eDW'][data_rows['vmac_GF'] > 120] = np.nan
+    #data_rows['vmac_GF_eUP'][data_rows['vmac_GF'] > 120] = np.nan
+    #data_rows['vmac_GF_eDW'][data_rows['vmac_GF'] > 120] = np.nan
     data_rows['vmac_GF'][data_rows['vmac_GF'] > 120] = 120
     data_rows['SNR_IB'] = [int(round(row)) for row in data_rows['SNR_IB']]
 

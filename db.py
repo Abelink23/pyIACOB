@@ -42,7 +42,7 @@ datadir = dirs['data']
 ibdir   = dirs['ib']
 mauidir = dirs['maui']
 mistdir = dirs['mist']
-
+tessdir = dirs['tess']
 
 def search(myfile, path):
 
@@ -155,19 +155,23 @@ def findstar(spectra=None, SNR=None):
         return None #quit()
 
     # Spectra selection based on selected SNR.
-    if SNR == 'best':
-        dir_spectra = snr(dir_spectra)
+    if any(['ascii' in spectrum for spectrum in list_spectra]) and SNR != None:
+        print('SNR for ascii files is not yet implemented, ignoring SNR keyword.')
 
-    elif SNR == 'bestMF':
-        dir_spectra = snr(dir_spectra, get_MF=True)
+    else:    
+        if SNR == 'best':
+            dir_spectra = snr(dir_spectra)
 
-    elif type(SNR) == int:
-        dir_spectra = snr(dir_spectra, snrcut=SNR)
+        elif SNR == 'bestMF':
+            dir_spectra = snr(dir_spectra, get_MF=True)
+
+        elif type(SNR) == int:
+            dir_spectra = snr(dir_spectra, snrcut=SNR)
 
     # Order all spectra from a single target by date.
     if len(list_spectra) == 1:
         dir_spectra = sorted(dir_spectra, key = lambda path: \
-        path.split('/')[-1].split('_')[1] + path.split('/')[-1].split('_')[2])
+        path.split(os.sep)[-1].split('_')[1] + path.split(os.sep)[-1].split('_')[2])
 
     return dir_spectra
 
@@ -299,10 +303,13 @@ def findlist(list):
     return items
 
 
-def findtable(table, path=None, delimiter=' ', header_start=None, fits_strip_end=True, fix_missing=False):
+def findtable(table, path=None, format=None, delimiter=' ', header_start=None,
+    fits_strip_end=True, fix_missing=False):
 
     '''
-    Function to get the data from a FITS-format table.
+    Function to get the data from a table with different formats.
+    See https://docs.astropy.org/en/stable/io/ascii/read.html for more details
+    of 'format', 'delimiter' and 'header_start' keywords.
 
     Parameters
     ----------
@@ -311,6 +318,10 @@ def findtable(table, path=None, delimiter=' ', header_start=None, fits_strip_end
 
     path : str, optional
         Path where to search for the file.
+
+    format : str, optional
+        Format of the input table. See ascii.read() and Table.read() documentation.
+        Default is None.
 
     delimiter : str, optional
         The string used to separate values. Default is a whitespace.
@@ -337,6 +348,10 @@ def findtable(table, path=None, delimiter=' ', header_start=None, fits_strip_end
     if table_dir == None:
         return None
 
+    if 'csv' in table.split('.') or format == 'csv':
+        delimiter = ','
+        format = 'csv'
+
     if '.fits' in table:
         #try:
         #    with fits.open(table_dir,mode='readonly') as hdu_list:
@@ -350,14 +365,11 @@ def findtable(table, path=None, delimiter=' ', header_start=None, fits_strip_end
             for col in tostrip:
                  data[col] = [i.strip() if np.ma.is_masked(i) == False else i for i in data[col]]
 
-    elif '.csv' in table:
-        data = Table.read(table_dir, format='csv')
-
     elif header_start != None:
-        data = ascii.read(table_dir, header_start=header_start, delimiter=delimiter)
+        data = ascii.read(table_dir, header_start=header_start, format=format, delimiter=delimiter)
 
     else:
-        data = ascii.read(table_dir, delimiter=delimiter)
+        data = ascii.read(table_dir, format=format, delimiter=delimiter)
         #    data = Table.read(table_dir, format='ascii', delimiter=delimiter, fill_values=None)
         # header_start is not included as a keyword as it slows down the process when is None
 
@@ -478,7 +490,7 @@ def snr(spectra, snrcut=None, get_MF=None):
 
     names_stars = []
     for spectrum in spectra:
-        id_star = spectrum.split('/')[-1].split('_')[0]
+        id_star = spectrum.split(os.sep)[-1].split('_')[0]
         if id_star not in names_stars:
             names_stars.append(id_star)
 
@@ -487,7 +499,7 @@ def snr(spectra, snrcut=None, get_MF=None):
         SNR_best = 0
         SNR_best_MF = 0
         for spectrum in spectra:
-            filename = spectrum.split('/')[-1].split('_')
+            filename = spectrum.split(os.sep)[-1].split('_')
             id_star = filename[0]
             date = int(filename[1]+filename[2])
             instr = filename[3]
@@ -654,7 +666,7 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
             hdu0 = hdu[0]            # Load the header list of primary header
             header = hdu0.header     # Read the values of the headers
 
-            row['ID'] = [source.split('/')[-1].split('_')[0]]
+            row['ID'] = [source.split(os.sep)[-1].split('_')[0]]
 
             # Official name (not implemented yet)
             try:
@@ -663,7 +675,7 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
                 row['Name'] = row['ID'] # '-'
 
             # Reference spectrum (added at the end)
-            filename = source.split('/')[-1]
+            filename = source.split(os.sep)[-1]
 
             # Gather the coordinates:
             if '_M_' in filename:
@@ -1199,13 +1211,18 @@ def query_Gaia(gaia='edr3', name=None, ra=None, dec=None, radec=None, radius=5, 
         print('\nERROR: Name or RA+DEC is required for the query...')
         return None
 
-    width  = u.Quantity(5, u.arcsec)
-    height = u.Quantity(5, u.arcsec)
+    #width  = u.Quantity(radius, u.arcsec)
+    #height = u.Quantity(radius, u.arcsec)
+    #query = Gaia.query_object_async(coordinate=RADEC, width=width, height=height)
 
-    query = Gaia.query_object_async(coordinate=RADEC, width=width, height=height)
+    radius = u.Quantity(radius, u.arcsec)
+    query = Gaia.cone_search_async(coordinate=RADEC, radius=radius)
 
     if len(query) == 0:
-        print('Gaia query failed for object with RA DEC =',RADEC.ra,RADEC.dec)
+        if name is not None:
+            print('Gaia query failed for object',name)
+        else:
+            print('Gaia query failed for object with RA DEC =',RADEC.ra,RADEC.dec)
         return None
 
     if len(query) > 1:
@@ -1229,7 +1246,8 @@ def query_Gaia(gaia='edr3', name=None, ra=None, dec=None, radec=None, radius=5, 
     query['ID'] = name
 
     query = query[['ID'] + [i for i in query.colnames][:-1]]
-    query.remove_column('designation')
+    if 'DESIGNATION' in query.colnames:
+        query.remove_column('DESIGNATION')
 
     return query
 
@@ -1271,8 +1289,8 @@ def checknames(list, max_dist=90):
         bar.update(i + dir_spectra.index(spectrum))
         #time.sleep(0.1)
 
-        filename = spectrum.split('/')[-1]
-        id_star = spectrum.split('/')[-1].split('_')[0]
+        filename = spectrum.split(os.sep)[-1]
+        id_star = spectrum.split(os.sep)[-1].split('_')[0]
 
         # Problems quering in Simbad
         if not id_star in type_errors['Simbad']:
@@ -1303,7 +1321,7 @@ def checknames(list, max_dist=90):
             date_0_short = str(date_0[6:10]) + str(date_0[11:13]) + str(date_0[14:16])
 
         # Get the date from the filename
-        date_filename = spectrum.split('/')[-1].split('_')[1]
+        date_filename = spectrum.split(os.sep)[-1].split('_')[1]
 
         # Catch two+ files with same date in header but different filenames
         # e.g. HD111111 and HDE111111
@@ -1400,8 +1418,8 @@ def checkfits(list, coords_Simbad=True, radius=60, savepath=''):
 
     for spectrum in dir_spectra:
 
-        filename = spectrum.split('/')[-1]
-        id_star = spectrum.split('/')[-1].split('_')[0]
+        filename = spectrum.split(os.sep)[-1]
+        id_star = spectrum.split(os.sep)[-1].split('_')[0]
 
         # Retrieve the key values fron the fits header
         hdu = fits.open(spectrum) # Open the fits image file

@@ -22,11 +22,12 @@ plt.rc('ytick', direction='in', right='on')
 
 
 class spec():
-    def __init__(self, spectrum, SNR=None, rv0=0, offset=0, txt=False):
+    def __init__(self, spectrum, SNR=None, rv0=0, offset=0, txt=False, cut_edges=False):
 
         '''
         Parameters
         ----------
+
         spectrum : str
             Enter the input spectrum, either name(s) of the star(s), the fits files
             separated by coma, a .txt/.lst file containing the filenames, or '*'
@@ -43,7 +44,8 @@ class spec():
             Enter the offset in wavelength [A] of the spectrum to plot. Default is 0.
 
         txt : boolean, optional
-            If True, it assumes spectrum from a two-columns file with wavelenght and flux.
+            If True, it assumes spectrum from a two-columns file with wavelenght and flux
+            with no header in the file.
         '''
 
         if type(spectrum) == list:
@@ -52,14 +54,13 @@ class spec():
                 return None
             else: spectrum = spectrum[0]
 
-        if (SNR in ['best','bestMF'] or '.fits' in spectrum) and not txt == True:
-            try: self.spectrum = findstar(spectrum, SNR=SNR)[0]
-            except: self.spectrum = None
-
-        else: self.spectrum = spectrum
-
-        self.filename = self.spectrum.split('/')[-1]
-        self.id_star = self.spectrum.split('/')[-1].split('_')[0]
+        self.spectrum = findstar(spectrum, SNR=SNR)
+        if len(self.spectrum) > 1:
+            print('Error: More than one spectrum selected.\nExitting...')
+            return None
+        self.spectrum = self.spectrum[0]
+        self.filename = self.spectrum.split(os.sep)[-1]
+        self.id_star = self.spectrum.split(os.sep)[-1].split('_')[0]
 
         self.resolution = int(re.split('(\d*\d+)',self.spectrum)[-2])
 
@@ -68,13 +69,13 @@ class spec():
         self.rv0 = rv0 # Note, run self.waveflux to apply the correction.
 
         if txt == False:
-            self.waveflux()
+            self.waveflux(cut_edges=cut_edges)
         elif txt == True:
-            self.txtwaveflux()
+            self.txtwaveflux(cut_edges=cut_edges)
         self.txt = txt
 
 
-    def spc(self):
+    def get_spc(self):
 
         '''
         Function to retrieve the spectral classification of the star from Simbad
@@ -93,7 +94,7 @@ class spec():
             self.SpC = ''
 
 
-    def waveflux(self, lwl=None, rwl=None, width=0, helcorr='hel'):
+    def waveflux(self, lwl=None, rwl=None, width=0, helcorr='hel', cut_edges=False):
 
         '''
         Function to load or update the wavelenght and flux vectors and optionally apply
@@ -122,6 +123,7 @@ class spec():
 
         # Retrieve the key values fron the fits header
         hdu = fits.open(self.spectrum)  # Open the fits image file
+        hdu.verify('fix')               # Fix possible issues with the keywords
         header0 = hdu[0].header         # Read header of primary extension
 
         instrum = header0['INSTRUME']   # Instrument
@@ -136,23 +138,31 @@ class spec():
         if any(bad in self.spectrum for bad in ['_20101018_','_20101019_']) and lam0 == 3763.9375:
             lam0 = 3763.61
 
-        try: vbar = header0['I-VBAR'] # [km/s] Barycent. rv correction at midpoint
+        try:
+            vbar = header0['I-VBAR'] # [km/s] Barycent. rv correction at midpoint
         #    vbar = header0['BVCOR']  # [km/s] Barycent. rv correction at midpoint | MERCATOR
         #    vbar = header0['VHELIO'] # [km/s] Barycent. rv correction at midpoint | NOT
-        except: print('No helio/bary-centric correction applied to' + self.spectrum); vbar = 0
+        except:
+            print('No helio/bary-centric correction applied to' + self.spectrum); vbar = 0
 
         self.vbar = vbar
 
-        try: hjd = header0['I-HJD']   # Heliocentric Julian date at midpoint
-        except: hjd = Time(header0['DATE'],scale='utc').jd
+        try:
+            hjd = header0['I-HJD']   # Heliocentric Julian date at midpoint
+        except:
+            hjd = Time(header0['DATE'], scale='utc').jd
 
         self.hjd = hjd
 
         try:
-            I_SNR = header0['I-SNR']  # SNR from header
-        except: I_SNR = np.nan
+            self.snr = header0['I-SNR']  # SNR from header
+        except:
+            self.snr = np.nan
 
-        self.snr = I_SNR
+        try:
+            self.SpC = header0['I-SPC']  # SpC from header
+        except:
+            self.SpC = ''
 
         # Make lists with wavelenght and flux for each spectrum
         if width >= 200:
@@ -174,6 +184,19 @@ class spec():
             flux = hdu[0].data[0]
         except:
             flux = hdu[0].data
+
+        if cut_edges == True:
+            if flux[1] < flux[0]:
+                l_cut = next(pix for pix in range(len(wave)) if flux[pix+1] > flux[pix])
+            else:
+                l_cut = next(pix for pix in range(len(wave)) if flux[pix+1] < flux[pix])
+            if flux[-2] < flux[-1]:
+                r_cut = next(pix for pix in reversed(range(len(wave))) if flux[pix-1] > flux[pix])
+            else:
+                r_cut = next(pix for pix in reversed(range(len(wave))) if flux[pix-1] < flux[pix])
+
+            wave = wave[l_cut:r_cut]
+            flux = flux[l_cut:r_cut]
 
         if lwl != None and rwl != None:
             if wave[0] > lwl+dlam or wave[-1] < rwl-dlam:
@@ -197,17 +220,17 @@ class spec():
         return wave, flux, hjd
 
 
-    def txtwaveflux(self, lwl=None, rwl=None, width=0):
+    def txtwaveflux(self, lwl=None, rwl=None, width=0, cut_edges=False):
 
         '''
-        Equivalent to spec.waveflux but for spectra coming from ascii files.
+        Equivalent to spec.waveflux() but for spectra coming from ascii files.
 
         Parameters
         ----------
         See help for spec.waveflux
         '''
 
-        data = findtable(self.spectrum, path=datadir+'ASCII/')
+        data = findtable(self.spectrum, path=datadir+'ASCII/', format='no_header')
 
         try:
             wave = np.asarray(data['wavelenght'])
@@ -220,6 +243,13 @@ class spec():
 
         wave = wave - self.offset
 
+        if cut_edges == True:
+            l_cut = next(pix for pix in range(len(wave)) if flux[pix+1] > flux[pix])
+            r_cut = next(pix for pix in reversed(range(len(wave))) if flux[pix-1] > flux[pix])
+
+            wave = wave[l_cut:r_cut]
+            flux = flux[l_cut:r_cut]
+
         if lwl != None and rwl != None:
             dlam = (wave[-1]-wave[0])/(len(wave)-1)
             if wave[0] > lwl+dlam or wave[-1] < rwl-dlam:
@@ -230,6 +260,8 @@ class spec():
         self.dlam = (wave[-1]-wave[0])/len(wave)
         self.vbar = 0
         self.hjd = 0
+
+        self.get_spc()
 
         self.wave_0 = wave
         self.flux_0 = flux
@@ -580,7 +612,10 @@ class spec():
             return int(round(np.nanmean(snr_all)))
 
 
-    def cosmic(self, method='zscore', sigclip=1.5, iter=3, sig_g=None):
+    def cosmic(self, method='zscore',
+        dmin=0.05, zs_cut=5,
+        wl_split=100, ker_sig=2, ker_iter=3, sig_g=None,
+        protect_em_lines=True):
 
         '''
         Function to remove cosmic rays in the spectra by different approaches.
@@ -590,15 +625,32 @@ class spec():
         method : str, optional
             Method for the cosmic ray removal strategy. Only zscore (def) or kernel.
 
-        sigclip : float, optional
-            Sigma clipping value used to remove rays. Default is 1.5.
+        dmin : int/float, optional
+            Minium distance between flux and cleaned flux to consider for replacement.
+            Default is 0.05.
 
-        iter : int, optional
-            Number of iterations of the sigma clipping to remove cosmic rays.
+        zs_cut : int/float, optional
+            Threshold value used in the zscore method for finding rays. Default is 4.
+            Tip: For noisy spectra, rise this value up to 7-9.
+
+        wl_split : int/float, optional
+            In the 'kernel' method, wavelenght size used to split the spectrum before
+            applying the cosmic removal. Default is 100.
+
+        ker_sig : float, optional
+            Sigma clipping value used to remove rays. Default is 2.
+
+        ker_iter : int, optional
+            Number of iterations of the sigma clipping to remove cosmic rays in the kernel method.
+            Default is 3.
 
         sig_g : float, optional
             Sigma of the gaussian function used to construct the kernel.
             Default is the theoretical sigma based on wavelenght and resolution.
+
+        protect_em_lines : boolean, optional
+            If True, some emission lines will be masked from cosmic rays removal.
+            Default is True.
 
         Returns
         -------
@@ -609,44 +661,84 @@ class spec():
             # www.towardsdatascience.com/removing-spikes-from-raman-spectra-8a9fdda0ac22
 
             # First we calculated (nabla)x(i):
-            delta_flux = [self.flux[i+1] - self.flux[i] for i in np.arange(len(self.flux) - 1)]
-
+            delta_flux = np.diff(self.flux)
             median_int = np.median(delta_flux)
             mad_int = np.median([np.abs(delta_flux - median_int)])
             modified_z_scores = 0.6745 * (delta_flux - median_int) / mad_int
             # The multiplier 0.6745 is the 0.75th quartile of the standard normal
             # distribution, to which the median absolute deviation converges to.
+            modified_z_scores =  np.concatenate(([0], np.abs(modified_z_scores)))
 
-            flux_norm =  np.concatenate(([1], abs(modified_z_scores)))
+            flux_clean = np.where(modified_z_scores > zs_cut, np.nan, self.flux)
 
         elif method == 'kernel':
-            if sig_g == None:
-                lambda0 = np.mean(self.wave)
-                # Two times the theoretical sigma offers better results
-                sigma = 2*lambda0/(2.35482*float(self.resolution))
-            else:
-                sig_g = float(sig_g)
 
-            x = np.arange(-5*sigma, 5*sigma + self.dlam, self.dlam)
-            gauss = f_gaussian(x,sigma)
-            kernel = gauss/np.trapz(gauss)
+            wl_split = 100 # Range in angstroms in which the spectrum will be initially splitted
 
-            convoluted = 1 + convolve(self.flux - 1, kernel, mode='same')
+            wl_range = self.wave[-1]-self.wave[0]
+            if wl_range < wl_split:
+                wl_split = wl_range
 
-            flux_norm = self.flux/convoluted
+            if 1 < wl_range/wl_split <= 2:
+                wl_split = wl_range/2 + 1
+            elif wl_range/wl_split > 2:
+                wl_split += (wl_range % wl_split) / int(wl_range/wl_split)
 
-        for i in range(iter):
-            std = np.nanstd(flux_norm)
-            flux_norm = np.where(abs(flux_norm - 1) > sigclip*std, np.nan, flux_norm)
+            n = int(wl_range/wl_split)
 
-        flux_clean = np.where(np.isnan(flux_norm), np.nan, self.flux)
+            flux_clean = []
+            for i in range(n):
+
+                mask = (self.wave >= self.wave[0]+i*wl_split) & (self.wave < self.wave[0]+(i+1)*wl_split)
+                if i == range(n)[-1]:
+                    mask[-1] = True # To catch the last flux value from not using <= above
+
+                resolution = float(self.resolution) # resolution = 5000 # Empirical optimal value
+                dlam = self.dlam # dlam = 0.2564975 # Empirical optimal value
+
+                if sig_g == None:
+                    lambda0 = np.mean(self.wave[mask])
+                    sig_g = lambda0/(2.35482*resolution)
+                else:
+                    sig_g = float(sig_g)
+
+                x = np.arange(-5*sig_g, 5*sig_g+dlam, dlam)
+                gauss = f_gaussian(x,sig_g)
+                kernel = gauss/np.trapz(gauss)
+
+                convoluted = 1 + convolve(self.flux[mask] - 1, kernel, mode='same')
+
+                flux_norm = self.flux[mask]/convoluted
+
+                for i in range(ker_iter):
+                    std = np.nanstd(flux_norm)
+                    flux_norm = np.where(abs(flux_norm - 1) > ker_sig*std, np.nan, flux_norm)
+
+                flux_clean = np.concatenate([flux_clean,np.where(np.isnan(flux_norm), np.nan, self.flux[mask])])
 
         nans = np.isnan(flux_clean)
         x = lambda z: z.nonzero()[0]
         flux_clean[nans] = np.interp(x(nans), x(~nans), flux_clean[~nans])
 
-        flux_clean = np.where((flux_clean > self.flux) | (abs(flux_clean-self.flux) < 0.05),
-            self.flux,flux_clean)
+        # Recover the original flux in the regions of the spectrum where telluric lines are
+        flux_clean = np.where(
+              ((self.wave > 5885.0) & (self.wave < 5900.0))
+            | ((self.wave > 6865.0) & (self.wave < 7035.0))
+            | ((self.wave > 7160.0) & (self.wave < 7340.0))
+            | ((self.wave > 7585.0) & (self.wave < 7700.0))
+            | ((self.wave > 8116.0) & (self.wave < 8380.0))
+            | ((self.wave > 8915.0) & (self.wave < 9220.0))
+               ,self.flux, flux_clean)
+
+        # Recover the original flux in the regions of the spectrum where emission lines are
+        if protect_em_lines == True:
+            for wl_em in [3967.79,4958.911,5006.843,6300.304,6548.04,6583.46,6716.44,6730.82]:
+                mask = (self.wave > wl_em-0.8) & (self.wave < wl_em+0.8)
+                flux_clean[mask] = self.flux[mask]
+
+        # Recover the original flux if the difference is lower than dmin value
+        flux_clean = np.where(
+            (self.flux > flux_clean) & (self.flux - flux_clean > dmin), flux_clean, self.flux)
 
         self.flux = flux_clean
 
@@ -750,15 +842,14 @@ class spec():
             # It is divided by 3 to at least have 3 pixels in a gaussian
             print('WARNING: The new delta lambda implies lossing information...')
 
-        if lwl == None and rwl == None:
+        if lwl == None or lwl < self.wave[0]:
             lwl = self.wave[0]
+        if rwl == None or rwl > self.wave[-1]:
             rwl = self.wave[-1]
 
         f = interp1d(self.wave, self.flux, kind=method, fill_value='extrapolate')
         self.wave = np.arange(lwl, rwl+self.dlam, self.dlam)
         self.flux = f(self.wave)
-
-        return None
 
 
     def export(self, tail='', extension='.dat'):
@@ -810,7 +901,7 @@ class spec():
         Nothing, but the plots are generated.
         '''
 
-        self.spc()
+        self.get_spc()
 
         lines,elements,_ = findlines(lines)
         if len(lines) > 1:
@@ -874,7 +965,7 @@ class spec():
         Nothing, but the plots are generated.
         '''
 
-        self.spc()
+        self.get_spc()
 
         if lwl < min(self.wave):
             lwl = min(self.wave)

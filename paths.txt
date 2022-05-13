@@ -3,3 +3,4 @@ data=/Users/abelink/Documents/DB/
 maui=/Users/abelink/Documents/MAUI/
 ib=/Users/abelink/MEGA/PhD/programs/idl/broadanalys/
 mist=/Users/abelink/Documents/MIST/
+tess=/Users/abelink/Documents/TESS/

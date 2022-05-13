@@ -218,31 +218,31 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
             continue
 
         # Filter based on Si lines properties:
-        if ('QSiII' in table.columns and row['QSiII']<3) \
-          or match_REF['EWSiII']<50 or np.isnan(match_REF['EWSiII']) \
-          or match_REF['depSiII']<3/match_REF['SNR_B']:
-            SiIIFG = 0
-        else: SiIIFG = 1
+        #if ('QSiII' in table.columns and row['QSiII']<3) \
+        #  or match_REF['EWSiII']<50 or np.isnan(match_REF['EWSiII']) \
+        #  or match_REF['depSiII']<3/match_REF['SNR_B']:
+        #    SiIIFG = 0
+        #else: SiIIFG = 1
 
-        if ('QSiIII' in table.columns and row['QSiIII']<3) \
-          or match_REF['EWSiIII1']<50 or np.isnan(match_REF['EWSiIII1']) \
-          or match_REF['depSiIII1']<3/match_REF['SNR_B']:
-            SiIIIFG = 0
-        else: SiIIIFG = 1
+        #if ('QSiIII' in table.columns and row['QSiIII']<3) \
+        #  or match_REF['EWSiIII1']<50 or np.isnan(match_REF['EWSiIII1']) \
+        #  or match_REF['depSiIII1']<3/match_REF['SNR_B']:
+        #    SiIIIFG = 0
+        #else: SiIIIFG = 1
 
-        if SiIIIFG == 0 and SiIIFG == 0:
-            print('Info: No SiIII/SiII found for %s, skipping...\n' % id)
-            continue
+        #if SiIIIFG == 0 and SiIIFG == 0:
+        #    print('Info: No SiIII/SiII found for %s, skipping...\n' % id)
+        #    continue
 
-        star = spec(id, SNR='best')
+        star = spec(id, SNR='bestMF')
 
-        if match_IB['filename'][0] != star.filename:
+        if match_IB['Ref_file'][0] != star.filename:
             print('WARNING: Different files from best SNR and from IB results for %s' % id)
-            print(star.filename,' vs ',match_IB['filename'][0])
+            print(star.filename,' vs ',match_IB['Ref_file'][0])
             if ascii == True:
                 do_file = input('Which ascii do you want to create 1 or 2: ')
                 if int(do_file) == 1: star.filename = star.filename
-                elif int(do_file) == 2: star.filename = match_IB['filename'][0]
+                elif int(do_file) == 2: star.filename = match_IB['Ref_file'][0]
 
         if do_ascii == True and not search(star.filename[:-5]+'_RV.ascii',\
         os.path.expanduser('~')+'/Documents/MAUI/SPECTRA/') is None:
@@ -262,59 +262,22 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
 
         if do_ascii == True:
 
-            from RV import RV0
-
+            ''' aqui se mete el nuevo programa para generar los ascii (spec_posproc)
+            con un keyword que sera el de RV0=True/False/el valor match_REF['RVSiIII1']
+            si se cumple lo primero de abajo, y si no gen_ascii(,RV0=False,)
+            '''
             # If RV SiIII is good enough, it uses it for the rv0 correction:
-            if abs(match_REF['RVSiIII1']-match_REF['RVHb']) < 10:
-                star.rv0 = match_REF['RVSiIII1']
-                star.waveflux() # Applies the rv0 correction to the wavelenght vector.
+            if not np.ma.is_masked(match_REF['RV_4553']) and (match_REF['EW_4553'] > 50) \
+                and abs(match_REF['RV_4553']-match_REF['RV_Hb']) < 10:
+                rv_corr = match_REF['RV_4553']
                 print('RV good enough.\n')
 
             # Otherwise it calculates the rv0 correction with the RV package:
             else:
-                next = 'n'
-                while next == 'n':
+                rv_corr = True
 
-                    skip = input('%s - Hit return to continue, type "s" to skip: ' % id)
-                    if skip == 's': break
-
-                    if 'SpT_code' not in table.colnames or row['SpT_code'] <= 2.5:
-                        star.plotspec(4530, 4590)
-                    else:
-                        star.plotspec(6337.11, 6357.11)
-
-                    SpT = '-'
-                    while SpT not in ['O','B','A']:
-                        SpT = input('Choose SpT for the RV0 list of lines (default is B): ')
-                        if SpT == '' or SpT == 'B': SpT = 'B'; spt_list = 'rv_Bs.lst'
-                        elif SpT == 'A': SpT = 'A'; spt_list = 'rv_As.lst'
-                        elif SpT == 'O': SpT = 'O'; spt_list = 'rv_Os.lst'
-                    fun = '-'
-                    while fun not in ['g','l','v','r','vr']:
-                        fun = input('Choose function to fit between g/l/v/r/vr (default is g): ')
-                        if fun == '': fun = 'g'
-                    wid = '-'
-                    while type(wid) is not float:
-                        wid = input('Choose the initial width in angstroms (default is 15): ')
-                        if wid == '': wid = 15.
-                        else: wid = float(wid)
-
-                    plt.close()
-
-                    star.rv0 = RV0(spt_list,star.filename,ewcut=30,width=wid,tol=RV0tol,func=fun)
-                    star.waveflux() # Applies the rv0 correction
-                    #star.cosmic(sigclip=0.005)
-
-                    if 'SpT_code' not in table.colnames or row['SpT_code'] <= 2.5:
-                        star.plotspec(4530, 4590, lines='35-10K')
-                    else:
-                        star.plotspec(6337.11, 6357.11, lines='35-10K')
-
-                    input(); plt.close('all')
-
-                    next = input('Type "n" to repeat, hit return to move to the next star. ')
-
-            star.export(tail='_RV', extension='.ascii')
+            gen_ascii(star.filename, db_table=table, spt='auto', rv_corr=rv_corr, RV0tol=200,
+                cosmetic=True, cosmic=True, degrade=None, show_plot=True)
 
         # MAUI input last modifications:
         #if star.resolution > 65000: star.resolution = 80000

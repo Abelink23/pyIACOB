@@ -1,134 +1,581 @@
 from db import *
 
-from astroquery.mast import Observations
+import matplotlib.pyplot as plt
 
-from lightkurve import search_targetpixelfile, search_lightcurve
+import lightkurve as lk
+
+from copy import deepcopy
 
 # https://docs.lightkurve.org/
 # https://docs.lightkurve.org/tutorials/
 # https://docs.lightkurve.org/reference/api/lightkurve.KeplerTargetPixelFile.html
 
-class LC():
+def query_lc(ID, method='simple', mission=(), author='any', cadence=None,
+    sec=None, image_size=20, quarter=None, campaign=None, download_dir=tessdir):
 
-    def __init__(self, ID, kic=None):
+    '''
+    Function to get the lightcurve of a target source by using the lightkurve
+    package.
 
-        self.id_star = ID
-        if kic is not None:
-            self.kic = kic
+    Parameters
+    ----------
+    ID : str
+        ID of the source to query.
 
+    method : str
+        Method used to query the lightcurve.
+        'simple' uses the lk.search_lightcurve method to find available observations. (Default)
+        'tpf' uses lk.search_targetpixelfile method.
+        'tesscut' uses lk.search_tesscut method.
 
-    def query_lc(self, mission=[], quarter=None, sector=None):
+    mission : str/tuple of str, optional
+        'Kepler', 'K2', or 'TESS'. By default, all will be returned.
 
-        if hasattr(self, 'kic'):
-            lc = search_lightcurve(self.kic, mission=mission, quarter=quarter)
+    author : str/tuple of str, optional
+        Author of the data product ('provenance_name' in the MAST API).
+        Official Kepler, K2, and TESS pipeline products have author names
+        'Kepler', 'K2', and 'SPOC'. By default, all will be returned.
+
+    cadence : 'long'/'short'/'fast'/int/float, optional
+        Synonym for 'exptime':
+        - 'long' selects 10-min and 30-min cadence products.
+        - 'short' selects 1-min and 2-min products.
+        - 'fast' selects 20-sec products.
+        Alternatively, you can pass the exact exposure in seconds.
+        This keyword will likely be deprecated in the future.
+
+    sec : int/list of ints, optional
+        TESS Sector number. By default, all will be returned.
+
+    image_size : int/float/tuple, optional
+        Side length of cutout in pixels. Tuples should have dimensions (y, x).
+        Default size is (5, 5).
+
+    quarter : int/list of ints, optional
+        Kepler Quarter. By default, all will be returned.
+
+    campaign : int/list of ints, optional
+        K2 Campaign. By default, all will be returned.
+
+    Returns
+    -------
+    Lightkurve object of the queried target.
+    '''
+
+    ID = ID.strip()
+
+    if mission == None:
+        if ID.startswith(('TIC','tic')):
+            mission = 'TESS'
+            quarter = campaign = None
+        elif ID.startswith(('KIC','kic','KPLR','kplr','KTWO','ktwo','K2','k2')):
+            mission = ('Kepler','K2')
+            sec = None
         else:
-            lc = search_lightcurve(self.id_star, mission=mission, quarter=quarter, sector=sector)
+            mission = ()
 
-        print(lc)
-        self.lc = lc.download()
+    while method not in ['simple','tpf','tesscut']:
+        method = input('Input method is not available, please type a valid one: ')
 
+    if method == 'simple':
+        lc = lk.search_lightcurve(ID, mission=mission, author=author, cadence=cadence,
+            sector=sec, quarter=quarter, campaign=campaign)
 
-    def query_pixfile(self, mission=[], quarter=None, sector=None):
+    if method == 'tpf':
+        lc = lk.search_targetpixelfile(ID, mission=mission, author=author, cadence=cadence,
+            sector=sec, quarter=quarter, campaign=campaign)
 
-        if hasattr(self, 'kic'):
-            tpf = search_targetpixelfile(self.kic, mission=mission, quarter=quarter)
-        else:
-            tpf = search_targetpixelfile(self.id_star, mission=mission, quarter=quarter, sector=[])
+    if method == 'tesscut':
+        mission = author = 'TESS'
+        lc = lk.search_tesscut(ID, sector=sec)
 
-        print(tpf)
-        self.tpf = tpf.download()
+    if len(lc) == 0:
+        print('No data-product found for this query.\n')
+        return None
 
+    print(lc)
 
-    def change_aperture(self):
+    select = input('Please select which observation you want to download (#,:): ')
+    if select == ':':
+        lc =  lc.download_all(cutout_size=image_size, download_dir=download_dir)
+    else:
+        lc = lc[int(select)]
+        lc = lc.download(cutout_size=image_size, download_dir=download_dir) # NOT FULLY WORKING, FIX
 
-        '''
-        Function to visually change the tpf mask.
+    lc.id = ID.replace(' ','')
 
-        Parameters
-        ----------
-        tpf : lightkurve.targetpixelfile.KeplerTargetPixelFile
-            Enter the tpf.
+    if not os.path.isdir(tessdir+ID):
+        os.mkdir(tessdir+ID)
+        os.mkdir(tessdir+ID+'/plots/')
+        os.mkdir(tessdir+ID+'/lightcurve/')
+        print ("Directory tree created in %s " % (tessdir+ID))
 
-        Returns
-        -------
-        New mask for the fpf.
-        '''
+    else:
+        if not os.path.isdir(tessdir+ID+'/plots/'):
+            os.mkdir(tessdir+ID+'/plots/')
+        if not os.path.isdir(tessdir+ID+'/lightcurve/'):
+            os.mkdir(tessdir+ID+'/lightcurve/')
 
-        if hasattr(self, 'tpf'):
-
-            new_mask = self.tpf.pipeline_mask; change = 'y'
-            while change == 'y':
-
-                print('Showing original mask...')
-                self.tpf.plot(aperture_mask=new_mask)
-                print([[1 if i == True else 0 for i in j] for j in new_mask.tolist()])
-
-                change = input('Do you want to change it? [n/y]: ')
-                if change == 'y':
-
-                    raw,col,val = input('Use raw,column,0/1: ').split(',')
-                    if val == '1':
-                        val = True
-                    elif val == '0':
-                        val = False
-
-                    new_mask[int(raw)][int(col)] = val
-
-            print('Showing final mask...')
-            self.tpf.plot(aperture_mask=new_mask)
-
-            self.tpf.new_mask = new_mask
+    return lc
 
 
-    def tpf_to_lc(self, mask='default'):
+def change_aperture(tpf, ini_mask='pipeline', method='threshold', star_cut=8, sky_cut=0.01,
+    ref_pixel='center'):
 
-        if hasattr(self, 'tpf'):
-            if mask == 'default':
-                mask = self.tpf.pipeline_mask
-            self.lc = self.tpf.to_lightcurve(aperture_mask=mask)
-        else:
-            print('No tpf file link to the class...')
+    '''
+    Function to visually change the tpf mask.
+
+    Parameters
+    ----------
+    tpf : lk.targetpixelfile
+        The input target pixel file from either TESS or Kepler.
+
+    ini_mask : 'pipeline'/'new'/np.ndarray, optional
+        Initial mask for the aperture:
+        - 'pipeline' takes the default pipeline mask. (Default)
+        - 'new' takes the tpf.mask_new if created before.
+        - Manual input array of values for the initial mask.
+
+    method : 'threshold'/'basic', optional
+        Method used to select the aperture mask:
+        - 'threshold' uses a threshold value to cut the pixels. (Default)
+        - 'basic' manually change the True/False values of the mask.
+
+    star_cut : int/float, optional
+        If 'threshold' method is selected, input cut value to select the star.
+        Default is 8.
+
+    sky_cut : int/float, optional
+        If 'threshold' method is selected, input cut value to select the background.
+        Default is 0.01.
+
+    Returns
+    -------
+    New mask for the tpf.
+    '''
+
+    if not (type(tpf) == lk.targetpixelfile.KeplerTargetPixelFile \
+        or  type(tpf) == lk.targetpixelfile.TessTargetPixelFile):
+        print('Input tpf is not recognised as such. Exiting...\n')
+        return None
+
+    if ini_mask in ['pipeline','pipe']:
+        mask_new = tpf.pipeline_mask
+    elif ini_mask == 'new':
+        mask_new = tpf.mask_new
+    elif type(ini_mask) == np.ndarray:
+        mask_new = ini_mask
+    else:
+        print('Input ini_mask is not valid. Exiting...\n')
+        return None
+
+    change = 'y'
+    while change == 'y':
+
+        if 'fig_ap' in locals():
+            plt.close(fig_ap)
+
+        print('Showing current mask...')
+
+        if method == 'basic':
+            print(*[[1 if i == True else 0 for i in j] for j in mask_new.tolist()], sep=',\n')
+
+        elif method == 'threshold':
+            # Aperture mask defined by a threshold method using a sigma-above-background
+            # value, assuming the star is located in the center (should be).
+            mask_new = tpf.create_threshold_mask(threshold=star_cut, reference_pixel=ref_pixel)
+
+        # Define "sky" background mask (assuming threshold = 0.01)
+        mask_background = ~tpf.create_threshold_mask(threshold=sky_cut, reference_pixel=None)
+
+        fig_ap, (ax1,ax2) = plt.subplots(nrows=1, ncols=2, figsize=(12,4))
+        tpf.plot(ax=ax2, aperture_mask=mask_background, mask_color='w')
+        tpf.plot(ax=ax1, aperture_mask=mask_new, mask_color='r')
+        ax1.set_title('Current mask')
+        ax2.set_title('Background mask')
+        fig_ap.tight_layout()
+        fig_ap.subplots_adjust()
+        #fig_ap.show()
+        plt.show(block=False)
+
+        change = input('Do you want to change it? [n/y]: ')
+        if change == 'y':
+            if method == 'basic':
+                raw,col,val = input('From bottom left, use raw,column,0/1: ').split(',')
+                if val == '1':
+                    val = True
+                elif val == '0':
+                    val = False
+                mask_new[int(raw)][int(col)] = val
+            else:
+                star_cut = input('Enter new threshold value (current value is %d): ' % star_cut)
+                star_cut = float(star_cut)
+        elif change not in ['y','n']:
+            print('Not a valid input.')
+            change = 'y'
+
+    fig_ap.savefig(tessdir+tpf.id+"/plots/"+tpf.id+'_mask.png', dpi=300)
+
+    #print('Showing final mask...')
+    #tpf.plot(aperture_mask=mask_new, title='Final mask')
+
+    tpf.mask_new = mask_new
+    tpf.mask_background = mask_background
+
+    return tpf
 
 
-    def get_mag(self):
+def contaminants(tpf, mask='pipeline', star_cut=14):
 
-        if hasattr(self.lc, 'remove_nans'):
-            flux = self.lc.remove_nans().flux.value
-        else:
-            flux = self.flux.value
+    '''
+    Function to visually locate potential contaminants from Gaia EDR3.
 
-        mag = -2.5 * np.log10(flux)
-        mag -= np.average(mag)
-        self.lc.magnitude = mag
+    Parameters
+    ----------
+    tpf : lk.targetpixelfile
+        The input target pixel file from either TESS or Kepler.
+
+    mask : 'pipeline'/'new'/np.ndarray, optional
+        Initial mask used to plot the aperture:
+        - 'pipeline' takes the default pipeline mask. (Default)
+        - 'new' takes the tpf.mask_new if created before.
+        - Manual input array of values for the initial mask.
+
+    star_cut : int/float, optional
+        If 'threshold' method is selected, input cut value to select the star.
+        Default is 8.
+
+    Returns
+    -------
+    Nothing but the plot of the contamminant is created.
+    '''
+
+    if not (type(tpf) == lk.targetpixelfile.KeplerTargetPixelFile \
+        or  type(tpf) == lk.targetpixelfile.TessTargetPixelFile):
+        print('Input tpf is not recognised as such. Exiting...\n')
+        return None
+
+    if mask in ['pipeline','pipe']:
+        mask = tpf.pipeline_mask
+    elif mask == 'new':
+        mask = tpf.mask_new
+    elif type(mask) != np.ndarray:
+        print('Input ini_mask is not valid. Exiting...\n')
+        return None
+
+    ra_0 = tpf.wcs.wcs.crval[0]
+    dec_0 = tpf.wcs.wcs.crval[1]
+    print(tpf.wcs.world_to_pixel_values(ra_0,dec_0))
+    RADEC = SkyCoord(ra_0, dec_0, unit=(u.degree, u.degree), frame=tpf.wcs.wcs.radesys.lower())
+    width  = u.Quantity(2*tpf.wcs.wcs.crpix[0]*tpf.wcs.array_shape[0], u.arcsec)
+    height = u.Quantity(2*tpf.wcs.wcs.crpix[1]*tpf.wcs.array_shape[1], u.arcsec)
+
+    query = Gaia.query_object_async(coordinate=RADEC, width=width, height=height)
+
+    if len(query) == 0:
+        print('Gaia query failed for object',tpf.id)
+        return None
+    elif len(query) > 1:
+        query = query[query['phot_g_mean_mag'] < star_cut]
+
+    print(len(query))
+
+    fig_ga, axg = plt.subplots(figsize=(6,4))
+    tpf.plot(ax=axg, aperture_mask=mask, mask_color='r')
+
+    for star in query:
+        ra_pix,dec_pix=tpf.wcs.world_to_pixel_values(star['ra'],star['dec'])
+        axg.scatter(tpf.column+ra_pix, tpf.row+dec_pix, s=20, fc='None', ec='r', lw=0.5)
+        ra_pix,dec_pix=tpf.wcs.world_to_array_index(SkyCoord(star['ra'],star['dec'],unit=(u.degree, u.degree)))
+        axg.scatter(tpf.column+dec_pix, tpf.row+ra_pix, s=20, fc='None', ec='orange', lw=0.5)
+
+    axg.scatter(145.7, 1012.1, s=30, fc='b', ec='w', marker='+', lw=0.5)
+
+    axg.set_title('Input mask')
+    fig_ga.tight_layout()
+    fig_ga.subplots_adjust()
+    #fig_ga.show()
+    plt.show(block=False)
+
+    fig_ga.savefig(tessdir+tpf.id+"/plots/"+tpf.id+'_Gaia.png', dpi=300)
+
+    return None
 
 
-    def export(self, output_path=maindir+'lightcurves/', format='ascii'):
+def tpf_to_lc(tpf, mask='pipeline', flux_err_cut=0):
 
-        np.savetxt(output_path+"%s.txt" % self.id_star, np.array([self.lc.time.value,self.lc.flux.value]).T, delimiter=",")
+    '''
+    Function to convert a tpf object to its lightcurve.
+
+    Parameters
+    ----------
+    tpf : lk.targetpixelfile
+        The input target pixel file from either TESS or Kepler.
+
+    mask : 'pipeline'/'new'/np.ndarray, optional
+        Mask for the aperture:
+        - 'pipeline' takes the default pipeline mask. (Default)
+        - 'new' takes the tpf.mask_new if created before.
+        - Manual input array of values for the initial mask.
+
+    flux_err_cut : int/float, optional
+        Threshold value for the flux error to remove bad data. Default is 0.
+
+    Returns
+    -------
+    Lightkurve object from the tpf object.
+    '''
+
+    if not (type(tpf) == lk.targetpixelfile.KeplerTargetPixelFile \
+        or  type(tpf) == lk.targetpixelfile.TessTargetPixelFile):
+        print('Input tpf is not recognised as such. Exiting...\n')
+        return None
+
+    if mask == 'pipeline':
+        mask = tpf.pipeline_mask
+    elif mask == 'new':
+        mask = tpf.mask_new
+
+    lc_raw = tpf.to_lightcurve(aperture_mask=mask)
+    lc_raw = lc_raw[lc_raw.flux_err > flux_err_cut]
+    lc_raw.id = tpf.id
+
+    return lc_raw
 
 
-search_lightcurve('KIC 10963065')
-search_lightcurve('HD 42608')
+def detrended_tpf_to_lc(lc, tpf, mask_background, npcs=20):
 
-search_lightcurve('HD 42608', quarter=None, sector=None, mission=[])
+    '''
+    Function to perform the detrending by PCA given an input lightcurve.
 
-search_lightcurve(self.kic)
-help(search_lightcurve)
+    Parameters
+    ----------
+    lc : lk.lightcurve
+        The input lightcurve object from either TESS or Kepler.
 
-test = LC(ID='HD 42608')
-test.query_lc()
-test.lc.target_name
-test.query_lc(mission='TESS', sector=6)
+    tpf : lk.targetpixelfile
+        The input target pixel file from either TESS or Kepler.
 
-pg = test.lc.normalize(unit='ppm').to_periodogram()
-pg.plot()
-test.tpf_to_lc()
-test.get_mag()
-test.lc.magnitude
+    mask_background : np.ndarray
+        Mask used to consider the background. Usually tpf.background_mask.
 
-test.lc.PDCSAP_FLUX.remove_nans()
-test.export()
+    npcs : int, optional
+        Define the initial number of principal components to inspect. Default is 20.
+
+    Returns
+    -------
+    Lightkurve object from the detrended tpf object.
+    '''
+
+    if not (type(lc) == lk.lightcurve.KeplerLightCurve \
+        or  type(lc) == lk.lightcurve.TessLightCurve):
+        print('Input lightcurve is not recognised as such. Exiting...\n')
+        return None
+
+    if not (type(tpf) == lk.targetpixelfile.KeplerTargetPixelFile \
+        or  type(tpf) == lk.targetpixelfile.TessTargetPixelFile):
+        print('Input tpf is not recognised as such. Exiting...\n')
+        return None
+
+    # Define Regressors to perform PCA and remove systematics
+    regressors = tpf.flux[:][:,mask_background]
+
+    while npcs != '':
+        try:
+            npcs = int(npcs)
+        except:
+            print('Input value for npcs must be an integer. Exiting...\n')
+            return None
+
+        if 'fig_pca' in locals():
+            plt.close(fig_pca)
+
+        # Design regressor matrix
+        dm = lk.DesignMatrix(regressors, name='regressors').pca(npcs).append_constant()
+
+        # Plot first npcs components to inspect
+        fig_pca, ax = plt.subplots(nrows=1, ncols=1, figsize=(8,6))
+        ax.plot(tpf.time.value, dm.values[:,:-1] + np.arange(npcs)*0.2, '.', color='k', ms=2)
+        ax.axes.get_yaxis().set_visible(False)
+        ax.set_title('The first principal component is at the bottom')
+
+        fig_pca.tight_layout()
+        fig_pca.subplots_adjust()
+        #fig_pca.show()
+        plt.show(block=False)
+
+        npcs = input('Value of npcs is %d. Hit return to accept and continue, or type another value: ' % npcs)
+
+    fig_pca.savefig(tessdir+tpf.id+"/plots/"+tpf.id+'_pca_regressors.png', dpi=300)
+
+    # Apply the detrending and get the detrended light curve
+    rc = lk.RegressionCorrector(lc)
+    lc = rc.correct(dm)
+
+    # Plot a simple diagnostic plot
+    rc.diagnose()
+    plt.savefig(tessdir+tpf.id+"/plots/"+tpf.id+'_raw_light_curve.png', dpi=300)
+    plt.show(block=False)
+
+    lc.id = tpf.id
+
+    return lc
 
 
-lcf = search_lightcurvefile("kic 6922244", quarter=4).download()
-tpf = search_targetpixelfile('KIC 6922244', mission='TESS', quarter=4).download()
+def sig_clip_lc(lc, sigma=6):
+
+    '''
+    Function to perform a sigma clipping to the input lightcurve.
+
+    Parameters
+    ----------
+    lc : lk.lightcurve
+        The input lightcurve object from either TESS or Kepler.
+
+    sigma : int/float, optional
+        Sigma clipping factor applied to the lightcurve. Default is 6.
+
+    Returns
+    -------
+    Clipped lightkurve object from the original lightkurve object.
+    '''
+
+    if not (type(lc) == lk.lightcurve.KeplerLightCurve \
+        or  type(lc) == lk.lightcurve.TessLightCurve):
+        print('Input lightcurve is not recognised as such. Exiting...\n')
+        return None
+
+    tmp_lc = deepcopy(lc)
+
+    change = 'y'
+    while change == 'y':
+
+        if 'fig_sig' in locals():
+            plt.close(fig_sig)
+
+        # Apply sigma-clipping
+        lc_clean, mask_outliers = tmp_lc.remove_outliers(sigma=sigma, return_mask=True)
+
+        # Plot diagnostic light-curve figures (before and after)
+        fig_sig, (ax1, ax2, ax3) = plt.subplots(nrows=3, ncols=1, figsize=(10,8))
+
+        ax1.plot(lc.time.value[mask_outliers], lc.flux.value[mask_outliers],
+            marker='.', ls='None', color='red', label='Outliers')
+        lc.plot(ax=ax1, marker='.', ls='None')
+        ax1.legend(loc='best')
+        ax1.set_title('Light curve')
+
+        lc_clean.plot(ax=ax2, marker='.', ls='None')
+        ax2.set_title('Light curve, outliers removed (scatter plot)')
+
+        lc_clean.plot(ax=ax3)
+        ax3.set_title('Light curve, outliers removed (line plot)')
+
+        fig_sig.tight_layout()
+        fig_sig.subplots_adjust(hspace=0.5)
+        #fig_sig.show()
+        plt.show(block=False)
+
+        change = input('Do you want to change this value? [n/y]: ')
+        if change == 'y':
+            sigma = input('Enter new sigma value (current value is %d): ' % sigma)
+            sigma = float(sigma)
+
+        elif change not in ['y','n']:
+            print('Not a valid input.')
+            change = 'y'
+
+    lc.remove_outliers(sigma=sigma, return_mask=True)
+
+    fig_sig.savefig(tessdir+lc.id+"/plots/"+lc.id+'_detrended_light_curve.png', dpi=300)
+
+    return lc
+
+
+def get_mag(lc):
+
+    '''
+    Function to calculate the magnitude from the flux and add it to the
+    lightkurve object.
+
+    Parameters
+    ----------
+    lc : lk.lightcurve
+        The input lightcurve object from either TESS or Kepler.
+
+    Returns
+    -------
+    Same lightkurve object with the magnitude as lc.mag included.
+    '''
+
+    if not (type(lc) == lk.lightcurve.KeplerLightCurve \
+        or  type(lc) == lk.lightcurve.TessLightCurve):
+        print('Input lightcurve is not recognised as such. Exiting...\n')
+        return None
+
+    if hasattr(lc, 'remove_nans'):
+        flux = lc.remove_nans().flux.value
+    else:
+        flux = lc.flux.value
+
+    mag = -2.5 * np.log10(flux)
+    mag -= np.mean(mag)
+    lc.magnitude = mag
+
+    return lc
+
+
+def export_lc(lc, output_path='default', append=''):
+
+    '''
+    Function to export the lightcurve from a lightkurve object.
+
+    Parameters
+    ----------
+    lc : lk.lightcurve
+        The input lightcurve object from either TESS or Kepler.
+
+    output_path : str, optional
+        Path where the lightcurve will be saved.
+        Default is tessdir/ID/lightcurve/
+
+    append : str, optional
+        Append suffix after the ID and before the extensio. Default is ''.
+
+    Returns
+    -------
+    Nothing but the lightcurve is exported.
+    '''
+
+    if not (type(lc) == lk.lightcurve.KeplerLightCurve \
+        or  type(lc) == lk.lightcurve.TessLightCurve):
+        print('Input lightcurve is not recognised as such. Exiting...\n')
+        return None
+
+    if hasattr(lc, 'magnitude'):
+        master_flux = lc.magnitude
+    else:
+        lc = get_mag(lc)
+        master_flux = lc.magnitude
+
+    master_time = lc.time.value
+
+    # Check sorting
+    #master_index_sort = np.argsort(master_time, axis = 0)
+    #master_time = master_time[master_index_sort]
+    #master_flux = master_flux[master_index_sort]
+
+    # Remove NaNs
+    master_time = master_time[~np.isnan(master_flux)]
+    master_flux = master_flux[~np.isnan(master_flux)]
+
+    # Remove the median
+    master_flux = master_flux - np.median(master_flux)
+
+    if output_path in ['def','default']:
+        output_path = tessdir+lc.id+'/lightcurve/'
+
+    np.savetxt(output_path+lc.id+append+'.txt', np.array([master_time, master_flux]).T,
+        header='time, magnitude', fmt='%.10f', delimiter=', ', comments='')
+
+    return None

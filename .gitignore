@@ -8,6 +8,7 @@ old/
 .DS_Store
 matplotlibrc
 paths.txt
+paths_win.txt
 
 tmp*.py
 *_bkp.py

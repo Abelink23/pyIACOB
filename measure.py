@@ -1,7 +1,7 @@
 from RV import *
 
 
-def RVEWFW(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150,
+def measure(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150,
     ewcut=10, snrcut=100, tol=100, redo='n'):
 
     '''
@@ -194,8 +194,9 @@ def RVEWFW(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=
             EW = fit['EW']
             FW = fit['FWHM']
             dep = fit['depth']
+            gam = round(fit['gamma'], 3)
 
-            for par,val in zip(['RV_Hb','EW_Hb','FW_Hb','dep_Hb'],[RV,EW,FW,dep]):
+            for par,val in zip(['RV_Hb','EW_Hb','FW_Hb','dep_Hb','gamma_Hb'],[RV,EW,FW,dep,gam]):
                 T_source[par] = val
 
             try:
@@ -213,7 +214,6 @@ def RVEWFW(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=
                     except: r_val = wave[medpos[1]]
 
                     T_source[par] = round(r_val-l_val, 3)
-                    T_source['gamma_Hb'] = round(fit['gamma'], 3)
 
             except:
                 print('Line could not be fitted...')
@@ -221,8 +221,9 @@ def RVEWFW(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=
 
             next = input("\nRepeat Hb / continue to the next star / save and exit ['n'/''/'q']: ")
             plt.close()
-            if next == 'n': continue
 
+            if next == 'n':
+                continue
             else:
                 output = vstack([output,T_source])
 
