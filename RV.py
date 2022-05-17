@@ -144,7 +144,9 @@ def RV1_cc(spectra1, spectra2, windows=[(3950,4160),(4310,4360),(4370,4490),(454
 def RV0(lines, spectrum, txt=False, ewcut=50, width=20, tol=150, func='g', check_fits=False, plot=False):
 
     '''
-    Function to...
+    Function to calculate the radial velocity of a given spectrum using a set of input
+    lines where the individual RV is measured and then a sigma-clipping and final average
+    is used to compute it.
 
     Parameters
     ----------
@@ -202,7 +204,7 @@ def RV0(lines, spectrum, txt=False, ewcut=50, width=20, tol=150, func='g', check
 
     if len(RVs) == 0:
         print('\tWARNING: No lines were fitted for RV0 calculation.\n')
-        return 0
+        return 0,0
 
     try:
         RVs_f = sigma_clip(RVs, sigma_lower=1.7, sigma_upper=1.7, masked=False)
@@ -210,7 +212,7 @@ def RV0(lines, spectrum, txt=False, ewcut=50, width=20, tol=150, func='g', check
         #print(RVs)
     except:
         print('Not enought values for sigma clipping. Skipping... ')
-        return 0
+        return 0,0
 
     if plot == True or check_fits == True:
         # Remove plots with failed fittings
@@ -232,18 +234,19 @@ def RV0(lines, spectrum, txt=False, ewcut=50, width=20, tol=150, func='g', check
             RVs_f = [RVs_f[j] for j in range(len(RVs_f)) if not j in remove]
 
     RV_0 = np.mean(RVs_f)
+    e_RV_0 = np.std(RVs_f)
 
     print('\nRV0=%s (%s/%s lines used with std=%s [km/s])' %
-        (round(RV_0,2),len(RVs_f),len(lines),round(np.std(RVs_f),2)))
+        (round(RV_0,2),len(RVs_f),len(lines),round(e_RV_0,2)))
 
-    return RV_0
+    return RV_0, e_RV_0
 
 
 def RV(lines, spectra, SNR=None, linesRV0=None, linecut=1, ewcut=25, width=None, tol=50,\
        func='g', info=False, plot=False):
 
     '''
-    Function to...
+    Function to obtain RV measurements for a given multi-epoch data.
 
     Parameters
     ----------
@@ -321,7 +324,7 @@ def RV(lines, spectra, SNR=None, linesRV0=None, linecut=1, ewcut=25, width=None,
         if linesRV0 == None:
             RV_0 = 0
         else:
-            RV_0 = RV0(linesRV0, spectrum, ewcut=ewcut, width=width, func=func)
+            RV_0, eRV_0 = RV0(linesRV0, spectrum, ewcut=ewcut, width=width, func=func)
 
         spectrum = spec(spectrum, rv0=RV_0)
 

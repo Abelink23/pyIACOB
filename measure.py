@@ -70,11 +70,11 @@ def measure(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol
 
         output = Table(
             names = (
-                ['ID','Ref_file','SNR_B','SNR_V','SNR_R','RV0']
+                ['ID','Ref_file','SNR_B','SNR_V','SNR_R','RV0','eRV0']
                 + [j+i for i in [str(round(k)) for k in lines] for j in ['RV_','EW_','FW_','dep_','snr_']]
                 + ['RV_Hb','EW_Hb','FW_Hb','FW14_Hb','FW34_Hb','dep_Hb','gamma_Hb']),
             dtype = (
-                ['S16','S50','int64','int64','int64','float64']
+                ['S16','S50','int64','int64','int64','float64','float64']
                 + ['float64','int64','float64','float64','int64']*len(lines)
                 + ['float64','int64','float64','float64','float64','float64','float64'])
             )
@@ -126,7 +126,7 @@ def measure(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol
 
             plt.close()
 
-            star.rv0 = RV0(RV0lines, star.filename, func=RV0fun, ewcut=30, tol=RV0tol)
+            star.rv0, eRV0 = RV0(RV0lines, star.filename, func=RV0fun, ewcut=30, tol=RV0tol)
             star.waveflux(min(lines)-30, max(lines)+30) # PONER MIN MAX EN FUNCION DE LOS LIM DE LINES
             star.cosmic()
             star.plotspec(4510,4600, lines='35-10K')
@@ -134,8 +134,8 @@ def measure(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol
             input(); plt.close()
 
             T_source = Table(
-                [[star.id_star],[star.filename],[snr_b],[snr_v],[snr_r],[round(star.rv0, 2)]],
-                names=('ID','Ref_file','SNR_B','SNR_V','SNR_R','RV0'))
+                [[star.id_star],[star.filename],[snr_b],[snr_v],[snr_r],[round(star.rv0, 2)],[eRV0]],
+                names=('ID','Ref_file','SNR_B','SNR_V','SNR_R','RV0','eRV0'))
             for line in lines:
                 fit = star.fitline(line, width=wid, tol=tol, func=fun, plot=True)
 

@@ -1,4 +1,4 @@
-from db import *
+#from db import *
 
 import matplotlib.pyplot as plt
 
@@ -10,8 +10,9 @@ from copy import deepcopy
 # https://docs.lightkurve.org/tutorials/
 # https://docs.lightkurve.org/reference/api/lightkurve.KeplerTargetPixelFile.html
 
+
 def query_lc(ID, method='simple', mission=(), author='any', cadence=None,
-    sec=None, image_size=20, quarter=None, campaign=None, download_dir=tessdir):
+    sec=None, cutout_size=20, quarter=None, campaign=None, download_dir=tessdir):
 
     '''
     Function to get the lightcurve of a target source by using the lightkurve
@@ -47,7 +48,7 @@ def query_lc(ID, method='simple', mission=(), author='any', cadence=None,
     sec : int/list of ints, optional
         TESS Sector number. By default, all will be returned.
 
-    image_size : int/float/tuple, optional
+    cutout_size : int/float/tuple, optional
         Side length of cutout in pixels. Tuples should have dimensions (y, x).
         Default size is (5, 5).
 
@@ -61,6 +62,9 @@ def query_lc(ID, method='simple', mission=(), author='any', cadence=None,
     -------
     Lightkurve object of the queried target.
     '''
+
+    warnings.filterwarnings("ignore", message="divide by zero encountered in divide")
+    warnings.filterwarnings("ignore", message="LightkurveWarning: 'cutout_size' can only be specified for TESS Full Frame Image cutouts.")
 
     ID = ID.strip()
 
@@ -97,12 +101,12 @@ def query_lc(ID, method='simple', mission=(), author='any', cadence=None,
 
     select = input('Please select which observation you want to download (#,:): ')
     if select == ':':
-        lc =  lc.download_all(cutout_size=image_size, download_dir=download_dir)
+        lc =  lc.download_all(cutout_size=cutout_size, download_dir=download_dir)
     else:
         lc = lc[int(select)]
-        lc = lc.download(cutout_size=image_size, download_dir=download_dir) # NOT FULLY WORKING, FIX
+        lc = lc.download(cutout_size=cutout_size, download_dir=download_dir) # NOT FULLY WORKING, FIX
 
-    lc.id = ID.replace(' ','')
+    lc.targetid = ID.replace(' ','')
 
     if not os.path.isdir(tessdir+ID):
         os.mkdir(tessdir+ID)
@@ -194,7 +198,6 @@ def change_aperture(tpf, ini_mask='pipeline', method='threshold', star_cut=8, sk
         ax1.set_title('Current mask')
         ax2.set_title('Background mask')
         fig_ap.tight_layout()
-        fig_ap.subplots_adjust()
         #fig_ap.show()
         plt.show(block=False)
 
@@ -214,7 +217,7 @@ def change_aperture(tpf, ini_mask='pipeline', method='threshold', star_cut=8, sk
             print('Not a valid input.')
             change = 'y'
 
-    fig_ap.savefig(tessdir+tpf.id+"/plots/"+tpf.id+'_mask.png', dpi=300)
+    fig_ap.savefig(tessdir+tpf.targetid+"/plots/"+tpf.targetid+'_mask.png', dpi=300)
 
     #print('Showing final mask...')
     #tpf.plot(aperture_mask=mask_new, title='Final mask')
@@ -225,7 +228,7 @@ def change_aperture(tpf, ini_mask='pipeline', method='threshold', star_cut=8, sk
     return tpf
 
 
-def contaminants(tpf, mask='pipeline', star_cut=14):
+def contaminants(tpf, mask='pipeline', star_cut=12):
 
     '''
     Function to visually locate potential contaminants from Gaia EDR3.
@@ -239,11 +242,11 @@ def contaminants(tpf, mask='pipeline', star_cut=14):
         Initial mask used to plot the aperture:
         - 'pipeline' takes the default pipeline mask. (Default)
         - 'new' takes the tpf.mask_new if created before.
-        - Manual input array of values for the initial mask.
+        - None if no mask is used (default).
 
     star_cut : int/float, optional
-        If 'threshold' method is selected, input cut value to select the star.
-        Default is 8.
+        Gaia G magnitude cut used to limit the contaminants.
+        Default is 12.
 
     Returns
     -------
@@ -259,45 +262,42 @@ def contaminants(tpf, mask='pipeline', star_cut=14):
         mask = tpf.pipeline_mask
     elif mask == 'new':
         mask = tpf.mask_new
-    elif type(mask) != np.ndarray:
-        print('Input ini_mask is not valid. Exiting...\n')
-        return None
+    else:
+        mask = None
 
     ra_0 = tpf.wcs.wcs.crval[0]
     dec_0 = tpf.wcs.wcs.crval[1]
-    print(tpf.wcs.world_to_pixel_values(ra_0,dec_0))
     RADEC = SkyCoord(ra_0, dec_0, unit=(u.degree, u.degree), frame=tpf.wcs.wcs.radesys.lower())
-    width  = u.Quantity(2*tpf.wcs.wcs.crpix[0]*tpf.wcs.array_shape[0], u.arcsec)
-    height = u.Quantity(2*tpf.wcs.wcs.crpix[1]*tpf.wcs.array_shape[1], u.arcsec)
 
-    query = Gaia.query_object_async(coordinate=RADEC, width=width, height=height)
+    width  = u.Quantity(tpf.wcs.wcs.crpix[0]*tpf.wcs.array_shape[0], u.arcsec)
+    height = u.Quantity(tpf.wcs.wcs.crpix[1]*tpf.wcs.array_shape[1], u.arcsec)
+
+    query = Gaia.cone_search_async(RADEC, radius=np.sqrt(width**2+height**2))
+    query = query.get_results()
 
     if len(query) == 0:
-        print('Gaia query failed for object',tpf.id)
+        print('Gaia query failed for object',tpf.targetid)
         return None
     elif len(query) > 1:
         query = query[query['phot_g_mean_mag'] < star_cut]
 
-    print(len(query))
-
     fig_ga, axg = plt.subplots(figsize=(6,4))
     tpf.plot(ax=axg, aperture_mask=mask, mask_color='r')
+    axg.set_ylim(axg.get_ylim())
+    axg.set_xlim(axg.get_xlim())
 
     for star in query:
         ra_pix,dec_pix=tpf.wcs.world_to_pixel_values(star['ra'],star['dec'])
-        axg.scatter(tpf.column+ra_pix, tpf.row+dec_pix, s=20, fc='None', ec='r', lw=0.5)
-        ra_pix,dec_pix=tpf.wcs.world_to_array_index(SkyCoord(star['ra'],star['dec'],unit=(u.degree, u.degree)))
-        axg.scatter(tpf.column+dec_pix, tpf.row+ra_pix, s=20, fc='None', ec='orange', lw=0.5)
+        axg.scatter(tpf.column+ra_pix, tpf.row+dec_pix, s=1e6/np.exp(star['phot_g_mean_mag']),
+            fc='orange', ec='k', alpha=0.6, lw=.5)
+        axg.text(tpf.column+ra_pix+.2, tpf.row+dec_pix+.2, round(star['phot_g_mean_mag'],2), fontsize=6)
 
-    axg.scatter(145.7, 1012.1, s=30, fc='b', ec='w', marker='+', lw=0.5)
-
-    axg.set_title('Input mask')
+    axg.set_title('Gaia sources with Gmag < %d' % star_cut)
     fig_ga.tight_layout()
-    fig_ga.subplots_adjust()
     #fig_ga.show()
     plt.show(block=False)
 
-    fig_ga.savefig(tessdir+tpf.id+"/plots/"+tpf.id+'_Gaia.png', dpi=300)
+    fig_ga.savefig(tessdir+tpf.targetid+"/plots/"+tpf.targetid+'_Gaia.png', dpi=300)
 
     return None
 
@@ -338,7 +338,7 @@ def tpf_to_lc(tpf, mask='pipeline', flux_err_cut=0):
 
     lc_raw = tpf.to_lightcurve(aperture_mask=mask)
     lc_raw = lc_raw[lc_raw.flux_err > flux_err_cut]
-    lc_raw.id = tpf.id
+    lc_raw.targetid = tpf.targetid
 
     return lc_raw
 
@@ -400,13 +400,12 @@ def detrended_tpf_to_lc(lc, tpf, mask_background, npcs=20):
         ax.set_title('The first principal component is at the bottom')
 
         fig_pca.tight_layout()
-        fig_pca.subplots_adjust()
         #fig_pca.show()
         plt.show(block=False)
 
         npcs = input('Value of npcs is %d. Hit return to accept and continue, or type another value: ' % npcs)
 
-    fig_pca.savefig(tessdir+tpf.id+"/plots/"+tpf.id+'_pca_regressors.png', dpi=300)
+    fig_pca.savefig(tessdir+tpf.targetid+"/plots/"+tpf.targetid+'_pca_regressors.png', dpi=300)
 
     # Apply the detrending and get the detrended light curve
     rc = lk.RegressionCorrector(lc)
@@ -414,10 +413,10 @@ def detrended_tpf_to_lc(lc, tpf, mask_background, npcs=20):
 
     # Plot a simple diagnostic plot
     rc.diagnose()
-    plt.savefig(tessdir+tpf.id+"/plots/"+tpf.id+'_raw_light_curve.png', dpi=300)
+    plt.savefig(tessdir+tpf.targetid+"/plots/"+tpf.targetid+'_raw_light_curve.png', dpi=300)
     plt.show(block=False)
 
-    lc.id = tpf.id
+    lc.targetid = tpf.targetid
 
     return lc
 
@@ -487,7 +486,7 @@ def sig_clip_lc(lc, sigma=6):
 
     lc.remove_outliers(sigma=sigma, return_mask=True)
 
-    fig_sig.savefig(tessdir+lc.id+"/plots/"+lc.id+'_detrended_light_curve.png', dpi=300)
+    fig_sig.savefig(tessdir+lc.targetid+"/plots/"+lc.targetid+'_detrended_light_curve.png', dpi=300)
 
     return lc
 
@@ -573,9 +572,9 @@ def export_lc(lc, output_path='default', append=''):
     master_flux = master_flux - np.median(master_flux)
 
     if output_path in ['def','default']:
-        output_path = tessdir+lc.id+'/lightcurve/'
+        output_path = tessdir+lc.targetid+'/lightcurve/'
 
-    np.savetxt(output_path+lc.id+append+'.txt', np.array([master_time, master_flux]).T,
+    np.savetxt(output_path+lc.targetid+append+'.txt', np.array([master_time, master_flux]).T,
         header='time, magnitude', fmt='%.10f', delimiter=', ', comments='')
 
     return None

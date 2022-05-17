@@ -2,7 +2,7 @@ from spec import *
 from scipy.io.idl import readsav
 
 
-def ib_input(table='IACOB_O9BAs_SNR20.fits', output_name='input_IB.txt'):
+def ib_input(table, folder, old_input=None, txt=False):
 
     '''
     Function to generate the input table for IACOB broad given an input table with the
@@ -10,83 +10,103 @@ def ib_input(table='IACOB_O9BAs_SNR20.fits', output_name='input_IB.txt'):
 
     Parameters
     ----------
-    table : str, optional
-        Enter the input table contaning a column 'ID' with the identifier of the stars.
+    table : str
+        Enter the input table contaning a column 'ID' or 'filename' with the identifier
+        of the stars. If the ID is provided, then the best SNR spectrum is used for each
+        star (prioritizing Mercator+Feros).
 
-    output_name : str, optional
-        Enter the name for the output table. Default is 'input_IB'.
+    folder : str
+        Name of the sub-folder under the IACOB-Broad directory (ibdir) where to
+        search for the solution files.
+
+    old_input : str, optional
+        Name of a previous IACOB-Broad input table. If used, it will be used to create
+        an updated verstion of it. Default is None.
+
+    txt : boolean, optional
+        If True, it will parse it to spec() in case that the input spectrum is in ascii.
 
     Returns
     -------
-    Nothing but the IACOB broad input file is generated.
+    Nothing but the IACOB broad input file called 'input_IB_new.txt' is generated.
     '''
 
     table = findtable(table)
-    input_IB = findtable(output_name)
-    input_IB['i'] = input_IB['i'].astype(str)
+    if 'filename' in table.colnames:
+        table['ID'] = table['filename']
+
+    file1 = open(maindir+'tables/input_IB_new.txt', 'w')
+    file1.write('#i ID path Ref_file resol line QIB\n')
+
+    if old_input is not None:
+        old_input = findtable(old_input)
+        old_input['i'] = old_input['i'].astype(str)
+        file2 = open(maindir+'tables/input_IB_updated.txt', 'w')
+        file2.write('#i ID path Ref_file resol line QIB\n')
 
     i = 0
-    with open(maindir+'tables/input_IB_new.txt', 'w') as file1,\
-         open(maindir+'tables/input_IB_updated.txt', 'w') as file2:
 
-        file1.write('#i ID path spectrum resol line QIB\n')
-        file2.write('#i ID path spectrum resol line QIB\n')
+    bar = pb.ProgressBar(maxval=len(table),
+                        widgets=[pb.Bar('=','[',']'),' ',pb.Percentage()])
+    bar.start()
 
-        bar = pb.ProgressBar(maxval=len(table),
-                            widgets=[pb.Bar('=','[',']'),' ',pb.Percentage()])
-        bar.start()
+    for row,j in zip(table,range(len(table))):
 
-        for row,j in zip(table,range(len(table))):
+        id = row['ID'].strip()
 
-            # Use next line to skip stars not processed in RVEWFW()
-            #if row['QSiIII'].tolist() ==  None: continue
+        star = spec(id, SNR='bestMF', txt=txt)
 
-            id = row['ID'].strip()
+        line = 'SiIII4567' # SiIII4567 / SiII6347
 
-            match_IB = input_IB[input_IB['ID'] == id]
+        # Exists in the old table?
+        if old_input is not None:
 
-            star = spec(id, SNR='best')
+            match_old = old_input[old_input['ID'] == id]
 
-            line = 'SiIII4567' # SiIII4567 / SiII6347
+            if len(match_old) == 1:
 
-            # Exists in the old table?
-            if len(match_IB) == 1:
-                    # Exist with the same filename (i.e. is the best one)?
-                    if star.filename == match_IB['spectrum']:
-                        # If it has been processed, add "#"
-                        if not search(id+'_'+match_IB['line'][0]+'.ps', ibdir) == None:
-                            idx = '#'+str(j)
-                        else:
-                            idx = str(j)
-                            print('\nWARNING: %s not processed or is missing the .ps\n' %id)
+                # Check if the filename is the same as in the old table and is so if it
+                # has been processed
+                if star.filename == match_old['Ref_file']:
+                    # If it has been processed, add "#"
+                    if not search(id+'_'+match_old['line'][0]+'.ps', ibdir+folder) == None:
+                        idx = '#'+str(j)
+                    else:
+                        idx = str(j)
+                        print('\nWARNING: %s not processed or is missing the .ps\n' % id)
 
-                        file2.write('%s %s %s %s %i %s %i\n' % \
-                        (idx,match_IB['ID'][0],match_IB['path'][0],match_IB['spectrum'][0],
-                             match_IB['resol'][0],match_IB['line'][0],match_IB['QIB'][0]))
+                    file2.write('%s %s %s %s %i %s %i\n' % \
+                    (idx,match_old['ID'][0],match_old['path'][0],match_old['Ref_file'][0],
+                         match_old['resol'][0],match_old['line'][0],match_old['QIB'][0]))
 
-                    # Pick the line used in the last best spectrum
-                    else: line = match_IB['line'][0]
+                # Despite the reference file is different, picks the old line used there
+                else: line = match_old['line'][0]
 
             # Then there is a new one or a better one:
-            if len(match_IB) == 0 or (len(match_IB) == 1 and not star.filename == match_IB['spectrum']):
-                file1.write('%i %s %s %s %i %s %i\n' % \
-                (i,star.id_star,star.spectrum.split(star.filename)[0],\
-                star.filename,star.resolution,line,-1))
-                i = i + 1
+            elif len(match_old) == 0:
 
-                # ...and add it to the new main list.
                 file2.write('%s %s %s %s %i %s %i\n' % \
-                (str(j),star.id_star,star.spectrum.split(star.filename)[0],\
+                (str(j),star.id_star,star.fullpath.split(star.filename)[0],\
                 star.filename,star.resolution,line,-1))
 
-            bar.update(j)
+        file1.write('%i %s %s %s %i %s %i\n' % \
+        (i,star.id_star,star.fullpath.split(star.filename)[0],\
+        star.filename,star.resolution,line,-1))
+        i = i + 1
+
+        bar.update(j)
 
         bar.finish()
 
+    if old_input is not None:
+        file2.close()
+
+    file1.close()
+    
     return 'DONE'
 
 
-def ib_results(input_table='input_IB.txt', check_best=False, format='fits'):
+def ib_results(table, folder, check_best=False, format='fits'):
 
     '''
     Function to generate a table with the results from IACOB-broad given an input
@@ -94,8 +114,12 @@ def ib_results(input_table='input_IB.txt', check_best=False, format='fits'):
 
     Parameters
     ----------
-    input_table : str, optional
+    table : str
         Name of the input table contaning the list of stars to search.
+
+    folder : str
+        Name of the sub-folder under the IACOB-Broad directory (ibdir) where to
+        search for the solution files.
 
     check_best : boolean, optional
         True if each spectra from the .xdr file is checked against the best
@@ -104,12 +128,14 @@ def ib_results(input_table='input_IB.txt', check_best=False, format='fits'):
     format : str, optional
         Enter the output format for the table: 'fits' (default), 'ascii' or 'csv'.
 
+    Note: the option for using this over ascii input spectra is not yet implemented.
+
     Returns
     -------
     Nothing but the output table with the IACOB broad results is generated.
     '''
 
-    table = findtable(input_table)
+    table = findtable(table)
 
     bar = pb.ProgressBar(maxval=len(table),
                          widgets=[pb.Bar('=','[',']'),' ',pb.Percentage()])
@@ -118,14 +144,16 @@ def ib_results(input_table='input_IB.txt', check_best=False, format='fits'):
     data_rows = Table()
     for row,i in zip(table,range(len(table))):
         id_star = row['ID']
-        filename = row['spectrum']
+        filename = row['Ref_file']
         line = row['line']
         QIB = row['QIB']
 
         match = []
-        for file in os.listdir(ibdir):
+        if not folder.endswith('/'):
+            folder += '/'
+        for file in os.listdir(ibdir+folder):
             if file.endswith('_resul.xdr') and file.split('_')[0] == id_star:
-                match.append(ibdir+file)
+                match.append(ibdir+folder+file)
 
         if len(match) == 0:
             print('\nWARNING: No .xdr file found for %s. Continuing...' % id_star)

@@ -143,8 +143,8 @@ def gen_gridlimits(models_dir=mauidir+'MODELS/'):
     return 'DONE'
 
 
-def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=200,
-    ascii=False):
+def maui_input(table, table_IB='IB_results.fits', table_REF=None,
+    output_name='MAUI_input', RV0tol=200, ascii=False, txt=False):
 
     '''
     Function to generate the input table for MAUI given an input table with the
@@ -152,22 +152,21 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
     Optionally, the function allows to generate the input ascii spectra for MAUI
     subtracting the individual radial velocity.
 
-    IMPORTANT NOTE 1 - Make sure you update some other input tables contaning:
-        1) RV, EWs, FWs --> table_REF('')
-        2) IACOB-broad parameters --> table_IB('')
-        3) Results from MAUI --> results('')
-        (They are listed at the beginning of the funcion.)
-
-    IMPORTANT NOTE 2 - The stars in the input table MUST also be in the other
-    tables with the same name except table 3) Results from MAUI
+    NOTE - Stars in the input table MUST also be in the other tables with the same name.
 
     Parameters
     ----------
-    table : str, optional
+    table : str
         Enter the input table contaning a column 'ID' with the name of the stars.
 
+    table_IB : str
+        Input table containing IACOB-broad parameters for the stars in 'table'.
+
+    table_REF : str, optional
+        Input table containing RVs, EWs, FWs and SNRs for the stars in 'table'.
+
     output_name : str, optional
-        Enter the name for the output table. Default is 'MAUI_verX'.
+        Enter the name for the output table. Default is 'MAUI_input'.
 
     RV0tol : int, optional
         Enter the input radial velocity tolerance for the radial velocity correction.
@@ -176,6 +175,9 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
         If True, ascii files will be created for each of the input sources.
         Default is False.
 
+    txt : boolean, optional
+        If True, it will parse it to spec() in case that the input spectrum is in ascii.
+
     Returns
     -------
     Nothing but the MAUI input file is generated.
@@ -183,59 +185,73 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
 
     if type(table) is type(Table()): pass # In case the input table is already a table
     else: table = findtable(table) # file where star names and quality flags are
-    table_REF = findtable('RVEWFWs_O9BAs.fits') # file where RVs, EWs and FWs are
-    table_IB = findtable('IB_results.fits') # file where vsini and vmac are
-    #results = findtable('MAUI_results_20210730_174446.fits') # file with output from MAUI
+
+    if 'filename' in table.colnames:
+        table['ID'] = table['filename']
+
+    table_IB = findtable(table_IB)
+
+    if table_REF is not None:
+        table_REF = findtable(table_REF)
 
     maui_txt = open(maindir + 'lists/%s.txt' % output_name,'a')
     maui_txt.write(
         "{:<40}".format('fullname')+"{:<48}".format('filename')+"{:<6}".format('vrad')+\
         "{:<6}".format('vsini')+"{:<7}".format('evsini')+"{:<5}".format('vmac')+\
         "{:<7}".format('evmac')+"{:<7}".format('R')+"{:<4}".format('SNR')+\
-        ' ;# SpC       FW34-14 SiIII SiII l lTef l lgf  Grid\n')
+        ' ;#\n')
 
     quit = ''
-    for row in table:
+    for row in table[0:1]:
 
         do_ascii = ascii
 
         if quit == 'quit': break
 
-        id = row['ID'].strip()
+        source = row['ID'].strip()
+
+        star = spec(source, SNR='bestMF', txt=txt)
 
         # Filer based on properties from the main table:
-        if 'SB' in table.columns and 'SB2' in row['SB']: continue
-        #if 'CHb' in table.columns:
-        #    if 'Em' in row['CHb']:
-        #        if not 'Em(p)' in row['CHb']: continue
-        #    if 'PCyg' in row['CHb']: continue
-
-        match_REF = table_REF[[i.strip()==id for i in table_REF['ID']]]
-        match_IB = table_IB[table_IB['ID']==id]
-
-        if len(match_REF) == 0 or len(match_IB) == 0:
-            print('Info: Missing information in RVEWFW or IB tables for %s, skipping...\n' % id)
+        if 'SB' in table.columns and row['SB'] == 'SB2':
+            print('Skipping SB2 source %s' % source)
             continue
 
-        # Filter based on Si lines properties:
-        #if ('QSiII' in table.columns and row['QSiII']<3) \
-        #  or match_REF['EWSiII']<50 or np.isnan(match_REF['EWSiII']) \
-        #  or match_REF['depSiII']<3/match_REF['SNR_B']:
-        #    SiIIFG = 0
-        #else: SiIIFG = 1
+        # Checks if the star is in the IACOB-Broad table:
+        match_IB = table_IB[table_IB['ID']==star.id_star]
+        if len(match_IB) == 0:
+            print('Info: Missing information in IB table for %s, skipping...\n' % source)
+            continue
 
-        #if ('QSiIII' in table.columns and row['QSiIII']<3) \
-        #  or match_REF['EWSiIII1']<50 or np.isnan(match_REF['EWSiIII1']) \
-        #  or match_REF['depSiIII1']<3/match_REF['SNR_B']:
-        #    SiIIIFG = 0
-        #else: SiIIIFG = 1
+        # Checks if the star is in the IACOB-Broad table:
+        if table_REF is not None:
+            match_REF = table_REF[[i.strip()==star.id_star for i in table_REF['ID']]]
 
-        #if SiIIIFG == 0 and SiIIFG == 0:
-        #    print('Info: No SiIII/SiII found for %s, skipping...\n' % id)
-        #    continue
+            if len(match_REF) == 0:
+                print('Info: Missing information in RVEWFW table for %s, skipping...\n' % source)
+                continue
 
-        star = spec(id, SNR='bestMF')
+            # Filter based on Si lines properties:
+            #if ('QSiII' in table.columns and row['QSiII']<3) \
+            #  or match_REF['EWSiII']<50 or np.isnan(match_REF['EWSiII']) \
+            #  or match_REF['depSiII']<3/match_REF['SNR_B']:
+            #    SiIIFG = 0
+            #else: SiIIFG = 1
 
+            #if ('QSiIII' in table.columns and row['QSiIII']<3) \
+            #  or match_REF['EWSiIII1']<50 or np.isnan(match_REF['EWSiIII1']) \
+            #  or match_REF['depSiIII1']<3/match_REF['SNR_B']:
+            #    SiIIIFG = 0
+            #else: SiIIIFG = 1
+
+            #if SiIIIFG == 0 and SiIIFG == 0:
+            #    print('Info: No SiIII/SiII found for %s, skipping...\n' % id)
+            #    continue
+
+        else:
+            match_REF = Table([[star.snrcalc('B')]], names=('SNR_B',))
+
+        # Checks if the reference spectrum from IACOB-Broad matches with the input one.
         if match_IB['Ref_file'][0] != star.filename:
             print('WARNING: Different files from best SNR and from IB results for %s' % id)
             print(star.filename,' vs ',match_IB['Ref_file'][0])
@@ -244,28 +260,14 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
                 if int(do_file) == 1: star.filename = star.filename
                 elif int(do_file) == 2: star.filename = match_IB['Ref_file'][0]
 
-        if do_ascii == True and not search(star.filename[:-5]+'_RV.ascii',\
+        # Checks if the ascii file for the star already exists to not repeat it
+        if do_ascii == True and not search(star.filename.split('.')[0]+'_RV.ascii',\
         os.path.expanduser('~')+'/Documents/MAUI/SPECTRA/') is None:
-            print('Info: ascii file for %s already exists' % star.filename[:-5])
+            print('Info: ascii file for %s already exists' % star.filename.split('.')[0])
             do_ascii = False
-
-        # ----------------------------------------------------------------------
-        ## Extra information appended to the end of each row:
-        #match_results = results[results['ID']==id]
-        #if len(match_results) == 0:
-        #    l_Tef = logTf = l_lgf = loggf = grid = 0
-        #else:
-        #    l_Tef = match_results['l_Teff'][0]; logTf = 4+np.log10(match_results['Teff'][0])
-        #    l_lgf = match_results['l_lgf'][0]; loggf = match_results['lgf'][0];
-        #    grid = grids_dic[match_results['Grid_name'][0]][0]
-        # ----------------------------------------------------------------------
 
         if do_ascii == True:
 
-            ''' aqui se mete el nuevo programa para generar los ascii (spec_posproc)
-            con un keyword que sera el de RV0=True/False/el valor match_REF['RVSiIII1']
-            si se cumple lo primero de abajo, y si no gen_ascii(,RV0=False,)
-            '''
             # If RV SiIII is good enough, it uses it for the rv0 correction:
             if not np.ma.is_masked(match_REF['RV_4553']) and (match_REF['EW_4553'] > 50) \
                 and abs(match_REF['RV_4553']-match_REF['RV_Hb']) < 10:
@@ -298,22 +300,15 @@ def maui_input(table='IACOB_O9BAs_SNR20.fits', output_name='MAUI_input', RV0tol=
             match_REF['SNR_B'] = 200
 
         maui_txt.write(
-            "{:<40}".format(star.filename[:-5])\
-            +"{:<48}".format(star.filename[:-5] + '_RV.ascii') + "{:<6}".format('0.0d0')\
+            "{:<40}".format(star.filename.split('.')[0])\
+            +"{:<48}".format(star.filename.split('.')[0] + '_RV.ascii') + "{:<6}".format('0.0d0')\
             +"{:<6}".format(str(int(round(match_IB['vsini_GF'][0],0))))\
             +"{:<7}".format(str(int(round(match_IB['evsini'][0]))))\
             +"{:<5}".format(str(int(round(match_IB['vmac_GF'][0]))))\
             +"{:<7}".format(str(int(round(match_IB['evmac'][0]))))\
             +"{:<7}".format(str(star.resolution)+'.')\
             +"{:<5}".format(str(int(round(match_REF['SNR_B'][0],0))))\
-            + ';# '\
-            #+"{:<12}".format(row['SpC'].strip().replace(' ','')) + ' '\
-            #+"{:<8}".format(str(round(match_REF['FW34Hb'][0]-match_REF['FW14Hb'][0],1)))\
-            #"{:<5}".format(str(SiIIIFG)) + "{:<2}".format(str(SiIIFG)) + ' '\
-            #str(l_Tef) + ' ' + "{:<4}".format(str(round(logTf,2))) + ' '\
-            #str(l_lgf) + ' ' + "{:<5}".format(str(round(loggf,2)))\
-            #"{:<15}".format(str(grid))\
-            +'\n')
+            +' ;#\n')
 
     maui_txt.close()
 
@@ -341,7 +336,7 @@ class solution_idl():
 
         # Identifiers
         self.filename = idldata.aa.label[0].decode() + '.fits'
-        self.id = self.filename.split('_')[0]
+        self.id_star = self.filename.split('_')[0]
 
         # Resolution
         self.resolution = int(idldata.obsdat.spectrum[0].reso_for_obs)
@@ -458,7 +453,7 @@ class solution_idl():
         self.line_windows = line_windows
 
 
-def maui_results(input_list, output_dir, check_best=True, last_only=False, FR=False,
+def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=False,
     pdfplots=False, pdflines='diag', grids_table='MAUI_grid_limits.fits', grid_only=[],
     output_table=True, format_table='fits'):
 
@@ -478,7 +473,7 @@ def maui_results(input_list, output_dir, check_best=True, last_only=False, FR=Fa
 
     check_best : boolean, optional
         True if each spectra from the input_table is checked against the best
-        spectrum in the database. Default is True.
+        spectrum in the database. Default is False.
 
     last_only : boolean, optional
         True if only the last analysed .idl results want to be kept.
@@ -602,14 +597,14 @@ def maui_results(input_list, output_dir, check_best=True, last_only=False, FR=Fa
 
             # Find the best SNR spectra in the DB
             if check_best == True or pdfplots == True:
-                best_SNR = spec(star.id, SNR='bestMF')
+                best_SNR = spec(star.id_star, SNR='bestMF')
 
             # Check if the input file matches with the best SNR spectra available
             if check_best == True and star.filename != best_SNR.filename:
                 print('\nWARNING: %s does not match with best spectrum available.' % star.filename)
 
             # Generate the table with the results of each of the parameters (basic and with errors)
-            data_row = [star.id,star.filename,star.gridname,star.BC,star.B_V0]
+            data_row = [star.id_star,star.filename,star.gridname,star.BC,star.B_V0]
 
             [data_row.extend([
                 getattr(star, 'l_'+par_name),
@@ -661,8 +656,7 @@ def maui_results(input_list, output_dir, check_best=True, last_only=False, FR=Fa
 
                 nrows, ncols = even_plot(len(line_names))
 
-                fig, ax = plt.subplots(nrows, ncols, figsize=(13,8), tight_layout=True)
-                fig.subplots_adjust(wspace=.5, hspace=.5)
+                fig, ax = plt.subplots(nrows, ncols, figsize=(13,8))
 
                 fig_title = ''
                 for par_name in param_err:
@@ -677,15 +671,15 @@ def maui_results(input_list, output_dir, check_best=True, last_only=False, FR=Fa
 
                     fig_title += par_name+label+str(round(val,2))+'  '
 
-                fig.suptitle(star.id + ' -- ' + match.split('emulated_solution_mcmc_sqexp_mat1_')[-1]
+                fig.suptitle(star.id_star + ' -- ' + match.split('emulated_solution_mcmc_sqexp_mat1_')[-1]
                     + ' -- ' + star.gridname + '\n' + fig_title, fontsize=8)
 
                 axs = ax.flatten()
                 for ax_i,line_lwl,line_rwl,line_name,c in zip(axs,lines_lwl,lines_rwl,line_names,line_colors):
-                    #mask = [(star.synwave > line_lwl) & (star.synwave < line_rwl)]
+                    #mask = (star.synwave > line_lwl) & (star.synwave < line_rwl)
                     #ax_i.plot(star.synwave[mask], star.synflux[mask], color='gray', lw=.3)
 
-                    mask = [(star.obswave > line_lwl) & (star.obswave < line_rwl)]
+                    mask = (star.obswave > line_lwl) & (star.obswave < line_rwl)
                     ax_i.plot(star.obswave[mask], star.obsflux[mask], color='k', lw=.7)
                     if ax_i.get_ylim()[0] > 0.9:
                         ax_i.set_ylim(bottom=0.895)
@@ -758,6 +752,9 @@ def maui_results(input_list, output_dir, check_best=True, last_only=False, FR=Fa
 
                 [fig.delaxes(axs[i]) for i in np.arange(len(line_names), len(axs), 1)]
 
+                fig.tight_layout()
+                fig.subplots_adjust(wspace=0.14, hspace=0.3)
+
                 pdf_solution.savefig(fig); plt.close(fig)
 
                 # PLOT OF PROBABILLITY DISTRIBUTIONS OUT OF THE IDL MARKOV-CHAIN FILES
@@ -765,17 +762,17 @@ def maui_results(input_list, output_dir, check_best=True, last_only=False, FR=Fa
                 try:
                     mcmc_data = readsav(output_dir + 'MARKOV_CHAIN/' + mcmc_file)
                 except:
-                    print('%s associated mcmc file not found in MARKOV_CHAIN/ folder' % star.id)
+                    print('%s associated mcmc file not found in MARKOV_CHAIN/ folder' % star.id_star)
                     continue
 
                 parameters = [var.decode() for var in mcmc_data.varname]
 
                 nrows, ncols = even_plot(len(parameters))
 
-                fig, ax = plt.subplots(nrows, ncols, figsize=(13,8), tight_layout=True)
+                fig, ax = plt.subplots(nrows, ncols, figsize=(13,8))
                 fig.subplots_adjust(wspace=.5, hspace=.5)
 
-                fig.suptitle(star.id + ' -- ' + match.split('emulated_solution_mcmc_sqexp_mat1_')[-1]
+                fig.suptitle(star.id_star + ' -- ' + match.split('emulated_solution_mcmc_sqexp_mat1_')[-1]
                     + ' -- ' + star.gridname + '\n' + fig_title, fontsize=8)
 
                 axs = ax.flatten()
@@ -805,6 +802,8 @@ def maui_results(input_list, output_dir, check_best=True, last_only=False, FR=Fa
                     axs[j].tick_params(direction='in', top='on')
 
                 [fig.delaxes(axs[i]) for i in np.arange(len(parameters), len(axs), 1)]
+
+                fig.tight_layout()
 
                 pdf_makchain.savefig(fig); plt.close(fig)
 
@@ -954,7 +953,7 @@ def gen_synthetic(output_dir, save_dir='server', lwl=3900, rwl=5080):
         if not file.startswith('._') and file.endswith('.idl'):
             star = solution_idl(output_dir + 'SOLUTION/' + file)
 
-            star_db = spec(star.id, SNR='best')
+            star_db = spec(star.id_star, SNR='bestMF')
 
             if star.filename != star_db.filename:
                 print('\nWARNING: %s does not match with best spectrum available.'

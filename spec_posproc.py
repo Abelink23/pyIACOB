@@ -5,8 +5,8 @@ from copy import deepcopy
 from matplotlib.backends.backend_pdf import PdfPages
 
 
-def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200,
-    cosmetic=False, cosmic=False, degrade=None, show_plot=False):
+def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200, export_rv=False,
+    cosmetic=False, cosmic=False, lines_cosmic=None, degrade=None, show_plot=False):
 
     '''
     Function to remove cosmic rays in the spectra by different approaches.
@@ -35,6 +35,10 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
     RV0tol : int, optional
         Enter the input radial velocity tolerance for the radial velocity correction.
 
+    export_rv : boolean, optional
+        If True and rv_corr also True, then the calculated radial velocity is exported
+        as a table named 'gen_ascii_RVs.txt' with columns 'ID, RV0, eRV0'
+
     cosmetic : boolean, optional
         If True, the output ascii spectrum will be corrected from cosmetic defects.
         Default is False.
@@ -42,6 +46,11 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
     cosmic : boolean, optional
         If True, the output ascii spectrum will be corrected from cosmic rays.
         Default is False.
+
+    lines_cosmic : str/list, optional
+        Enter the wavelenght(s) of the line(s) to show, either in a coma-separated
+        string, or in a .txt/.lst file containing the lines to plot in order to review
+        the cosmic rays removal.
 
     degrade : int/float, optional
         If True, the output ascii spectrum will degraded to the input resolution.
@@ -101,7 +110,7 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
         star = spec(id, SNR='bestMF', txt=txt, cut_edges=True)
 
         if show_plot == True:
-            fig,axs = plt.subplots(3, 1, figsize=(14,8), tight_layout=True)
+            fig,axs = plt.subplots(3, 1, figsize=(14,8))
             fig.suptitle(star.filename)
             axs[0].tick_params(direction='in', top='on')
             axs[0].set_xlim(3950, 6850)
@@ -167,7 +176,7 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
                         if wid == '': wid = 15.
                         else: wid = float(wid)
 
-                star.rv0 = RV0(spt_list, star.filename, txt=txt, ewcut=30, width=wid, tol=RV0tol, func=fun)
+                star.rv0, erv0 = RV0(spt_list, star.filename, txt=txt, ewcut=30, width=wid, tol=RV0tol, func=fun)
                 star.wave = tmp_wave*(1 - 1000*star.rv0/cte.c)
 
                 star.plotspec(4821,4901, lines='35-10K')
@@ -182,6 +191,11 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
                     next_rv0 = 'n'
 
             plt.close('all')
+
+            if export_rv == True:
+                rv_table = open(maindir+'tables/gen_ascii_RVs.txt', 'a+')
+                rv_table.write('{}, {}, {:.3f}, {:.3f}\n'.format(star.id_star, star.filename, star.rv0, erv0))
+                rv_table.close()
 
         elif rv_corr not in [True,False]:
             try:
@@ -218,7 +232,7 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
                 # To prevent the noisier blue part of the spectrum to be taken for cosmic removal:
                 tmp_star.flux = np.concatenate([star.flux[star.wave<4000],tmp_star.flux[star.wave>=4000]])
 
-                fig_cosm,ax_cosm = plt.subplots(figsize=(14,4), tight_layout=True)
+                fig_cosm,ax_cosm = plt.subplots(figsize=(14,4))
                 ax_cosm.plot(star.wave, star.flux, c='orange', lw=.7, label='RV corrected')
                 ax_cosm.plot(star.wave, tmp_star.flux, c='b', lw=.5, label='Cosmic corrected')
 
@@ -227,8 +241,40 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
                 if ax_cosm.get_ylim()[0] <0:
                     ax_cosm.set_ylim(bottom=0)
 
-                ax_cosm.legend()
+                fig_cosm.legend()
+                fig_cosm.tight_layout()
                 fig_cosm.show()
+
+                if lines_cosmic is not None:
+
+                    lines,elems,_ = findlines(lines_cosmic)
+                    nrows = int(np.ceil(np.sqrt(len(lines))))
+                    ncols = round(len(lines)/np.ceil(np.sqrt(len(lines)))+0.4)
+
+                    fig_lines,ax_lines = plt.subplots(nrows, ncols, figsize=(13,8))
+
+                    ax_lines = ax_lines.flatten()
+                    for ax_i,line,elem in zip(ax_lines,lines,elems):
+
+                        if elem in ['Hdelta','Hgamma','Hbeta','Halpha']:
+                            width = 60
+                        else:
+                            width = 15
+
+                        mask = (star.wave >= line-width/2.) & (star.wave <= line+width/2.)
+                        ax_i.plot(star.wave[mask], star.flux[mask], c='orange', lw=.7, label='RV corrected')
+                        ax_i.plot(star.wave[mask], tmp_star.flux[mask], c='b', lw=.5, label='Cosmic corrected')
+                        ax_i.set_title(elem, fontsize=6, pad=0.5)
+                        ax_i.tick_params(direction='in', top='on', labelsize=5)
+                        ax_i.set_yticks([])
+                        ax_i
+
+                    [fig_lines.delaxes(ax_lines[i]) for i in np.arange(len(lines), len(ax_lines), 1)]
+
+                    fig_lines.tight_layout()
+                    fig_lines.subplots_adjust(wspace=.1, hspace=0.3)
+
+                    fig_lines.show()
 
                 next_cosm = input("Type 'n' to repeat, hit return to continue. ")
                 if next_cosm not in ['n','']:
@@ -261,8 +307,10 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
             axs[2].set_xlim(3950, 6850)
             axs[2].set_ylim(0.5, 1.1)
             axs[2].plot(star.wave, star.flux, c='b', lw=.2, label='Final')
-            fig.show()
+
+            fig.tight_layout()
             fig.legend(ncol=3)
+            fig.show()
 
         finish = input('Type "n" to repeat, hit return to move to the next star. ')
         if finish not in ['n','']:
@@ -333,7 +381,7 @@ def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, cosmic_manual=Fals
         # Determines the RV with a default fitting function and width
         fun = 'g'; wid = 15
         best_star = spec(row['ID'], SNR='bestMF', txt=txt)
-        best_star.rv0 = RV0(rv_list, best_star.filename, txt=txt, ewcut=50, func=fun, width=wid, tol=150)
+        best_star.rv0, erv0 = RV0(rv_list, best_star.filename, txt=txt, ewcut=50, func=fun, width=wid, tol=150)
         best_star.waveflux(3950,6850, cut_edges=True) # Applies the rv0 correction
 
         # If the line is >.1A from where should be, you determine new best function, width and line
@@ -361,7 +409,7 @@ def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, cosmic_manual=Fals
                         if wid == '': wid = 15.
                         else: wid = float(wid)
 
-                best_star.rv0 = RV0(rv_list, best_star.filename, ewcut=30, func=fun, width=wid, tol=150)
+                best_star.rv0, erv0 = RV0(rv_list, best_star.filename, ewcut=30, func=fun, width=wid, tol=150)
                 best_star.wave = tmp_wave*(1 - 1000*best_star.rv0/cte.c) # Applies the rv0 correction
 
                 best_star.plotspec(4821,4901, lines='35-10K')
@@ -383,7 +431,7 @@ def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, cosmic_manual=Fals
             star.waveflux(3950,6850, cut_edges=True)
 
             # Create the plot:
-            fig,axs = plt.subplots(3, 1, figsize=(14,8), tight_layout=True)
+            fig,axs = plt.subplots(3, 1, figsize=(14,8))
             fig.suptitle(star.filename)
             axs[0].tick_params(direction='in', top='on')
             axs[0].set_xlim(3950, 6850)
@@ -412,7 +460,7 @@ def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, cosmic_manual=Fals
                         c='r', lw=.2, label='FEROS fixed issues' if i==0 else "")
                     i += 1
 
-            star.rv0 = RV0(rv_list, star.filename, ewcut=50, width=wid, tol=150, func=fun)
+            star.rv0, erv0 = RV0(rv_list, star.filename, ewcut=50, width=wid, tol=150, func=fun)
             star.wave = star.wave*(1 - 1000*star.rv0/cte.c) # Applies the rv0 correction
 
             axs[1].plot(star.wave, star.flux, c='orange', lw=.2, label='Original*')
@@ -440,9 +488,10 @@ def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, cosmic_manual=Fals
                     tmp_star = deepcopy(star)
                     tmp_star.cosmic(method='zscore', dmin=dmin, zs_cut=zs_cut, protect_em_lines=True)
 
-                    fig_cosm,ax_cosm = plt.subplots(figsize=(14,4), tight_layout=True)
+                    fig_cosm,ax_cosm = plt.subplots(figsize=(14,4))
                     ax_cosm.plot(star.wave, star.flux, c='orange', lw=1, label='RV corrected')
                     ax_cosm.plot(star.wave, tmp_star.flux, c='g', lw=.5, label='Cosmic corrected')
+                    fig_cosm.tight_layout()
                     fig_cosm.show()
 
                     next_cosm = input("Type 'n' to repeat, hit return to continue. ")
@@ -487,6 +536,8 @@ def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, cosmic_manual=Fals
                 output.write(star.filename + ' | RV difference (A): %.3f\n' % (center - line))
 
             axs[0].legend(); axs[1].legend(); axs[2].legend()
+
+            fig.tight_layout()
             pp.savefig(fig)
             plt.close('all')
 

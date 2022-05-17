@@ -12,7 +12,8 @@
 # Transition types included: Nebular (E1,E2)
 # Transitions from auto-ionizing levels: included
 # Comment code: A-> activity/wind, D -> diagnostic line (global), V -> vsini, Q -> affected by wind, Teff -> used for determination of Teff, RV_O/B/A -> good for RV determination
-# Some He lines added manually
+# Some He lines added manually at the bottom
+# Some Metallic lines also added manually at the bottom
 
 wl_air	   , dlamb  , spc   , tt, configuration                              , term               , J_i-J_k          , -lg(gf), tpf, level_energy(cm-1)     , ref    ,  name, comment
 3801.1     , 9.1e-01, S I   , E1,      3s2.3p3.(4So).4p-3s2.3p3.(2Do).4d     ,        3P-3So      ,      1 - 1       ,        ,    ,   64888.96 -   91190.00, ASD    ,      ,
@@ -3821,6 +3822,7 @@ wl_air	   , dlamb  , spc   , tt, configuration                              , te
 3934.823   , 1.4e-02, O III , E1,       2s2.2p.(2Po).4p-2s2.2p.(2Po).5s      ,        3D-3Po      ,      3 - 2       ,  0.0607,   3,  366802.62 -  392209.53, 039    ,      ,
 3998.63    , 1.4e-01, N III , E1,                2s2.4d-2s2.5f               ,        2D-2Fo      ,    3/2 - 5/2     ,  0.4025,   3,  317747.70 -  342749.20, ASD    ,      , V
 4003.58    , 1.4e-01, N III , E1,                2s2.4d-2s2.5f               ,        2D-2Fo      ,    5/2 - 7/2     ,  0.5568,   3,  317779.50 -  342750.10, ASD    ,      ,
+4039.446   , 1.2e-02, N II  , E1,       2s2.2p.(2Po).4p-2s2.2p.(2Po).7s      ,        3D-3Po      ,      3 - 2       , -1.0912,   3,  202861.16 -  227610.04, 030    ,      ,
 4056.061   , 1.5e-02, C III , E1,                 2s.4d-2s.5f                ,        1D-1Fo      ,      2 - 3       ,  0.2651,  U3,  324212.49 -  348859.99, ASD    ,      , V
 4067.940   , 1.5e-02, C III , E1,                 2s.4f-2s.5g                ,       3Fo-3G       ,      2 - 3       ,  0.7181,   3,  322003.68 -  346579.21, ASD    ,      ,
 4068.916   , 1.5e-02, C III , E1,                 2s.4f-2s.5g                ,       3Fo-3G       ,      3 - 4       ,  0.8361,   3,  322009.58 -  346579.21, ASD    ,      ,

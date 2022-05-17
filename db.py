@@ -1,10 +1,9 @@
 # Python Standard Library packages:
 import re
-import time
+import os
 import sys
-import os.path
+import time
 import platform
-import warnings; warnings.filterwarnings("ignore")
 
 # Other main packages
 import numpy as np
@@ -15,10 +14,15 @@ import astropy.units as u
 from astropy.io import fits,ascii
 from astropy.table import Table, join, setdiff, vstack, hstack
 from astropy.coordinates import SkyCoord
+#   Vizier:
 from astroquery.vizier import Vizier # Only used to query in Gaia DR2
+#   Simbad
 from astroquery.simbad import Simbad
 Simbad.add_votable_fields('flux(B)','flux(V)','sptype')
+#   Gaia
 from astroquery.gaia import Gaia
+Gaia.MAIN_GAIA_TABLE = "gaiaedr3.gaia_source" # Select early Data Release 3
+Gaia.ROW_LIMIT = -1 # Set the number of output raw limit to infinite
 sys.path.append(os.path.expanduser('~') + '/MEGA/PhD/programs/python/edr3_zp')
 import zpt; zpt.load_tables()
 
@@ -158,7 +162,7 @@ def findstar(spectra=None, SNR=None):
     if any(['ascii' in spectrum for spectrum in list_spectra]) and SNR != None:
         print('SNR for ascii files is not yet implemented, ignoring SNR keyword.')
 
-    else:    
+    else:
         if SNR == 'best':
             dir_spectra = snr(dir_spectra)
 

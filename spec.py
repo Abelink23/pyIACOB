@@ -54,15 +54,15 @@ class spec():
                 return None
             else: spectrum = spectrum[0]
 
-        self.spectrum = findstar(spectrum, SNR=SNR)
-        if len(self.spectrum) > 1:
+        self.fullpath = findstar(spectrum, SNR=SNR)
+        if len(self.fullpath) > 1:
             print('Error: More than one spectrum selected.\nExitting...')
             return None
-        self.spectrum = self.spectrum[0]
-        self.filename = self.spectrum.split(os.sep)[-1]
-        self.id_star = self.spectrum.split(os.sep)[-1].split('_')[0]
+        self.fullpath = self.fullpath[0]
+        self.filename = self.fullpath.split(os.sep)[-1]
+        self.id_star = self.fullpath.split(os.sep)[-1].split('_')[0]
 
-        self.resolution = int(re.split('(\d*\d+)',self.spectrum)[-2])
+        self.resolution = int(re.split('(\d*\d+)',self.fullpath)[-2])
 
         self.offset = offset # Note, run self.waveflux to apply offset.
 
@@ -84,7 +84,7 @@ class spec():
 
         try:
             query = Simbad.query_object(self.id_star)
-
+            return None
             if query == None and 'HD' in self.id_star:
                 new_id_star = self.id_star.replace('HD', 'HD ')
                 query = Simbad.query_object(new_id_star)
@@ -122,8 +122,11 @@ class spec():
         '''
 
         # Retrieve the key values fron the fits header
-        hdu = fits.open(self.spectrum)  # Open the fits image file
-        hdu.verify('fix')               # Fix possible issues with the keywords
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', category=UserWarning, append=True)
+            hdu = fits.open(self.fullpath)  # Open the fits image file
+            hdu.verify('fix')               # Fix possible issues with the keywords
+
         header0 = hdu[0].header         # Read header of primary extension
 
         instrum = header0['INSTRUME']   # Instrument
@@ -135,7 +138,7 @@ class spec():
         # Alternatively use len(hdu[0].data[0]) (NOT/MERCATOR) or len(hdu[0].data)
 
         # Correct Mercator CRVAL1 20101018-19:
-        if any(bad in self.spectrum for bad in ['_20101018_','_20101019_']) and lam0 == 3763.9375:
+        if any(bad in self.fullpath for bad in ['_20101018_','_20101019_']) and lam0 == 3763.9375:
             lam0 = 3763.61
 
         try:
@@ -143,7 +146,7 @@ class spec():
         #    vbar = header0['BVCOR']  # [km/s] Barycent. rv correction at midpoint | MERCATOR
         #    vbar = header0['VHELIO'] # [km/s] Barycent. rv correction at midpoint | NOT
         except:
-            print('No helio/bary-centric correction applied to' + self.spectrum); vbar = 0
+            print('No helio/bary-centric correction applied to' + self.fullpath); vbar = 0
 
         self.vbar = vbar
 
@@ -170,7 +173,7 @@ class spec():
             print('\nWARNING: Width value %f is too large, setting it to 200. ' %width)
 
         wave = lam0 + dlam*(np.arange(spec_length) - pix0 + 1)
-        if '_log' in self.spectrum:
+        if '_log' in self.fullpath:
             wave = np.exp(wave)
         elif helcorr == 'hel' and not instrum == 'FEROS':
             wave = wave*(1 + 1000*vbar/cte.c)
@@ -204,7 +207,7 @@ class spec():
             flux = flux[(wave >= lwl-width/2.) & (wave <= rwl+width/2.)]
             wave = wave[(wave >= lwl-width/2.) & (wave <= rwl+width/2.)]
 
-        if '_log' in self.spectrum:
+        if '_log' in self.fullpath:
             self.dlam = (wave[-1]-wave[0])/(len(wave)-1)
         else:
             self.dlam = dlam
@@ -230,7 +233,7 @@ class spec():
         See help for spec.waveflux
         '''
 
-        data = findtable(self.spectrum, path=datadir+'ASCII/', format='no_header')
+        data = findtable(self.filename, path=datadir+'ASCII/', format='no_header')
 
         try:
             wave = np.asarray(data['wavelenght'])
