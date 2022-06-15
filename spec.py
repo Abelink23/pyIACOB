@@ -84,13 +84,14 @@ class spec():
 
         try:
             query = Simbad.query_object(self.id_star)
-            return None
             if query == None and 'HD' in self.id_star:
                 new_id_star = self.id_star.replace('HD', 'HD ')
                 query = Simbad.query_object(new_id_star)
             self.SpC = query['SP_TYPE'][0]
             #self.otypes = query['OTYPES'][0]
+
         except:
+            print('Spectral classification could not be queried for %s' % self.id_star)
             self.SpC = ''
 
 
@@ -122,11 +123,8 @@ class spec():
         '''
 
         # Retrieve the key values fron the fits header
-        with warnings.catch_warnings():
-            warnings.filterwarnings('ignore', category=UserWarning, append=True)
-            hdu = fits.open(self.fullpath)  # Open the fits image file
-            hdu.verify('fix')               # Fix possible issues with the keywords
-
+        hdu = fits.open(self.fullpath)  # Open the fits image file
+        hdu.verify('fix')               # Fix possible issues with the keywords
         header0 = hdu[0].header         # Read header of primary extension
 
         instrum = header0['INSTRUME']   # Instrument

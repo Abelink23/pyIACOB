@@ -230,7 +230,15 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
                 tmp_star.cosmic(method='zscore', dmin=dmin, zs_cut=zs_cut)
 
                 # To prevent the noisier blue part of the spectrum to be taken for cosmic removal:
-                tmp_star.flux = np.concatenate([star.flux[star.wave<4000],tmp_star.flux[star.wave>=4000]])
+                blue_cut = ''
+                while type(blue_cut) is not float:
+                    blue_cut = input('Set initial wavelength from where to apply the removal (def. is 4000): ')
+                    if blue_cut != '':
+                        blue_cut = float(blue_cut)
+                    else:
+                        blue_cut = 4000.
+
+                tmp_star.flux = np.concatenate([star.flux[star.wave<blue_cut],tmp_star.flux[star.wave>=blue_cut]])
 
                 fig_cosm,ax_cosm = plt.subplots(figsize=(14,4))
                 ax_cosm.plot(star.wave, star.flux, c='orange', lw=.7, label='RV corrected')
@@ -241,7 +249,7 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
                 if ax_cosm.get_ylim()[0] <0:
                     ax_cosm.set_ylim(bottom=0)
 
-                fig_cosm.legend()
+                ax_cosm.legend()
                 fig_cosm.tight_layout()
                 fig_cosm.show()
 
@@ -272,7 +280,7 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
                     [fig_lines.delaxes(ax_lines[i]) for i in np.arange(len(lines), len(ax_lines), 1)]
 
                     fig_lines.tight_layout()
-                    fig_lines.subplots_adjust(wspace=.1, hspace=0.3)
+                    fig_lines.subplots_adjust(wspace=.05, hspace=0.25)
 
                     fig_lines.show()
 
@@ -317,6 +325,8 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
             finish = 'n'
 
     plt.close('all')
+    plt.close(fig)
+
     star.export(tail='_RV', extension='.ascii')
 
     return None
