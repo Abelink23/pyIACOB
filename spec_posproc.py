@@ -76,7 +76,7 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
         if spt == 'auto':
             if 'SpT_code' in db_table.colnames:
                 print('Initial spectral type taken from SpT_code column.')
-                spt = row_id['SpT_code']
+                spt = row_id['SpT_code'][0]
             elif 'SpT' in db_table.colnames:
                 print('Initial spectral type taken from SpT column.')
                 spt = spc_code(row_id['SpT'])[0]
@@ -208,7 +208,7 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
         # Correct the spectrum form cosmic rays:
         if cosmic == True:
 
-            next_cosm = 'n'; dmin = 0.05; zs_cut = 5
+            next_cosm = 'n'; dmin = 0.05; zs_cut = 3; blue_cut = '4000'
             while next_cosm == 'n':
 
                 print('Current input for cosmic rays correction is zs_cut({})'.format(zs_cut)
@@ -230,13 +230,11 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
                 tmp_star.cosmic(method='zscore', dmin=dmin, zs_cut=zs_cut)
 
                 # To prevent the noisier blue part of the spectrum to be taken for cosmic removal:
-                blue_cut = ''
-                while type(blue_cut) is not float:
-                    blue_cut = input('Set initial wavelength from where to apply the removal (def. is 4000): ')
-                    if blue_cut != '':
-                        blue_cut = float(blue_cut)
-                    else:
-                        blue_cut = 4000.
+                try:
+                    blue_cut = float(input('Set initial wavelength from where to apply the removal (now is %s): ' % str(blue_cut)))
+                except:
+                    print('Only int/float are accepted. Choosing %s... ' % str(blue_cut))
+                    blue_cut = float(blue_cut)
 
                 tmp_star.flux = np.concatenate([star.flux[star.wave<blue_cut],tmp_star.flux[star.wave>=blue_cut]])
 
@@ -275,7 +273,8 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
                         ax_i.set_title(elem, fontsize=6, pad=0.5)
                         ax_i.tick_params(direction='in', top='on', labelsize=5)
                         ax_i.set_yticks([])
-                        ax_i
+                        if ax_i.get_ylim()[0] > 0.9:
+                            ax_i.set_ylim(bottom=0.9)
 
                     [fig_lines.delaxes(ax_lines[i]) for i in np.arange(len(lines), len(ax_lines), 1)]
 
@@ -324,8 +323,9 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
         if finish not in ['n','']:
             finish = 'n'
 
-    plt.close('all')
     plt.close(fig)
+    plt.close('all')
+    plt.close()
 
     star.export(tail='_RV', extension='.ascii')
 

@@ -84,7 +84,7 @@ class spec():
 
         try:
             query = Simbad.query_object(self.id_star)
-            if query == None and 'HD' in self.id_star:
+            if query is None and 'HD' in self.id_star:
                 new_id_star = self.id_star.replace('HD', 'HD ')
                 query = Simbad.query_object(new_id_star)
             self.SpC = query['SP_TYPE'][0]
@@ -504,7 +504,7 @@ class spec():
         snr = int(1/sigma_cont)
 
         #============================= Quality value ===========================
-        q_fit = 1/np.std(flux_norm[flux_fit<.995]/flux_fit[flux_fit<.995]) #simple
+        q_fit = 1/np.std(flux_norm[flux_fit<(1-.2*depth)]/flux_fit[flux_fit<(1-.2*depth)]) #simple
         q_fit = round(q_fit, 3)
 
         #================================ Plot =================================
@@ -697,7 +697,7 @@ class spec():
                 resolution = float(self.resolution) # resolution = 5000 # Empirical optimal value
                 dlam = self.dlam # dlam = 0.2564975 # Empirical optimal value
 
-                if sig_g == None:
+                if sig_g is None:
                     lambda0 = np.mean(self.wave[mask])
                     sig_g = lambda0/(2.35482*resolution)
                 else:
@@ -843,9 +843,9 @@ class spec():
             # It is divided by 3 to at least have 3 pixels in a gaussian
             print('WARNING: The new delta lambda implies lossing information...')
 
-        if lwl == None or lwl < self.wave[0]:
+        if lwl is None or lwl < self.wave[0]:
             lwl = self.wave[0]
-        if rwl == None or rwl > self.wave[-1]:
+        if rwl is None or rwl > self.wave[-1]:
             rwl = self.wave[-1]
 
         f = interp1d(self.wave, self.flux, kind=method, fill_value='extrapolate')
@@ -1100,7 +1100,7 @@ def f_rotmac(x, lam0, vsini=None, vmac=None):
         R = (2*(1 - eps)*np.sqrt(doppl) + np.pi*eps/2.*doppl)/(np.pi*delta_R*(1 - eps/3))
         R = np.nan_to_num(R)
 
-        if vmac == None:
+        if vmac is None:
             return R
 
     if vmac != None:
@@ -1117,7 +1117,7 @@ def f_rotmac(x, lam0, vsini=None, vmac=None):
 
         M = np.concatenate((M[::-1], M[1:]))
 
-        if vsini == None:
+        if vsini is None:
             return M
 
     if vsini != None and vmac != None:

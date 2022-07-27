@@ -24,9 +24,9 @@ Simbad.add_votable_fields('flux(B)','flux(V)','sptype')
 from astroquery.gaia import Gaia
 Gaia.MAIN_GAIA_TABLE = "gaiaedr3.gaia_source" # Select early Data Release 3
 Gaia.ROW_LIMIT = -1 # Set the number of output raw limit to infinite
-sys.path.append(os.path.expanduser('~') + '/MEGA/PhD/programs/python/edr3_zp')
-import zpt; zpt.load_tables()
 
+sys.path.append('edr3_zp')
+import zpt; zpt.load_tables()
 
 # Load the working paths:
 dir = ''
@@ -42,12 +42,13 @@ dirs = {}
 for i in paths:
     dirs[i[0]] = i[1]
 
-maindir = dirs['main']
-datadir = dirs['data']
-ibdir   = dirs['ib']
-mauidir = dirs['maui']
-mistdir = dirs['mist']
-tessdir = dirs['tess']
+maindir  = dirs['main']
+datadir  = dirs['data']
+ibdir    = dirs['ib']
+mauidir  = dirs['maui']
+modeldir = dirs['models']
+tessdir  = dirs['tess']
+
 
 def search(myfile, path):
 

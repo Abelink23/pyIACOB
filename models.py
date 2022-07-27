@@ -1,6 +1,9 @@
 from db import *
 
-# Tracks and isochrones are downloaded from:
+##########################################################################################
+#    MIST - MESA
+##########################################################################################
+# Tracks and isochrones from MIST are downloaded from:
 # https://waps.cfa.harvard.edu/MIST/interp_tracks.html
 # https://waps.cfa.harvard.edu/MIST/interp_isos.html
 # MIST version 1.2
@@ -67,7 +70,7 @@ def isomist(myr=None, logmyr=None, av=1.0, vr=0.4):
     else: ranage = '50-300'
 
     # NOTE: Edit every new table from MIST removing the first lines before the column names.
-    t_mist = Table.read(mistdir + 'ISOCHRONES/ISOC_FeH0_%sMyr_Av%s_V%s.fits' % \
+    t_mist = Table.read(modeldir + 'MIST/ISOCHRONES/ISOC_FeH0_%sMyr_Av%s_V%s.fits' % \
         (ranage,Av,vr),format='fits')
 
     t_mist = t_mist[t_mist['log10_isochrone_age_yr'] == logage]
@@ -108,11 +111,11 @@ def trackmist(mass=None, av=0.0, vr=0.4):
         mass = str(float(mass)).replace('.',''); digit = 4-len(mass)
         mass = '0'*digit+mass
 
-        t_mist = Table.read(mistdir + 'TRACKS/TRAC_FeH0_Av%s_V%s/TRAC_FeH0_%sMsol_Av%s_V%s.fits' % \
+        t_mist = Table.read(modeldir + 'MIST/TRACKS/TRAC_FeH0_Av%s_V%s/TRAC_FeH0_%sMsol_Av%s_V%s.fits' % \
             (Av,vr,mass,Av,vr), format='fits')
 
     else:
-        t_mist = Table.read(mistdir + 'TRACKS/TRAC_FeH0_Av%s_V%s/TRAC_FeH0_08-120_Av%s_V%s.fits' % \
+        t_mist = Table.read(modeldir + 'MIST/TRACKS/TRAC_FeH0_Av%s_V%s/TRAC_FeH0_08-120_Av%s_V%s.fits' % \
             (Av,vr,Av,vr))
 
     return t_mist
@@ -137,3 +140,62 @@ def trackmist(mass=None, av=0.0, vr=0.4):
 #
 #hdu = fits.BinTableHDU(data=t_master.filled(np.nan))
 #hdu.writeto(path+'TRAC_FeH0_08-120_Av00_V00.fits' ,overwrite=True)
+
+
+
+##########################################################################################
+#    GENEVA SYLVIA EKSTROM
+##########################################################################################
+# Tracks and isochrones from Geneva are downloaded from:
+# https://obswww.unige.ch/Research/evol/tables_grids2011/
+
+
+def trackgene(mass=None, vr=0.4):
+
+    '''
+    Function to retrieve a specific track from the Geneva.
+
+    Parameters
+    ----------
+    mass : int/float, optional
+        Enter the mass in M/M_sun of the track you want to retrieve.
+        If None as input, all the tracks will be selected.
+
+    vr : float, optional
+        Enter the initial v/v_crit value [0.0/0.4]. Default is 0.4.
+
+    Returns
+    -------
+    MIST isochrone.
+    '''
+
+    vr = str(vr).replace('0.','')
+
+    mass_list = [0.8,0.9,1,1.1,1.25,1.35,1.5,1.7,2,2.5,3,4,5,7,9,12,15,20,25,32,40,60,85,120]
+
+    if mass != None and mass in mass_list:
+
+        if type(mass) is float:
+            mass = str(mass).replace('.','p')
+
+        else:
+            mass = str(mass)
+            digit = 3-len(mass)
+            mass = '0'*digit+mass
+
+        t_geneva = Table.read(modeldir + 'GENEVA/M%sZ14V%s.dat' % (mass,vr), format='ascii', data_start=2, delimiter=' ')
+
+    # FROM Gonzalo
+    t_geneva.rename_columns(['lg(Teff)','lg(L)'],['log_Teff','log_L'])
+    #t_geneva['L'] = (10**t_geneva['lg(L)'])
+    t_geneva['Teff'] = (10**t_geneva['log_Teff'])/1e4
+    t_geneva['log_LLsol'] = t_geneva['log_L'] - np.log10(t_geneva['mass']) # NOT SURE ABOUT THIS ONE
+    t_geneva['log_g'] = 4*t_geneva['log_Teff'] + np.log10(t_geneva['mass']) - t_geneva['log_L'] - 10.61
+    t_geneva['log_Lspec'] = 4*t_geneva['log_Teff'] - t_geneva['log_g'] - 10.61
+
+    # missing to implement a table with everything
+    #else:
+    #    t_geneva = Table.read(modeldir + 'MIST/TRACKS/TRAC_FeH0_Av%s_V%s/TRAC_FeH0_08-120_Av%s_V%s.fits' % \
+    #        (Av,vr,Av,vr))
+
+    return t_geneva

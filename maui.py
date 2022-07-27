@@ -319,13 +319,23 @@ def maui_input(table, table_IB='IB_results.fits', table_REF=None,
 
 
 class solution_idl():
-    def __init__(self, idlfile, grids_table='MAUI_grid_limits.fits'):
+    def __init__(self, idlfile, solution='max', grids_table='MAUI_grid_limits.fits'):
 
         '''
         Parameters
         ----------
         idlfile : str
             Enter the input spectrum full path to the .idl file.
+
+        solution : str, optional
+            Choose between 'max'/'smooth' for taking the solution values from the maximum
+            value of the distribution or from the maximum value after gaussian smoothing.
+            Default is 'max'.
+
+        grids_table : str, optional
+            Provide the name of the table containing the information of the MAUI grids.
+            Default is
+
         '''
 
         # Load the .idl file
@@ -399,14 +409,18 @@ class solution_idl():
             idx = self.parameters.index(par_name)
 
             if par_name == 'logg':
-                sol_max = idldata.solution[0].sol_logg[0].map # maximum of distribution without smoothing
-                #sol_max = idldata.solution[0].sol_logg[0].map_smooth # maximum of distribution with smoothing
+                if solution == 'max': # maximum of distribution without smoothing
+                    sol_max = idldata.solution[0].sol_logg[0].map
+                elif solution == 'smooth': # maximum of distribution without smoothing
+                    sol_max = idldata.solution[0].sol_logg[0].map_smooth
                 hpd_dw = idldata.solution[0].sol_logg[0].hpdint[0]
                 hpd_up = idldata.solution[0].sol_logg[0].hpdint[1]
 
             else:
-                sol_max = idldata.solution[0].sol_max[0][idx] # maximum of distribution without smoothing
-                #sol_max = idldata.solution[0].sol_max[1][idx] # maximum of distribution with smoothing
+                if solution == 'max': # maximum of distribution without smoothing
+                    sol_max = idldata.solution[0].sol_max[0][idx]
+                elif solution == 'smooth': # maximum of distribution with smoothing
+                    sol_max = idldata.solution[0].sol_max[1][idx]
                 hpd_dw = idldata.solution[0].hpd_interval[0][idx]
                 hpd_up = idldata.solution[0].hpd_interval[1][idx]
 
@@ -738,7 +752,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
 
                     # This is a visual trick to put the synthetic spectra where the normalization
                     # feature is putting it as it is not stored but is the way to see its effect
-                    weight = [0 if i == None else 1 for i in blocked]
+                    weight = [0 if i is None else 1 for i in blocked]
                     scale = np.sum(star.obsflux[mask]*star.synconv[mask]*weight)\
                                 /np.sum(star.synconv[mask]*star.synconv[mask]*weight)
                     star.synconv_scaled = scale * star.synconv[mask]
