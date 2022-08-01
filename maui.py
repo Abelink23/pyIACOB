@@ -282,8 +282,6 @@ def maui_input(table, table_IB='IB_results.fits', table_REF=None,
                 cosmetic=True, cosmic=True, degrade=None, show_plot=True)
 
         # MAUI input last modifications:
-        #if star.resolution > 65000: star.resolution = 80000
-
         match_IB['evsini'] = abs(match_IB['vsini_GF_eDW'] + match_IB['vsini_GF_eUP'])/2
 
         if match_IB['vsini_GF'] < 5:
@@ -292,7 +290,8 @@ def maui_input(table, table_IB='IB_results.fits', table_REF=None,
 
         match_IB['evmac'] = abs(match_IB['vmac_GF_eDW'] + match_IB['vmac_GF_eUP'])/2
 
-        if (match_IB['vmac_GF'][0] < 10) or (match_IB['vsini_GF'] > 130):
+        # Based on the results from Simon-Diaz 2014
+        if (match_IB['vmac_GF'][0] < 15) or (match_IB['vsini_GF'] > 180):
             match_IB['vmac_GF'] = 0
             match_IB['evmac'] = 0
 

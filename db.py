@@ -20,13 +20,13 @@ from astroquery.vizier import Vizier # Only used to query in Gaia DR2
 #   Simbad
 from astroquery.simbad import Simbad
 Simbad.add_votable_fields('flux(B)','flux(V)','sptype')
-#   Gaia
+#   Gaia Query
 from astroquery.gaia import Gaia
 Gaia.MAIN_GAIA_TABLE = "gaiaedr3.gaia_source" # Select early Data Release 3
 Gaia.ROW_LIMIT = -1 # Set the number of output raw limit to infinite
-
-sys.path.append('edr3_zp')
-import zpt; zpt.load_tables()
+#   Gaia Zero point offset
+from edr3_zp import zpt
+zpt.load_tables()
 
 # Load the working paths:
 dir = ''

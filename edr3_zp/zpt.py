@@ -1,5 +1,7 @@
 # created by: Pau Ramos (@brugalada) & Anthony Brown
 # based on Matlab code by: Lennart Lindegren
+# Modified by Abel de Burgos for its use within the pyIACOB package
+# See the original package in: https://gitlab.com/icc-ub/public/gaiadr3_zeropoint
 # Date: 21/07/2020  (important for the table of coefficients)
 
 import os
@@ -8,8 +10,8 @@ import warnings
 
 __mypath = os.path.dirname(os.path.abspath(__file__))
 
-_file5_currentversion = __mypath + '/coefficients/z5_200720.txt'
-_file6_currentversion = __mypath + '/coefficients/z6_200720.txt'
+_file5_currentversion = __mypath + '/' + 'z5_200720.txt'
+_file6_currentversion = __mypath + '/' + 'z6_200720.txt'
 
 
 # Definition of functions that load the coefficient tables and initialize the global variables
