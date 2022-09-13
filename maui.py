@@ -186,8 +186,15 @@ def maui_input(table, table_IB='IB_results.fits', table_REF=None,
     if type(table) is type(Table()): pass # In case the input table is already a table
     else: table = findtable(table) # file where star names and quality flags are
 
-    if 'filename' in table.colnames:
-        table['ID'] = table['filename']
+    inpt_id = ''
+    if len(table.colnames) > 1:
+        print('If you want to use a specific column as the ID, type it here.')
+        inpt_id = input('It must contain the full filename.\nOtherwise, press enter: \n')
+        if inpt_id != '' and inpt_id in table.colnames:
+            table['ID'] = table[inpt_id]
+        else:
+            print('Input column not found. Exiting...\n')
+            return None
 
     table_IB = findtable(table_IB)
 
@@ -202,7 +209,7 @@ def maui_input(table, table_IB='IB_results.fits', table_REF=None,
         ' ;#\n')
 
     quit = ''
-    for row in table[0:1]:
+    for row in table:
 
         do_ascii = ascii
 
@@ -210,10 +217,15 @@ def maui_input(table, table_IB='IB_results.fits', table_REF=None,
 
         source = row['ID'].strip()
 
-        star = spec(source, SNR='bestMF', txt=txt)
+        if inpt_id != '':
+            SNR = None
+        else: 
+            SNR = 'bestMF'
+
+        star = spec(source, SNR=SNR, txt=txt)
 
         # Filer based on properties from the main table:
-        if 'SB' in table.columns and row['SB'] == 'SB2':
+        if 'SB' in table.columns and (row['SB'] == 'SB2' or row['SB'] == 'SB3'):
             print('Skipping SB2 source %s' % source)
             continue
 
@@ -251,8 +263,7 @@ def maui_input(table, table_IB='IB_results.fits', table_REF=None,
         else:
             match_REF = Table([[star.snrcalc('B')]], names=('SNR_B',))
 
-        # Checks if the reference spectrum from IACOB-Broad matches with the input one.
-        if match_IB['Ref_file'][0] != star.filename:
+        if str(match_IB['Ref_file'][0].split('.fits')[0]) not in star.filename:
             print('WARNING: Different files from best SNR and from IB results for %s' % id)
             print(star.filename,' vs ',match_IB['Ref_file'][0])
             if ascii == True:
@@ -268,39 +279,37 @@ def maui_input(table, table_IB='IB_results.fits', table_REF=None,
 
         if do_ascii == True:
 
-            # If RV SiIII is good enough, it uses it for the rv0 correction:
-            if not np.ma.is_masked(match_REF['RV_4553']) and (match_REF['EW_4553'] > 50) \
-                and abs(match_REF['RV_4553']-match_REF['RV_Hb']) < 10:
-                rv_corr = match_REF['RV_4553']
-                print('RV good enough.\n')
-
-            # Otherwise it calculates the rv0 correction with the RV package:
-            else:
-                rv_corr = True
-
-            gen_ascii(star.filename, db_table=table, spt='auto', rv_corr=rv_corr, RV0tol=200,
+            gen_ascii(star.filename, db_table=table, spt='auto', rv_corr=True, RV0tol=200,
                 cosmetic=True, cosmic=True, degrade=None, show_plot=True)
 
         # MAUI input last modifications:
         match_IB['evsini'] = abs(match_IB['vsini_GF_eDW'] + match_IB['vsini_GF_eUP'])/2
 
-        if match_IB['vsini_GF'] < 5:
-            match_IB['vsini_GF'] = 0
-            match_IB['evsini'] = 0
+        try:
+            if match_IB['vsini_GF'] < 5:
+                match_IB['vsini_GF'] = 0
+                match_IB['evsini'] = 0
+        except:
+            print(star.filename, match_IB)
 
         match_IB['evmac'] = abs(match_IB['vmac_GF_eDW'] + match_IB['vmac_GF_eUP'])/2
 
-        # Based on the results from Simon-Diaz 2014
-        if (match_IB['vmac_GF'][0] < 15) or (match_IB['vsini_GF'] > 180):
+        # Based on comments from Simon-Diaz 
+        if (match_IB['vmac_GF'][0] < 15) or (match_IB['vsini_GF'] > 130):
             match_IB['vmac_GF'] = 0
             match_IB['evmac'] = 0
 
         if match_REF['SNR_B'][0] > 200:
-            match_REF['SNR_B'] = 200
+            match_REF['SNR_B'][0] = 200
+
+        if star.filename.endswith('_RV.ascii'):
+            apen = '.ascii'
+        else:
+            apen = '_RV.ascii'
 
         maui_txt.write(
             "{:<40}".format(star.filename.split('.')[0])\
-            +"{:<48}".format(star.filename.split('.')[0] + '_RV.ascii') + "{:<6}".format('0.0d0')\
+            +"{:<48}".format(star.filename.split('.')[0] + apen) + "{:<6}".format('0.0d0')\
             +"{:<6}".format(str(int(round(match_IB['vsini_GF'][0],0))))\
             +"{:<7}".format(str(int(round(match_IB['evsini'][0]))))\
             +"{:<5}".format(str(int(round(match_IB['vmac_GF'][0]))))\
@@ -830,7 +839,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
 
     # Saving the results:
     # - Add names for the basic columns
-    names = ['ID','filename','Grid_name','BC','(B-V)0']
+    names = ['ID','filename','Grid_name','BC','BV_0']
 
     # - Add names for the parameter column names
     for i in range(len(param_err)):

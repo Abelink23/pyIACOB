@@ -310,7 +310,7 @@ def findlist(list):
 
 
 def findtable(table, path=None, format=None, delimiter=' ', header_start=None,
-    fits_strip_end=True, fix_missing=False):
+    fits_strip_end=True, fix_missing=False, quicklook=False):
 
     '''
     Function to get the data from a table with different formats.
@@ -340,6 +340,9 @@ def findtable(table, path=None, format=None, delimiter=' ', header_start=None,
 
     fix_missing : boolean, optional
         If 'True' it will replace missing strings by '' abd missing floats by float 'nan'.
+
+    quicklook : boolean, optional
+        If 'True' it will show the table in the web browser. Default is 'False'.
 
     Returns
     -------
@@ -386,6 +389,9 @@ def findtable(table, path=None, format=None, delimiter=' ', header_start=None,
             data[j].fill_value = np.nan
         data = data.filled()
 
+    if quicklook == True:
+        data.show_in_browser(jsviewer=True)
+        
     return data
 
 

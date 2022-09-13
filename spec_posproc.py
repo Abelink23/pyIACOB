@@ -1,3 +1,4 @@
+from tkinter import font
 from RV import *
 
 import random
@@ -257,7 +258,8 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
                     nrows = int(np.ceil(np.sqrt(len(lines))))
                     ncols = round(len(lines)/np.ceil(np.sqrt(len(lines)))+0.4)
 
-                    fig_lines,ax_lines = plt.subplots(nrows, ncols, figsize=(13,8))
+                    fig_lines,ax_lines = plt.subplots(nrows, ncols, figsize=(13,8.5))
+                    fig_lines.suptitle(star.filename, y=0.97, fontsize=8)
 
                     ax_lines = ax_lines.flatten()
                     for ax_i,line,elem in zip(ax_lines,lines,elems):
@@ -332,7 +334,7 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
     return None
 
 
-def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, cosmic_manual=False):
+def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, cosmic_manual=False, txt=False):
 
     '''
     IN DEVELOPMENT

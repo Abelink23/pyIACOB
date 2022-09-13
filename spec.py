@@ -554,7 +554,7 @@ class spec():
         #jFWHM = round(jFWHM, 3)
 
 
-    def snrcalc(self, zone='v'):
+    def snrcalc(self, zone='B'):
 
         '''
         Function to calculate the Signal to Noise Ratio in different regions of the
@@ -600,6 +600,9 @@ class spec():
             lwl,rwl = [float(i) for i in gap.split('-')]
 
             flux_norm_i = flux_norm[(self.wave[mask] >= lwl) & (self.wave[mask] <= rwl)]
+
+            if len(flux_norm_i) == 0:
+                continue
 
             sig_clip = 3
             std = np.std(flux_norm_i)
@@ -723,7 +726,8 @@ class spec():
 
         # Recover the original flux in the regions of the spectrum where telluric lines are
         flux_clean = np.where(
-              ((self.wave > 5885.0) & (self.wave < 5900.0))
+              ((self.wave > 3932.5) & (self.wave < 3934.5)) # Not sure if this is exactly telluric line
+            | ((self.wave > 5885.0) & (self.wave < 5900.0))
             | ((self.wave > 6865.0) & (self.wave < 7035.0))
             | ((self.wave > 7160.0) & (self.wave < 7340.0))
             | ((self.wave > 7585.0) & (self.wave < 7700.0))
