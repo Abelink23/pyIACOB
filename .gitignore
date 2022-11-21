@@ -5,6 +5,7 @@ plots/
 scripts/
 old/
 
+.vscode/
 .DS_Store
 matplotlibrc
 paths.txt
