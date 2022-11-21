@@ -23,7 +23,7 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
 
     db_table : str, optional
         Input table containing information of the spectral type for the star.
-        The table must contain either 'SpT_code'/'SpT'/'SpC' columns.
+        The table must contain either 'SpT'/'SpT'/'SpC' columns.
 
     spt : str, optional
         Input spectral type of the star. If 'auto' (default), it takes it from either the
@@ -75,9 +75,9 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
         row_id = db_table[db_table['ID']==id.split('_')[0]]
 
         if spt == 'auto':
-            if 'SpT_code' in db_table.colnames:
-                print('Initial spectral type taken from SpT_code column.')
-                spt = row_id['SpT_code'][0]
+            if 'SpT' in db_table.colnames:
+                print('Initial spectral type taken from SpT column.')
+                spt = row_id['SpT'][0]
             elif 'SpT' in db_table.colnames:
                 print('Initial spectral type taken from SpT column.')
                 spt = spc_code(row_id['SpT'])[0]
@@ -374,19 +374,19 @@ def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, cosmic_manual=Fals
         else: print('Analysing %s' % row['ID'])
 
         # Determines best list for RV calculation and line for sanity check based on SpT
-        if row['SpT_code'] < 2:
+        if row['SpT'] < 2:
             rv_list = 'rv_Os.lst'
             line = 5411.52 # 5592.252
 
-        elif 2 <= row['SpT_code'] < 2.5:
+        elif 2 <= row['SpT'] < 2.5:
             rv_list = 'rv_Bs.lst'
             line = 4552.622
 
-        elif 2.5 <= row['SpT_code'] < 2.9:
+        elif 2.5 <= row['SpT'] < 2.9:
             rv_list = 'rv_Bs.lst'
             line = 6371.37
 
-        elif row['SpT_code'] >= 2.9:
+        elif row['SpT'] >= 2.9:
             rv_list = 'rv_As.lst'
             line = 4233.129
 
@@ -426,7 +426,7 @@ def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, cosmic_manual=Fals
 
                 best_star.plotspec(4821,4901, lines='35-10K')
                 plt.figure()
-                if row['SpT_code'] <= 2.5:
+                if row['SpT'] <= 2.5:
                     best_star.plotspec(4530, 4590, lines='35-10K')
                 else:
                     best_star.plotspec(6361.37, 6381.37, lines='35-10K')

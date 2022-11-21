@@ -15,14 +15,19 @@ import astropy.units as u
 from astropy.io import fits,ascii
 from astropy.table import Table, join, setdiff, vstack, hstack
 from astropy.coordinates import SkyCoord
-#   Vizier:
-from astroquery.vizier import Vizier # Only used to query in Gaia DR2
-#   Simbad
+
+# Vizier:
+from astroquery.vizier import Vizier # Only used to query in Gaia
+
+# Simbad
 from astroquery.simbad import Simbad
+Simbad.remove_votable_fields('coordinates')
+Simbad.add_votable_fields('ra','dec')
 Simbad.add_votable_fields('flux(B)','flux(V)','sptype')
-#   Gaia Query
+
+# Gaia Query
 from astroquery.gaia import Gaia
-Gaia.MAIN_GAIA_TABLE = "gaiaedr3.gaia_source" # Select early Data Release 3
+Gaia.MAIN_GAIA_TABLE = "gaiadr3.gaia_source" # Select Data Release 3
 Gaia.ROW_LIMIT = -1 # Set the number of output raw limit to infinite
 #   Gaia Zero point offset
 from edr3_zp import zpt
@@ -603,7 +608,7 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
         Enter a desired vmag to cut the results e.g. '>8.5'.
 
     gaia : str, optional
-        If 'DR2'/'EDR3', it will create separate columns with Gaia DR2/EDR3 data.
+        If 'DR2'/'DR3', it will create separate columns with Gaia DR2/DR3 data.
         Default is False.
 
     radius : int,float
@@ -720,7 +725,7 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
         #=============== Simbad query by object name/coordinates ===============
         if type_list == 'names':
             simbad = query_Simbad(source, OBJRA, OBJDEC)
-            if simbad == None: continue
+            if   simbad is None: continue
 
         elif type_list == 'coords':
             if ':' in source:
@@ -779,6 +784,30 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
                 continue
 
         #=======================================================================
+        #========================= Limit by magnitude ==========================
+        bmag_0 = simbad['FLUX_B'][0]
+        if str(bmag_0) == '--':
+            bmag_0 = np.nan
+
+        if bmag != None and ~np.isnan(bmag_0):
+            if bmag[0] == '<' and float(bmag[1:]) < bmag_0: continue
+            elif bmag[0] == '>' and float(bmag[1:]) > bmag_0: continue
+
+        row['mag_B'] = round(bmag_0, 2)
+        row['mag_B'].unit = u.mag
+
+        vmag_0 = simbad['FLUX_V'][0]
+        if str(vmag_0) == '--':
+            vmag_0 = np.nan
+
+        if vmag != None and ~np.isnan(vmag_0):
+            if vmag[0] == '<' and float(vmag[1:]) < vmag_0: continue
+            elif vmag[0] == '>' and float(vmag[1:]) > vmag_0: continue
+
+        row['mag_V'] = round(vmag_0, 2)
+        row['mag_V'].unit = u.mag
+
+        #=======================================================================
         #======================= Get the spectral class ========================
         if db == 'IACOB':
 
@@ -832,33 +861,9 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
         #=======================================================================
         #===================== Get the spectral class code =====================
         if spccode == True and SpC_0 != '':
-            row['SpT_code'], row['LC_code'] = spc_code(SpC_0)
+            row['SpT'], row['LC'] = spc_code(SpC_0)
         elif spccode == True and SpC_0 == '':
-            row['SpT_code'] = row['LC_code'] = np.nan
-
-        #=======================================================================
-        #========================= Limit by magnitude ==========================
-        bmag_0 = simbad['FLUX_B'][0]
-        if str(bmag_0) == '--':
-            bmag_0 = np.nan
-
-        if bmag != None and ~np.isnan(bmag_0):
-            if bmag[0] == '<' and float(bmag[1:]) < bmag_0: continue
-            elif bmag[0] == '>' and float(bmag[1:]) > bmag_0: continue
-
-        row['mag_B'] = round(bmag_0, 2)
-        row['mag_B'].unit = u.mag
-
-        vmag_0 = simbad['FLUX_V'][0]
-        if str(vmag_0) == '--':
-            vmag_0 = np.nan
-
-        if vmag != None and ~np.isnan(vmag_0):
-            if vmag[0] == '<' and float(vmag[1:]) < vmag_0: continue
-            elif vmag[0] == '>' and float(vmag[1:]) > vmag_0: continue
-
-        row['mag_V'] = round(vmag_0, 2)
-        row['mag_V'].unit = u.mag
+            row['SpT'] = row['LC'] = np.nan
 
         #=======================================================================
         #============== Add extra columns from header or database ==============
@@ -909,7 +914,7 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
                 catalog = "I/345/gaia2"
 
             elif gaia == 'DR3':
-                catalog = "I/350/gaiaedr3"
+                catalog = "I/355/gaiadr3"
 
             if vmag_0 != '' and float(vmag_0) < 5:
                 print('\nWARNING: %s is too bright (Vmag = %r)' % (source, vmag_0))
@@ -1043,7 +1048,8 @@ def spc_code(spc):
             else:
                 spt_c = sum(spt_c_lst)/num
         except:
-            print(spc,spt_c_lst,num)
+            print('WARNING: SpC separation into SpT and LC code failed for: ', spc, spt_c_lst, num)
+            spt_c = np.nan
 
         # Luminosity class
         lc_c = re.findall('[I,V]+', spc_c)
@@ -1149,15 +1155,15 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False):
         return None
 
 
-def query_Gaia(gaia='edr3', name=None, ra=None, dec=None, radec=None, radius=5, get_zp=False):
+def query_Gaia(gaia='dr3', name=None, ra=None, dec=None, radec=None, radius=5, get_zp=False):
 
     '''
-    Function to query an object in Gaia EDR3 database.
+    Function to query an object in Gaia DR3 database.
 
     Parameters
     ----------
     gaia : str, optional
-        Enter the Gaia data you want to query, either 'dr2' or 'edr3' (default)
+        Enter the Gaia data you want to query, either 'dr2' or 'dr3' (default)
 
     name : str, optional
         Enter the name (ID) of the source to query.
@@ -1179,13 +1185,13 @@ def query_Gaia(gaia='edr3', name=None, ra=None, dec=None, radec=None, radius=5, 
     Queried object in Table format.
     '''
 
-    if gaia not in ['dr2','DR2','edr3','EDR3']:
-        print('Input Gaia catalog not selected bewteen dr2 and edr3. Exiting...\n')
+    if gaia not in ['dr2','DR2','dr3','DR3']:
+        print('Input Gaia catalog not selected bewteen dr2 and dr3. Exiting...\n')
         return None
     elif gaia in ['dr2','DR2']:
         Gaia.MAIN_GAIA_TABLE = "gaiadr2.gaia_source"
-    elif gaia in ['edr3','EDR3']:
-        Gaia.MAIN_GAIA_TABLE = "gaiaedr3.gaia_source"
+    elif gaia in ['dr3','DR3']:
+        Gaia.MAIN_GAIA_TABLE = "gaiadr3.gaia_source"
 
     if name is not None:
 
@@ -1230,22 +1236,25 @@ def query_Gaia(gaia='edr3', name=None, ra=None, dec=None, radec=None, radius=5, 
     radius = u.Quantity(radius, u.arcsec)
     query = Gaia.cone_search_async(coordinate=RADEC, radius=radius)
 
-    if len(query) == 0:
+    if len(query.results) == 0:
         if name is not None:
             print('Gaia query failed for object',name)
         else:
             print('Gaia query failed for object with RA DEC =',RADEC.ra,RADEC.dec)
         return None
 
-    if len(query) > 1:
+    if len(query.results) > 1:
         print('More than one Gaia result, choosing the brigtest source...')
-        query.sort('phot_g_mean_mag')
-        query = Table(query[0])
+        query.results.sort('phot_g_mean_mag')
+        query = Table(query.results[0])
+        
+    else:
+        query = query.results
 
-    if get_zp == True and gaia in ['edr3','EDR3']:
+    if get_zp == True and gaia in ['dr3','DR3']:
         if query['astrometric_params_solved'] <= 3:
             print('Astrometric parameters solved is <3. Skipping source_id =',str(query['source_id'][0]))
-            zp_offset = 0.0
+            query['zp_offset'] = -9999
 
         else:
             query['zp_offset'] = zpt.get_zpt(
@@ -1264,10 +1273,10 @@ def query_Gaia(gaia='edr3', name=None, ra=None, dec=None, radec=None, radius=5, 
     return query
 
 
-def checknames(list, max_dist=90):
+def check_fits(list, max_dist=90):
 
     '''
-    Function to detect errors in the filenames/headers.
+    Function to detect errors in the filenames and headers of the fits files.
 
     Parameters
     ----------
@@ -1277,8 +1286,9 @@ def checknames(list, max_dist=90):
         or a .txt/.lst file containing the source names or files.
 
     max_dist : int/float
-        Enter the threshold distance to consider the spectra to point to a different
-        source and not caused by telescope pointing offset.
+        Enter the threshold distance in arcseconds to consider the spectra to point 
+        to a different source, and not caused by telescope pointing offset.
+        Default is 90 arcseconds.
 
     Returns
     -------
@@ -1307,7 +1317,7 @@ def checknames(list, max_dist=90):
         # Problems quering in Simbad
         if not id_star in type_errors['Simbad']:
             simbad = query_Simbad(id_star)
-            if simbad == None:
+            if   simbad is None:
                 type_errors['Simbad'].append(id_star)
 
         # Retrieve the key values fron the fits header
@@ -1356,7 +1366,7 @@ def checknames(list, max_dist=90):
             type_errors['radec0'].append(filename)
 
         # Catch spectra of different object than the object queried in Simbad
-        if simbad != None and (not '0.0000' in str(RA_0) or not '0.0000' in str(DEC_0)):
+        if simbad is not None and (not '0.0000' in str(RA_0) or not '0.0000' in str(DEC_0)):
             RADEC = str(simbad['RA'][0]).replace(' ', ':') \
                 + ' ' + str(simbad['DEC'][0]).replace(' ', ':')
 
@@ -1399,10 +1409,12 @@ def checknames(list, max_dist=90):
     return None
 
 
-def checkfits(list, coords_Simbad=True, radius=60, savepath=''):
+def fix_fits(list, coords_Simbad=True, radius=60, savepath=''):
 
     '''
-    Function to detect errors in the filenames/headers.
+    Function to detect and correct errors in the filenames/headers allowing
+    the user to save a corrected FITS file.
+    Run this function for the stars with errors from the checknames function.
 
     Parameters
     ----------
@@ -1412,7 +1424,8 @@ def checkfits(list, coords_Simbad=True, radius=60, savepath=''):
         or a .txt/.lst file containing the source names or files.
 
     coords_Simbad : boolean, optional
-        XX
+        If True, the coordinates of the header are queried in Simbad to find sources
+        within the radius parameter. Default is True.
 
     radius : int
         Search radius where to find the source by the coordinates, in arcsec.
@@ -1423,7 +1436,7 @@ def checkfits(list, coords_Simbad=True, radius=60, savepath=''):
 
     Returns
     -------
-    Nothing, but a file with the errors found is generated.
+    Nothing.
     '''
 
     dir_spectra = findstar(list)
@@ -1448,12 +1461,13 @@ def checkfits(list, coords_Simbad=True, radius=60, savepath=''):
         elif 'OBJRA' in header:
             RADEC_OBJ = SkyCoord(str(header['OBJRA']),str(header['OBJDEC']), unit=(u.hour,u.deg))
 
+        print('From header:\n--------------------------')
         print('RADEC / RADEC_OBJ\n%s / %s' % (RADEC.ra,RADEC_OBJ.ra))
         print(RADEC.dec,'/',RADEC_OBJ.dec,'\n')
 
         simbad = query_Simbad(id_star)
 
-        if simbad != None:
+        if simbad is not None:
             print('From Simbad (querying ID):\n--------------------------')
 
             RADEC_SB = SkyCoord(simbad['RA'],simbad['DEC'], unit=(u.hour,u.deg))[0]
@@ -1483,14 +1497,14 @@ def checkfits(list, coords_Simbad=True, radius=60, savepath=''):
         user = '-'; change = False
         while user != '':
 
-            print("To change something from the header type: '<keyword>:<value>'")
-            print("Type '+<name>' to obtain a list of alternative names for <name> in Simbad.")
+            print("To change something from the header type: <keyword>:<value>")
+            print("Type +<name> to obtain a list of alternative names for <name> in Simbad.")
             user = input("Or hit return to continue. Input: ")
 
             if user.startswith('+') and not ':' in user:
 
                 try:
-                    [print(i['ID']) for i in Simbad.query_objectids('HD2905')]
+                    [print(i['ID']) for i in Simbad.query_objectids(user.replace('+',''))]
                 except:
                     print('No names were found for the input name.')
 
@@ -1505,15 +1519,11 @@ def checkfits(list, coords_Simbad=True, radius=60, savepath=''):
             save = input('FITS file has been modified, do you want to save it? y/n/<filename.fits> ')
 
             if save.endswith('.fits'):
-                filename_new = save
-                save = 'y'
+                spectrum = spectrum.replace(filename, save)
 
-            if save == 'y':
+            if save != 'n':
 
                 if savepath != '':
-                    spectrum = savepath+filename_new
-
-                else:
-                    spectrum = spectrum.replace(filename,filename_new)
+                    spectrum = savepath + spectrum.split(os.sep)[-1]
 
                 hdu.writeto(spectrum, output_verify='ignore', overwrite=True)
