@@ -46,6 +46,10 @@ class spec():
         txt : boolean, optional
             If True, it assumes spectrum from a two-columns file with wavelenght and flux
             with no header in the file.
+
+        cut_edges : boolean, optional
+            If True, it cuts the edges of the spectrum where the flux is asymptotic.
+            Default is False.
         '''
 
         if type(spectrum) == list:
@@ -115,6 +119,10 @@ class spec():
 
         helcorr : str, optional
             If 'hel' as input (default), it applies the heliocentric correction.
+
+        cut_edges : boolean, optional
+            If True, it cuts the edges of the spectrum where the flux is asymptotic.
+            Default is False.
 
         Returns
         -------

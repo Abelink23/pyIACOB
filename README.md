@@ -51,9 +51,10 @@ database can be downloaded from http://research.iac.es/proyecto/iacob/iacobcat/
   - tables/
   - tmp/
 
-3. Put the included file *ALL_OBs_n4+.txt* inside the tables folder.
+3. The file snr_gaps.txt needed in the spec.py should be located under lists/
 
-NOTE: For mist.py to work, drop me an email and I will send you the needed files (~600mb)
+NOTE: For the actual models needed in models.py to work, 
+      drop me an email and I will send you the needed files (~700mb)
 
 # Overview of the modules:
 
@@ -65,16 +66,20 @@ NOTE: For mist.py to work, drop me an email and I will send you the needed files
 - RV.py contains functions to calculate the radial velocity offset via cross-correlation
   or via input list of lines. It also allows to create RV curves.
 
-- RVEWFW.py contains functions to interactively or automatically obtain Equivalent Widths,
-  Full Widths, and Radial Velocities for a given input of stars.
+- measure.py contains functions to interactively or automatically obtain Equivalent Widths,
+  Full Widths, and Radial Velocities for a given input of stars and spectral lines.
+
+- spec_posproc.py allows the user to perform a post-processing of the input spectra, 
+  including the radial velocity correction or the cosmetic defects and cosmic rays removal.
+
+- models.py contains functions to retrieve either evolutionary tracks or isochrones from 
+  different libraries (MIST, PADOVA, GENEVA).
 
 - IACOBBroad.py contains functions which helps the user to generate output and input
-  tables for IACOB-Broad.
+  tables for IACOB-Broad program.
 
 - maui.py contains functions which helps the user to generate output and input tables for
   MAUI, with some additional features regarding the analysis of the results.
-
-- mist.py contains functions to retrieve either an evolutionary track or an isochrone.
 
 - tools.py contains utility functions which could also be interested.
 

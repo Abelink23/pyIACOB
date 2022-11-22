@@ -1135,6 +1135,9 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False):
                 simbad.sort('FLUX_V')
                 simbad = Table(simbad[0])
 
+        if 'SCRIPT_NUMBER_ID' in simbad.colnames:
+            simbad.remove_column('SCRIPT_NUMBER_ID')
+
         return simbad
 
     elif ra != None and dec != None:
