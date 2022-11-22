@@ -157,6 +157,10 @@ def RV0(lines, spectrum, txt=False, ewcut=50, width=20, tol=150, func='g', check
     spectrum : str
         Enter the filename of the spectrum.
 
+    txt : boolean, optional
+        If True, it assumes spectrum from a two-columns file with wavelenght and flux
+        with no header in the file. Default is False.
+
     ewcut : float, optional
         Enter the EW threshold value for a line to be used for RV. Default is 30.
 

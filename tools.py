@@ -40,7 +40,7 @@ def table_zp_edr3(table, ra, dec, search_radius=0.5):
 
     import sys
     sys.path.append(os.path.expanduser('~')+'/MEGA/PhD/programs/python/edr3_zp')
-    import zpt
+    from edr3_zp import zpt
     zpt.load_tables()
     from astroquery.gaia import Gaia
 
@@ -492,7 +492,7 @@ def rv_corr(spectrum, observatory, correction):
         DATE_OBS = header0['DATE-OBS'] + 'T' + header0['UTSTART'] # Retrieve the datetime of observation
         RAhms = header0['RA']                                     # Retrieve Right Ascension in hms
         DECdms = header0['DEC']                                   # Retrieve Declination in dms
-        RA, DEC = hms_deg(RAhms + ' ' + DECdms).split(' ')
+        RA, DEC = changecoords(RAhms + ' ' + DECdms,infmt='hms', outfmt='deg')[0].split(' ')
         EQUINOX = header0['EQUINOX']                              # Retrieve equinox
 
         COORDINATES = SkyCoord(float(RA)*u.deg,float(DEC)*u.deg,frame='icrs')

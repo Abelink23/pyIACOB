@@ -1,5 +1,5 @@
 from tkinter import font
-from RV import *
+from rv import *
 
 import random
 from copy import deepcopy
@@ -91,7 +91,7 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
         else:
             print('Initial spectral type taken from Simbad query.')
 
-        star = spec(id, SNR='bestMF', txt=txt)
+        star = spec(id, SNR='bestHF', txt=txt)
         spt = spc_code(star.SpC)[0]
 
     elif type(spt) == str:
@@ -108,7 +108,7 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
     finish = 'n'
     while finish == 'n':
 
-        star = spec(id, SNR='bestMF', txt=txt, cut_edges=True)
+        star = spec(id, SNR='bestHF', txt=txt, cut_edges=True)
 
         if show_plot == True:
             fig,axs = plt.subplots(3, 1, figsize=(14,8))
@@ -392,7 +392,7 @@ def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, cosmic_manual=Fals
 
         # Determines the RV with a default fitting function and width
         fun = 'g'; wid = 15
-        best_star = spec(row['ID'], SNR='bestMF', txt=txt)
+        best_star = spec(row['ID'], SNR='bestHF', txt=txt)
         best_star.rv0, erv0 = RV0(rv_list, best_star.filename, txt=txt, ewcut=50, func=fun, width=wid, tol=150)
         best_star.waveflux(3950,6850, cut_edges=True) # Applies the rv0 correction
 

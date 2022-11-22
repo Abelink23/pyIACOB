@@ -1,4 +1,4 @@
-from RV import *
+from rv import *
 
 
 def measure(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150,
@@ -102,7 +102,7 @@ def measure(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol
 
             if skip == 's': break
 
-            star = spec(id, SNR='bestMF')
+            star = spec(id, SNR='bestHF')
 
             snr_b = star.snrcalc(zone='B')
             snr_v = star.snrcalc(zone='V')
@@ -318,7 +318,7 @@ def auto_measure(lines, table='IACOB_new_N+M_ToDo.fits', output_table='new_RVEWF
 
         #if int(re.findall('[0-9]+',id)[2]) >= 175: continue
 
-        star = spec(id, SNR='bestMF', txt=txt)
+        star = spec(id, SNR='bestHF', txt=txt)
 
         fig = plt.figure(figsize=(12,10))
         fig.suptitle(id, fontsize=9)

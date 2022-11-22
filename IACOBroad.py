@@ -54,7 +54,7 @@ def ib_input(table, folder, old_input=None, txt=False):
 
         id = row['ID'].strip()
 
-        star = spec(id, SNR='bestMF', txt=txt)
+        star = spec(id, SNR='bestHF', txt=txt)
 
         line = 'SiIII4567' # SiIII4567 / SiII6347
 
@@ -167,7 +167,7 @@ def ib_results(table, folder, check_best=False, format='fits'):
 
         idldata = readsav(match[0])
 
-        if check_best == True and filename != spec(id_star,SNR='bestMF').filename:
+        if check_best == True and filename != spec(id_star,SNR='bestHF').filename:
             print('\nWARNING: %s does not match with best spectrum available.'
             % filename)
 

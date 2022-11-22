@@ -220,7 +220,7 @@ def maui_input(table, table_IB='IB_results.fits', table_REF=None,
         if inpt_id != '':
             SNR = None
         else: 
-            SNR = 'bestMF'
+            SNR = 'bestHF'
 
         star = spec(source, SNR=SNR, txt=txt)
 
@@ -619,7 +619,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
 
             # Find the best SNR spectra in the DB
             if check_best == True or pdfplots == True:
-                best_SNR = spec(star.id_star, SNR='bestMF')
+                best_SNR = spec(star.id_star, SNR='bestHF')
 
             # Check if the input file matches with the best SNR spectra available
             if check_best == True and star.filename != best_SNR.filename:
@@ -975,7 +975,7 @@ def gen_synthetic(output_dir, save_dir='server', lwl=3900, rwl=5080):
         if not file.startswith('._') and file.endswith('.idl'):
             star = solution_idl(output_dir + 'SOLUTION/' + file)
 
-            star_db = spec(star.id_star, SNR='bestMF')
+            star_db = spec(star.id_star, SNR='bestHF')
 
             if star.filename != star_db.filename:
                 print('\nWARNING: %s does not match with best spectrum available.'

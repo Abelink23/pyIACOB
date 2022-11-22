@@ -35,7 +35,7 @@ class spec():
 
         SNR : str, optional
             If 'best' as input, it finds the best SNR spectrum for the given name.
-            If 'bestMF' same as 'best' but prioritizing spectra from HERMES/FEROS.
+            If 'bestHF' same as 'best' but prioritizing spectra from HERMES/FEROS.
 
         rv0 : float, optional
             Enter the radial velocity correction to apply to the spectrum in km/s.
@@ -45,7 +45,7 @@ class spec():
 
         txt : boolean, optional
             If True, it assumes spectrum from a two-columns file with wavelenght and flux
-            with no header in the file.
+            with no header in the file. Default is False.
 
         cut_edges : boolean, optional
             If True, it cuts the edges of the spectrum where the flux is asymptotic.
@@ -234,19 +234,25 @@ class spec():
         '''
         Equivalent to spec.waveflux() but for spectra coming from ascii files.
 
+        Note: The ascii files should be placed in a /ASCII/ subfolder inside data folder.
+
         Parameters
         ----------
         See help for spec.waveflux
         '''
 
+        if self.filename.endswith('.fits'):
+            print('Error: This is a fits file, use a .txt/.dat/.ascii or similar file.')
+            return None
+
         data = findtable(self.filename, path=datadir+'ASCII/', format='no_header')
 
-        try:
-            wave = np.asarray(data['wavelenght'])
-            flux = np.asarray(data['flux'])
-        except:
-            wave = np.asarray(data['col1'])
-            flux = np.asarray(data['col2'])
+        # In case the file has a header with the wavelenght and flux column names:
+        if str(data[0][0].lower()) in ['wavelenght','wave']:
+            data = data[1:]
+
+        wave = np.asarray(data['col1'].astype(np.float))
+        flux = np.asarray(data['col2'].astype(np.float))
 
         wave = wave*(1 - 1000*self.rv0/cte.c)
 

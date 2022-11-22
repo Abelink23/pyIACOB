@@ -51,10 +51,13 @@ database can be downloaded from http://research.iac.es/proyecto/iacob/iacobcat/
   - tables/
   - tmp/
 
-3. The file snr_gaps.txt needed in the spec.py should be located under lists/
+3. The file snr_gaps.txt needed in spec.py should be placed under lists/
 
-NOTE: For the actual models needed in models.py to work, 
-      drop me an email and I will send you the needed files (~700mb)
+NOTE: For the actual models needed in models.py to work, drop me an email and 
+      I will send you the needed files (~700mb).
+      
+      If you plan to use spectra in ascii format, you will need to put this files
+      inside *data*/ASCII/
 
 # Overview of the modules:
 
@@ -63,7 +66,7 @@ NOTE: For the actual models needed in models.py to work,
 
 - spec.py contains functions that manipulate an input spectrum and plot it.
 
-- RV.py contains functions to calculate the radial velocity offset via cross-correlation
+- rv.py contains functions to calculate the radial velocity offset via cross-correlation
   or via input list of lines. It also allows to create RV curves.
 
 - measure.py contains functions to interactively or automatically obtain Equivalent Widths,

@@ -101,7 +101,7 @@ def findstar(spectra=None, SNR=None):
 
     SNR : str/int, optional
         If 'best' as input, it finds only the best SNR spectrum for each star.
-        If 'bestMF' same as 'best' but prioritizing spectra from HERMES/FEROS.
+        If 'bestHF' same as 'best' but prioritizing spectra from HERMES/FEROS.
         If specified, it returns all the spectra above the chosen SNR.
 
     Returns
@@ -173,7 +173,7 @@ def findstar(spectra=None, SNR=None):
         if SNR == 'best':
             dir_spectra = snr(dir_spectra)
 
-        elif SNR == 'bestMF':
+        elif SNR == 'bestHF':
             dir_spectra = snr(dir_spectra, get_MF=True)
 
         elif type(SNR) == int:
