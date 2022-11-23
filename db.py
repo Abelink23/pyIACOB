@@ -174,7 +174,7 @@ def findstar(spectra=None, SNR=None):
             dir_spectra = snr(dir_spectra)
 
         elif SNR == 'bestHF':
-            dir_spectra = snr(dir_spectra, get_MF=True)
+            dir_spectra = snr(dir_spectra, get_HF=True)
 
         elif type(SNR) == int:
             dir_spectra = snr(dir_spectra, snrcut=SNR)
@@ -482,7 +482,7 @@ def xmatch_table(table1, table2, match_col=None, output_cols=None,
     table.write(full_path, format=format, overwrite=True)
 
 
-def snr(spectra, snrcut=None, get_MF=None):
+def snr(spectra, snrcut=None, get_HF=None):
 
     '''
     Function to provide the spectrum with best signal to noise ratio, or all the
@@ -496,7 +496,7 @@ def snr(spectra, snrcut=None, get_MF=None):
     snrcut : int, optional
         If established, it returns all the spectra above the chosen SNR.
 
-    get_MF : Boolean, optional
+    get_HF : Boolean, optional
         If True, it returns available spectra from either Mercator or Feros with
         SNR within 15% less than the best SNR spectra taken with FIES.
 
@@ -533,19 +533,19 @@ def snr(spectra, snrcut=None, get_MF=None):
 
                 if snrcut == None:
                     # Date is used for spectra with same SNR choosing the newest one.
-                    # Instr is used for when get_MF is enabled.
+                    # Instr is used for when get_HF is enabled.
                     if SNR > SNR_best or (SNR == SNR_best and date > best_spec_date):
                         SNR_best = SNR; best_spec = spectrum
                         best_spec_date = date; best_spec_inst = instr
 
-                    if get_MF == True and instr in ['M','F'] and SNR > SNR_best_MF:
+                    if get_HF == True and instr in ['M','F'] and SNR > SNR_best_MF:
                         SNR_best_MF = SNR; best_spec_MF = spectrum
 
                 elif SNR > int(snrcut):
                     best_spectra.append(spectrum)
 
         if snrcut == None:
-            if get_MF == True and best_spec_inst=='N' and (0.85*SNR_best<SNR_best_MF \
+            if get_HF == True and best_spec_inst=='N' and (0.85*SNR_best<SNR_best_MF \
                 or (0.70*SNR_best<SNR_best_MF and SNR_best_MF>100)):
                  best_spec = best_spec_MF
             best_spectra.append(best_spec)
@@ -625,7 +625,7 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
     if db == 'IACOB':
         lst_sources_all = findstar(spectra=list, SNR=snrcut)
         # For each source, the best available SNR is picked
-        lst_sources_f = snr(lst_sources_all, get_MF=True)
+        lst_sources_f = snr(lst_sources_all, get_HF=True)
         type_list = 'names'
 
     elif db == 'Simbad':
@@ -1060,7 +1060,7 @@ def spc_code(spc):
         else:
             lc_c = np.asarray(lc_c_lst).mean()
 
-    return spt_c,lc_c
+    return round(spt_c,2), round(lc_c,2)
 
 
 def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False):
