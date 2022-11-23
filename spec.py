@@ -451,6 +451,7 @@ class spec():
                 # The min FWHM will be defined by either 3 times the dlam, or 3/4 of the
                 # minimum theoretical FWHM given the input line and resolution
                 FWHM_min = np.max([3*dlam_mean,3/4*dlamb])
+                
                 if FWHM_min < FWHM < FWHM_max:
                     flux_norm = flux_norm_i; continuum = continuum_i; mask = mask_i
                     flux_fit = flux_fit_i; popt = popt_i; width = width_i
@@ -508,6 +509,7 @@ class spec():
                 [wave[medpos[1]], wave[medpos[1]+1]])
         except:
             r_val = wave[medpos[1]]
+        
         FWHM = round(r_val - l_val, 3)
 
         #======================= Calculate the line depth ======================
