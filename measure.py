@@ -175,7 +175,6 @@ def measure(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol
 
     return 'DONE'
 
-
 def measure_Hb(table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150, redo='n'):
 
     '''
@@ -278,12 +277,11 @@ def measure_Hb(table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150
             #=======================================================================
             print('\nPrinting H alpha line to detect winds...\n')
 
-            star.plotspec(6522.80,6602.80)
+            star.plotspec(6522.80,6602.80, lines='35-10K')
 
             mngr = plt.get_current_fig_manager()
             x,y,dx,dy = mngr.window.geometry().getRect()
-            print(x,y,dx,dy)
-            mngr.window.setGeometry(x-350, y, dx, dy)
+            mngr.window.setGeometry(x+900, y, dx, dy)
 
             plt.figure()
 
@@ -295,7 +293,7 @@ def measure_Hb(table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150
 
             mngr = plt.get_current_fig_manager()
             x,y,dx,dy = mngr.window.geometry().getRect()
-            mngr.window.setGeometry(x+350, y, dx, dy)
+            mngr.window.setGeometry(x-900, y, dx, dy)
 
             fun = '-'; iter = 3
             while fun not in ['vr_H','vrg_H']:
@@ -309,8 +307,6 @@ def measure_Hb(table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150
                 else:
                     try: wid = float(wid)
                     except: wid = '-'
-
-            plt.close()
 
             fit = star.fitline(4861.325, width=wid, func=fun, iter=1, info=True, outfit=True, plot=True)
 
@@ -350,7 +346,7 @@ def measure_Hb(table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150
                 print('Hb line could not be fitted...')
 
             next = input("\nRepeat Hb / continue to the next star / save and exit ['n'/''/'q']: ")
-            plt.close()
+            plt.close('all')
 
             if next == 'n':
                 continue
