@@ -24,6 +24,10 @@ def measure(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol
         Enter the wavelenght(s) of the line(s) to fit, either in a coma-separated
         string, or in a .txt/.lst file containing the lines.
 
+    RV0fun : str, optional
+        Choose the function to fit the lines used for the initial RV:
+        'g' Gaussian (default); 'l' Lorentzian; 'v' Voigt; 'r' Rotational.
+
     RV0tol : int, optional
         Tolerance for a line to be considered for the RV0 calculation.
 
@@ -34,11 +38,11 @@ def measure(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol
         Cut in the SNR of a line window for the SNR to be replaced by 100. It is then used
         to prevent the line properties to be exported if 3/ snr(line) > depth(line)
 
+    tol : int, optional
+        Sets the tolerance [km/s] to shifting the spectrum in order to fit the lines.
+
     redo : str, optional
         Coma separated string with the list of stars for which repeat the analysis.
-
-    Other parameters : optional
-        See help for see spec and spec.fitline
 
     Returns
     -------
@@ -190,21 +194,15 @@ def measure_Hb(table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150
         Enter the wavelenght(s) of the line(s) to fit, either in a coma-separated
         string, or in a .txt/.lst file containing the lines.
 
+    RV0fun : str, optional
+        Choose the function to fit the lines used for the initial RV:
+        'g' Gaussian (default); 'l' Lorentzian; 'v' Voigt; 'r' Rotational.
+
     RV0tol : int, optional
         Tolerance for a line to be considered for the RV0 calculation.
 
-    ewcut : float, optional
-        EW threshold value for a line to be considered as detected. Default is 10.
-
-    snrcut : float/int, optional
-        Cut in the SNR of a line window for the SNR to be replaced by 100. It is then used
-        to prevent the line properties to be exported if 3/ snr(line) > depth(line)
-
     redo : str, optional
         Coma separated string with the list of stars for which repeat the analysis.
-
-    Other parameters : optional
-        See help for see spec and spec.fitline
 
     Returns
     -------
