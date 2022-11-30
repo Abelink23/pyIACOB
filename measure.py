@@ -6,8 +6,7 @@ def measure(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol
 
     '''
     Function to interactively calculate and store radial velocity, equivalent
-    width and full width at half maximum of stars for SiIII and Hb lines.
-    Note: input table must contain columns "ID" and "SpC".
+    width and full width at half maximum of stars a given list of input lines.
 
     Parameters
     ----------
@@ -71,12 +70,10 @@ def measure(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol
         output = Table(
             names = (
                 ['ID','Ref_file','SNR_B','SNR_V','SNR_R','RV0','eRV0']
-                + [j+i for i in [str(round(k)) for k in lines] for j in ['RV_','EW_','FW_','dep_','snr_']]
-                + ['RV_Hb','EW_Hb','FW_Hb','FW14_Hb','FW34_Hb','dep_Hb','gamma_Hb']),
+                + [j+i for i in [str(round(k)) for k in lines] for j in ['RV_','EW_','FW_','dep_','snr_']]),
             dtype = (
                 ['S16','S50','int64','int64','int64','float64','float64']
-                + ['float64','int64','float64','float64','int64']*len(lines)
-                + ['float64','int64','float64','float64','float64','float64','float64'])
+                + ['float64','int64','float64','float64','int64']*len(lines))
             )
 
     quit = ''
@@ -131,7 +128,7 @@ def measure(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol
             star.cosmic()
             star.plotspec(4510,4600, lines='35-10K')
 
-            input(); plt.close()
+            input('Hit return to continue...'); plt.close()
 
             T_source = Table(
                 [[star.id_star],[star.filename],[snr_b],[snr_v],[snr_r],[round(star.rv0, 2)],[eRV0]],
@@ -159,19 +156,148 @@ def measure(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol
                 for par,val in zip(['RV_','EW_','FW_','dep_','snr_'],[RV,EW,FW,dep,snr]):
                     T_source[par+str(round(line))] = val
 
-            next = input("Type 'n' to repeat, hit return to move to the Hb line. ")
+            next = input("\nRepeat Hb / continue to the next star / save and exit ['n'/''/'q']: ")
             plt.close('all')
+
+            if next == 'n':
+                continue
+            else:
+                output = vstack([output,T_source])
+
+                if next == 'q':
+                    quit = next
+
+    output.write(maindir+'tables/'+output_table, format='fits', overwrite=True)
+
+    return 'DONE'
+
+
+def measure_Hb(table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150, redo='n'):
+
+    '''
+    Function to interactively calculate and store radial velocity, equivalent
+    width and full width at half maximum 3/4 and 1/4 from continuum for Hb line.
+
+    Parameters
+    ----------
+    table : str
+        Name of the input table contaning the list of stars to analyze.
+
+    output_table : str
+        Name of the output (new) table contaning the results.
+
+    RV0lines : str, list
+        Enter the wavelenght(s) of the line(s) to fit, either in a coma-separated
+        string, or in a .txt/.lst file containing the lines.
+
+    RV0tol : int, optional
+        Tolerance for a line to be considered for the RV0 calculation.
+
+    ewcut : float, optional
+        EW threshold value for a line to be considered as detected. Default is 10.
+
+    snrcut : float/int, optional
+        Cut in the SNR of a line window for the SNR to be replaced by 100. It is then used
+        to prevent the line properties to be exported if 3/ snr(line) > depth(line)
+
+    redo : str, optional
+        Coma separated string with the list of stars for which repeat the analysis.
+
+    Other parameters : optional
+        See help for see spec and spec.fitline
+
+    Returns
+    -------
+    Nothing, but the output table with the results is created.
+    '''
+
+    table = findtable(table)
+
+    #===========================================================================
+    output = findtable(output_table)
+
+    if output is not None:
+        # Remove entries to be re-done
+        if redo != 'n':
+            try:
+                redo = redo.split(',')
+            except:
+                print('Bad input for "redo" parameter. Exitting...')
+                return None
+
+            for id in redo:
+                output = output[output['ID'] != id]
+
+    else:
+        print('Creating new table: %s\n' % output_table)
+
+        output = Table(
+            names = (
+                ['ID','Ref_file','SNR_B','SNR_V','SNR_R','RV0','eRV0']
+                + ['RV_Hb','EW_Hb','FW_Hb','FW14_Hb','FW34_Hb','dep_Hb','gamma_Hb']),
+            dtype = (
+                ['S16','S50','int64','int64','int64','float64','float64']
+                + ['float64','int64','float64','float64','float64','float64','float64'])
+            )
+
+    quit = ''
+    for source in table:
+        if quit == 'q': break
+
+        if 'Ref_file' in source.colnames:
+            id = source['Ref_file']
+        else:
+            id = source['ID']
+
+        if 'SpC' in source.colnames:
+            spt  = source['SpC']
+        else:
+            spt = ''
+
+        if source['ID'] in [i.strip() for i in output['ID']]: continue
+
+        skip = input("%s (%s) - Hit return to continue, type 's' to skip: " % (id,spt))
+
+        star = spec(id, SNR='bestHF')
+
+        snr_b = star.snrcalc(zone='B')
+        snr_v = star.snrcalc(zone='V')
+        snr_r = star.snrcalc(zone='R')
+
+        star.rv0, eRV0 = RV0(RV0lines, star.filename, func=RV0fun, ewcut=30, tol=RV0tol)
+        star.waveflux(4795,6605)
+        star.cosmic()
 
         next = 'n'
         while next == 'n':
 
             if skip == 's': break
 
+            T_source = Table(
+                [[star.id_star],[star.filename],[snr_b],[snr_v],[snr_r],[round(star.rv0, 2)],[eRV0]],
+                names=('ID','Ref_file','SNR_B','SNR_V','SNR_R','RV0','eRV0'))
+
+            #=======================================================================
+            print('\nPrinting H alpha line to detect winds...\n')
+
+            star.plotspec(6522.80,6602.80)
+
+            mngr = plt.get_current_fig_manager()
+            x,y,dx,dy = mngr.window.geometry().getRect()
+            print(x,y,dx,dy)
+            mngr.window.setGeometry(x-350, y, dx, dy)
+
+            plt.figure()
+
             #=======================================================================
             print('\nAnalyzing H beta line...\n')
 
             star.waveflux(4801,4921); star.cosmic()
             star.plotspec(4821,4901, lines='35-10K')
+
+            mngr = plt.get_current_fig_manager()
+            x,y,dx,dy = mngr.window.geometry().getRect()
+            mngr.window.setGeometry(x+350, y, dx, dy)
 
             fun = '-'; iter = 3
             while fun not in ['vr_H','vrg_H']:

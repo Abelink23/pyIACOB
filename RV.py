@@ -13,7 +13,7 @@ def RV_cc(id_star, windows=[(3950,4160),(4310,4360),(4370,4490),(4540,4690),(484
     IN DEVELOPMENT
     '''
 
-    spectra = findstar(id_star)
+    spectra = findstar(id_star) 
 
     synthetic = []
     for file in os.listdir(datadir+'ASCII/Synthetic_MAUI/'):

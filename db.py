@@ -293,7 +293,7 @@ def findlist(list):
     Items contained in the input list.
     '''
 
-    path = maindir+'lists'
+    path = maindir + 'lists'
 
     # To catch wrong int/float inputs:
     if type(list) == float or type(list) == int:
@@ -514,7 +514,7 @@ def snr(spectra, snrcut=None, get_HF=None):
     best_spectra = []
     for star in names_stars:
         SNR_best = 0
-        SNR_best_MF = 0
+        SNR_best_HF = 0
         for spectrum in spectra:
             filename = spectrum.split(os.sep)[-1].split('_')
             id_star = filename[0]
@@ -538,15 +538,15 @@ def snr(spectra, snrcut=None, get_HF=None):
                         SNR_best = SNR; best_spec = spectrum
                         best_spec_date = date; best_spec_inst = instr
 
-                    if get_HF == True and instr in ['M','F'] and SNR > SNR_best_MF:
-                        SNR_best_MF = SNR; best_spec_MF = spectrum
+                    if get_HF == True and instr in ['M','F'] and SNR > SNR_best_HF:
+                        SNR_best_HF = SNR; best_spec_MF = spectrum
 
                 elif SNR > int(snrcut):
                     best_spectra.append(spectrum)
 
         if snrcut == None:
-            if get_HF == True and best_spec_inst=='N' and (0.85*SNR_best<SNR_best_MF \
-                or (0.70*SNR_best<SNR_best_MF and SNR_best_MF>100)):
+            if get_HF == True and best_spec_inst=='N' and (0.80*SNR_best<SNR_best_HF \
+                or (0.65*SNR_best<SNR_best_HF and SNR_best_HF>100)):
                  best_spec = best_spec_MF
             best_spectra.append(best_spec)
 
