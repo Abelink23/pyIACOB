@@ -1,12 +1,15 @@
+.vscode/
+
 __pycache__/
+.DS_Store
+
 edr3_zp/__pycache__/
+edr3_zp/.DS_Store
 
 plots/
 scripts/
 old/
 
-.vscode/
-.DS_Store
 matplotlibrc
 paths.txt
 paths_win.txt
@@ -14,5 +17,4 @@ paths_win.txt
 tmp*.py
 *_bkp.py
 ML.py
-
 quick_review.py

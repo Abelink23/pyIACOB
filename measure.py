@@ -44,6 +44,7 @@ def measure(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol
 
     tol : int, optional
         Sets the tolerance [km/s] to shifting the spectrum in order to fit the lines.
+        Default is 100.
 
     redo : str, optional
         Coma separated string with the list of stars for which repeat the analysis.
