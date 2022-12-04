@@ -14,5 +14,5 @@ paths_win.txt
 tmp*.py
 *_bkp.py
 ML.py
-binarity.py
+
 quick_review.py

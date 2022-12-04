@@ -1,5 +1,7 @@
 from rv import *
 
+from binarity import *
+
 
 def measure(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150,
     ewcut=10, snrcut=100, tol=100, redo='n'):
@@ -7,6 +9,8 @@ def measure(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol
     '''
     Function to interactively calculate and store radial velocity, equivalent
     width and full width at half maximum of stars a given list of input lines.
+
+    Note: Feature/keyword to find binary stars is not implemented yet. Only for the Hb.
 
     Parameters
     ----------
@@ -135,7 +139,7 @@ def measure(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol
             input('Hit return to continue...'); plt.close()
 
             T_source = Table(
-                [[star.id_star],[star.filename],[snr_b],[snr_v],[snr_r],[round(star.rv0, 2)],[eRV0]],
+                [[star.id_star],[star.filename],[snr_b],[snr_v],[snr_r],[round(star.rv0, 2)],[round(eRV0, 2)]],
                 names=('ID','Ref_file','SNR_B','SNR_V','SNR_R','RV0','eRV0'))
             for line in lines:
                 fit = star.fitline(line, width=wid, tol=tol, func=fun, plot=True)
@@ -175,7 +179,8 @@ def measure(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol
 
     return 'DONE'
 
-def measure_Hb(table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150, redo='n'):
+
+def measure_Hb(table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150, binarity=False, redo='n'):
 
     '''
     Function to interactively calculate and store radial velocity, equivalent
@@ -199,6 +204,11 @@ def measure_Hb(table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150
 
     RV0tol : int, optional
         Tolerance for a line to be considered for the RV0 calculation.
+
+    binarity : bool, optional
+        If True, the function will also make use of the binarity module to help 
+        you to identify possible binary stars. See binarity.py for more info.
+        Default is False.
 
     redo : str, optional
         Coma separated string with the list of stars for which repeat the analysis.
@@ -255,6 +265,10 @@ def measure_Hb(table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150
 
         skip = input("%s (%s) - Hit return to continue, type 's' to skip: " % (id,spt))
 
+        if binarity == True:
+            findSB(id.split('/')[-1].split('_')[0],SNR=20,degrade=40000,vspace=0)
+            plt.figure()
+
         star = spec(id, SNR='bestHF')
 
         snr_b = star.snrcalc(zone='B')
@@ -281,7 +295,7 @@ def measure_Hb(table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150
 
             mngr = plt.get_current_fig_manager()
             x,y,dx,dy = mngr.window.geometry().getRect()
-            mngr.window.setGeometry(x+900, y, dx, dy)
+            mngr.window.setGeometry(x+600, y, dx, dy) #900
 
             plt.figure()
 
@@ -293,7 +307,7 @@ def measure_Hb(table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150
 
             mngr = plt.get_current_fig_manager()
             x,y,dx,dy = mngr.window.geometry().getRect()
-            mngr.window.setGeometry(x-900, y, dx, dy)
+            mngr.window.setGeometry(x-600, y, dx, dy) # -900
 
             fun = '-'; iter = 3
             while fun not in ['vr_H','vrg_H']:
