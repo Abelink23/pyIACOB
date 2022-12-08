@@ -1022,7 +1022,8 @@ def spc_code(spc):
     spt_dic = {'O': 1, 'B': 2, 'A': 3, 'F': 4, 'G': 5, 'K': 6, 'M': 7}
     lc_dic = {'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5}
 
-    spc_c = spc.split('+')[0].split('/')[0].replace(':', '')
+    #spc_c = spc.split('+')[0].split('/')[0].replace(':', '')
+    spc_c = spc.split('+')[0].replace('/','-').replace(':', '')
 
     if spc_c in ['~'] or spc_c.startswith(('WC','WN','WR','C')):
         spt_c = lc_c = np.nan
@@ -1158,7 +1159,7 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False):
         return None
 
 
-def query_Gaia(gaia='dr3', name=None, ra=None, dec=None, radec=None, radius=5, get_zp=False):
+def query_Gaia(gaia='dr3', name=None, ra=None, dec=None, radec=None, radius=2, get_zp=False):
 
     '''
     Function to query an object in Gaia DR3 database.
@@ -1181,7 +1182,7 @@ def query_Gaia(gaia='dr3', name=None, ra=None, dec=None, radec=None, radius=5, g
         Enter the string with the coordinates as hh(:)mm(:)ss.sss(:) +-dd(:)mm(:)ss(:)
 
     radius : int, optional
-        Enter an integer with the radius for the sky search in arcseconds. Default is 5.
+        Enter an integer with the radius for the sky search in arcseconds. Default is 2.
 
     Returns
     -------
@@ -1247,9 +1248,17 @@ def query_Gaia(gaia='dr3', name=None, ra=None, dec=None, radec=None, radius=5, g
         return None
 
     if len(query.results) > 1:
-        print('More than one Gaia result, choosing the brigtest source...')
-        query.results.sort('phot_g_mean_mag')
-        query = Table(query.results[0])
+        print('WARNING: More than one Gaia result')
+        
+        # To make use of the Gaia DRX ######, if used as name
+        if name in query.results['DESIGNATION']:
+            query = query.results[query.results['DESIGNATION'] == name]
+            print('Choosing the same Gaia source ID as the input...')
+        else:
+            print('WARNING: Input name not in Gaia source ID, choosing the brigtest source...')
+        
+            query.results.sort('phot_g_mean_mag')
+            query = Table(query.results[0])
         
     else:
         query = query.results

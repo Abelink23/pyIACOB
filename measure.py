@@ -333,15 +333,15 @@ def measure_Hb(table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150
                 if fit['sol'] != 0:
                     gam = round(fit['gamma'], 3)
                 else: gam = np.nan
-    
+
                 for par,val in zip(['RV_Hb','EW_Hb','FW_Hb','dep_Hb','gamma_Hb'],[RV,EW,FW,dep,gam]):
                     T_source[par] = val
-    
+
                 try:
                     wave = fit['wave']; flux_fit = fit['flux_fit']
                     lowval = (max(flux_fit) + 3*min(flux_fit))/4
                     uppval = (3*max(flux_fit) + min(flux_fit))/4
-    
+
                     for par,val in zip(['FW14_Hb','FW34_Hb'],[lowval,uppval]):
                         medpos = [np.where(flux_fit <= val)[0][value] for value in (0,-1)]
                         try: l_val = np.interp(val,[flux_fit[medpos[0]],flux_fit[medpos[0]-1]],
@@ -350,9 +350,9 @@ def measure_Hb(table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150
                         try: r_val = np.interp(val,[flux_fit[medpos[1]],flux_fit[medpos[1]+1]],
                                                       [wave[medpos[1]],wave[medpos[1]+1]])
                         except: r_val = wave[medpos[1]]
-    
+
                         T_source[par] = round(r_val-l_val, 3)
-    
+
                 except:
                     print('Problem calculating the FW at 1/4 and 3/4 of the Hb line.')
                     T_source['FW14_Hb'] =  T_source['FW34_Hb'] = T_source['gamma_Hb'] = np.nan

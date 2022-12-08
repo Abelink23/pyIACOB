@@ -6,8 +6,8 @@ from copy import deepcopy
 from matplotlib.backends.backend_pdf import PdfPages
 
 
-def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200, export_rv=False,
-    cosmetic=False, cosmic=False, lines_cosmic=None, degrade=None, show_plot=False):
+def gen_ascii(id, txt=False, db_table=None, spt='auto', lwl=None, rwl=None, rv_corr=True, RV0tol=200, 
+    export_rv=False, cosmetic=False, cosmic=False, lines_cosmic=None, degrade=None, show_plot=False):
 
     '''
     Function to remove cosmic rays in the spectra by different approaches.
@@ -28,6 +28,12 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
     spt : str, optional
         Input spectral type of the star. If 'auto' (default), it takes it from either the
         db_table or the fits file. Otherwise enter an input type (e.g. B4Ia).
+
+    lwl : float, optional
+        Lower wavelength limit for the exported spectrum. Default is None.
+
+    rwl : float, optional
+        Upper wavelength limit for the exported spectrum. Default is None.
 
     rv_corr : boolean, optional
         If True, the output ascii spectrum will be corrected from radial velocity.
@@ -94,7 +100,7 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
         star = spec(id, SNR='bestHF', txt=txt)
         spt = spc_code(star.SpC)[0]
 
-    elif type(spt) == str:
+    elif isinstance(spt, str):
         spt = spc_code(spt)[0]
 
     if spt == '':
@@ -328,6 +334,12 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', rv_corr=True, RV0tol=200
     plt.close(fig)
     plt.close('all')
     plt.close()
+
+    # Cut the spectra to the selected limits:
+    if lwl is not None and rwl is not None:
+        mask = (star.wave >= lwl) & (star.wave <= rwl)
+        star.wave = star.wave[mask]
+        star.flux = star.flux[mask]
 
     star.export(tail='_RV', extension='.ascii')
 

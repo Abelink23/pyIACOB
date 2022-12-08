@@ -287,7 +287,7 @@ class spec():
         return wave, flux, 0
 
 
-    def fitline(self, line, width=15, tol=150., func='g', iter=3, info=False,
+    def fitline(self, line, width=15, tol=150., func='g', iter=3, fw3414=False, info=False,
         outfit=False, plot=False):
 
         '''
@@ -314,8 +314,17 @@ class spec():
         iter : int, optional
             Number of iterations to optimize window width. Default is 3.
 
+        fw3414 : boolean, optional
+            If 'True', it will output the FW difference at 3/4 - 1/4 of the line depth.
+            Default is 'False'.
+
         info : boolean, optional
             If 'True', it will print information for each line fitting.
+            Default is 'False'.
+
+        outfit : boolean, optional
+            If 'True', it will output the fitting as an array.
+            Default is 'False'.
 
         plot : boolean, optional
             If 'True', it will create and show the plots.
@@ -509,8 +518,30 @@ class spec():
                 [wave[medpos[1]], wave[medpos[1]+1]])
         except:
             r_val = wave[medpos[1]]
-        
+
         FWHM = round(r_val - l_val, 3)
+        
+        #======= Calculate width difference at 3/4-1/4 of the line depth =======
+        if fw3414 is True:
+            try:
+                lowval = (max(flux_fit) + 3*min(flux_fit))/4
+                uppval = (3*max(flux_fit) + min(flux_fit))/4
+
+                for par,val in zip(['FW14_Hb','FW34_Hb'],[lowval,uppval]):
+                    medpos = [np.where(flux_fit <= val)[0][value] for value in (0,-1)]
+                    try: l_val = np.interp(val,[flux_fit[medpos[0]],flux_fit[medpos[0]-1]],
+                                                   [wave[medpos[0]],wave[medpos[0]-1]])
+                    except: l_val = wave[medpos[0]]
+                    try: r_val = np.interp(val,[flux_fit[medpos[1]],flux_fit[medpos[1]+1]],
+                                                  [wave[medpos[1]],wave[medpos[1]+1]])
+                    except: r_val = wave[medpos[1]]
+
+                    FW34_14 = round(r_val-l_val, 3)
+            except:
+                print('Problem calculating the FW at 1/4 and 3/4 of the Hb line.')
+                FW34_14 = np.nan
+        else:
+            FW34_14 = np.nan
 
         #======================= Calculate the line depth ======================
         depth = round(1 - min(flux_fit), 3)
@@ -536,8 +567,8 @@ class spec():
 
             ax.plot(wave, np.where(mask==False, 1, np.nan) + 0.01, 'k', lw=.5)
 
-            ax.set_title('%s | %.2f | RV: %d | EW: %d | FWHM: %.2f | SNR: %d' %
-                (self.id_star,line_f,RV_kms,EW,FWHM,snr), fontsize=8)
+            ax.set_title('%s | %.2f | RV: %d | EW: %d | FWHM: %.2f | FW34-14: %.2f | SNR: %d' %
+                (self.id_star,line_f,RV_kms,EW,FWHM,FW34_14,snr), fontsize=8)
 
             ax.set_yticks([])
             ax.set_xlabel('$\lambda$ $[\AA]$', size=13)
@@ -550,7 +581,9 @@ class spec():
         #=======================================================================
         #================= Packing the results in a dictionary =================
         fitsol = {'sol':1, 'line':line_f, 'RV_A':RV_A, 'RV_kms':RV_kms,
-                   'EW':EW, 'FWHM':FWHM, 'depth':depth, 'q_fit':q_fit, 'snr':snr}
+                   'EW':EW, 'FWHM':FWHM, 'FW34_14':FW34_14, 'depth':depth,
+                   'q_fit':q_fit, 'snr':snr}
+
         for f_par,par in zip(fit_dic[func.split('_')[0]], popt):
             fitsol[f_par] = round(par, 3)
 
