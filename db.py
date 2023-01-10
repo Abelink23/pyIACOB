@@ -1004,7 +1004,7 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
     return None
 
 
-def spc_code(spc):
+def spc_code(spc,sub_class_I=False):
 
     '''
     Function to translate input SpC (Spectral Class) into SpT and LC codes.
@@ -1020,26 +1020,34 @@ def spc_code(spc):
     '''
 
     spt_dic = {'O': 1, 'B': 2, 'A': 3, 'F': 4, 'G': 5, 'K': 6, 'M': 7}
-    lc_dic = {'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5}
+    if sub_class_I == False:
+        lc_dic = {'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5}
+    elif sub_class_I == True:
+        lc_dic = {'Iab': 1.2, 'Ia+': 0.9, 'Ia': 1.1, 'Ib': 1.3, 'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5}
 
-    #spc_c = spc.split('+')[0].split('/')[0].replace(':', '')
-    spc_c = spc.split('+')[0].replace('/','-').replace(':', '')
+    spc = spc.replace('var','') # Remove variable flag
+    spc = spc.replace('Mn','') # Remove Mn flag
 
-    if spc_c in ['~'] or spc_c.startswith(('WC','WN','WR','C')):
+    spc = spc.replace('Ve','V')
+    spc = spc.replace('Va','V')
+
+    spc = spc.replace('/ab','/Iab')
+    spc = spc.replace('/a','/Ia')
+    spc = spc.replace('/b','/Ib')
+
+    #spc = spc.split('+')[0].split('/')[0].replace(':', '')
+    spc = spc.split('+')[0].replace('/','-').replace(':', '')
+    
+    if spc in ['~'] or spc.startswith(('WC','WN','WR','C')):
         spt_c = lc_c = np.nan
 
     else:
         # Spectral type
-        spc_c = spc_c.replace('Mn','')
-
-        if len(re.findall('Ve+[0-9]',spc_c)) != 0:
-            spc_c = spc_c.replace(re.findall('Ve+[0-9]',spc_c)[0], '')
-
-        spt_c = re.findall('[O,B,A,F,G,K,M]', spc_c)
+        spt_c = re.findall('[O,B,A,F,G,K,M]', spc)
         num = len(spt_c)
         spt_c_lst = [spt_dic[i] for i in spt_c]
 
-        spt_c = re.findall('[0-9.]+', spc_c)
+        spt_c = re.findall('[0-9.]+', spc)
         spt_c_lst += [float(i)/10 for i in spt_c]
 
         try:
@@ -1053,7 +1061,10 @@ def spc_code(spc):
             spt_c = np.nan
 
         # Luminosity class
-        lc_c = re.findall('[I,V]+', spc_c)
+        if sub_class_I == False:
+            lc_c = re.findall('[I,V]+', spc)
+        elif sub_class_I == True:
+            lc_c = re.findall('[Iab, Ia+, Ia, Ib, I, V]+', spc)
         lc_c_lst = [lc_dic[i] for i in lc_c]
 
         if len(lc_c_lst) == 0:

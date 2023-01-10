@@ -2,18 +2,18 @@ from spec import *
 from scipy.io.idl import readsav
 
 
-def ib_input(table, folder, old_input=None, txt=False):
+def ib_input(table, folder, old_input=None, new_master=False, txt=False):
 
     '''
     Function to generate the input table for IACOB broad given an input table with the
-    target stars.
+    target stars or specific spectrum.
 
     Parameters
     ----------
     table : str
-        Enter the input table contaning a column 'ID' or 'filename' with the identifier
+        Enter the input table contaning a column 'ID' or 'Ref_file' with the identifier
         of the stars. If the ID is provided, then the best SNR spectrum is used for each
-        star (prioritizing Mercator+Feros).
+        star (prioritizing HERMES+FEROS).
 
     folder : str
         Name of the sub-folder under the IACOB-Broad directory (ibdir) where to
@@ -23,25 +23,31 @@ def ib_input(table, folder, old_input=None, txt=False):
         Name of a previous IACOB-Broad input table. If used, it will be used to create
         an updated verstion of it. Default is None.
 
+    new_master : boolean, optional
+        If True, it will create a new master table, adding the new rows to the old input
+        table, or updating the old one if that one has to be redone. Default is False.
+
     txt : boolean, optional
         If True, it will parse it to spec() in case that the input spectrum is in ascii.
 
     Returns
     -------
-    Nothing but the IACOB broad input file called 'input_IB_new.txt' is generated.
+    Nothing but the IACOB broad input file called 'input_IB_todo.txt' is generated.
+    If old_input is provided, it will also generate a table called 'input_IB_todo-updated.txt'
+    with updated rows in case that the spectrum has been already processed.
     '''
 
     table = findtable(table)
-    if 'filename' in table.colnames:
-        table['ID'] = table['filename']
+    if 'Ref_file' in table.colnames:
+        table['ID'] = table['Ref_file']
 
-    file1 = open(maindir+'tables/input_IB_new.txt', 'w')
+    file1 = open(maindir+'tables/input_IB_todo.txt', 'w')
     file1.write('#i ID path Ref_file resol line QIB\n')
 
     if old_input is not None:
         old_input = findtable(old_input)
         old_input['i'] = old_input['i'].astype(str)
-        file2 = open(maindir+'tables/input_IB_updated.txt', 'w')
+        file2 = open(maindir+'tables/input_IB_todo-updated.txt', 'w')
         file2.write('#i ID path Ref_file resol line QIB\n')
 
     i = 0
@@ -51,57 +57,102 @@ def ib_input(table, folder, old_input=None, txt=False):
     bar.start()
 
     for row,j in zip(table,range(len(table))):
-
+        
         id = row['ID'].strip()
-
+        
         star = spec(id, SNR='bestHF', txt=txt)
-
-        line = 'SiIII4567' # SiIII4567 / SiII6347
-
+        
+        star.get_spc()
+        
+        if star.SpC != '':
+            spt = spc_code(star.SpC)[0]
+            if not np.isnan(spt):
+                if spt < 2.4:
+                    line = 'SiIII4567'
+                elif spt >= 2.4:
+                    line = 'SiII6371' # 6347 Has MgII contamination
+            else:
+                line = 'SiIII4567'
+        else:
+            line = 'SiIII4567'
+        
         # Exists in the old table?
         if old_input is not None:
-
-            match_old = old_input[old_input['ID'] == id]
-
+            
+            if 'Ref_file' in row.colnames:
+                match_old = old_input[old_input['Ref_file'] == star.filename]
+            else:
+                match_old = old_input[old_input['ID'] == star.id_star]
+            
+            if len(match_old) >= 1:
+            
+                # If Ref_file is used as input, but there are several matches in old table:
+                if 'Ref_file' in row.colnames:
+                    match_old = match_old[match_old['Ref_file'] == star.filename]
+                # If ID is used as input, and the best SNR spectrum is in the old table:
+                elif star.filename in match_old['Ref_file']:
+                    match_old = match_old[match_old['Ref_file'] == star.filename]
+                # If ID is used as input, and the best SNR spectrum is not in the old table:
+                # Despite the Ref_file is different, picks the old line used there
+                else:
+                    line = match_old[0]['line'][0]
+            
+            # For the same Ref_file as in the old table...
             if len(match_old) == 1:
-
-                # Check if the filename is the same as in the old table and is so if it
-                # has been processed
-                if star.filename == match_old['Ref_file']:
-                    # If it has been processed, add "#"
-                    if not search(id+'_'+match_old['line'][0]+'.ps', ibdir+folder) == None:
-                        idx = '#'+str(j)
-                    else:
-                        idx = str(j)
-                        print('\nWARNING: %s not processed or is missing the .ps\n' % id)
-
-                    file2.write('%s %s %s %s %i %s %i\n' % \
-                    (idx,match_old['ID'][0],match_old['path'][0],match_old['Ref_file'][0],
-                         match_old['resol'][0],match_old['line'][0],match_old['QIB'][0]))
-
-                # Despite the reference file is different, picks the old line used there
-                else: line = match_old['line'][0]
-
+                # If it has been already processed, add "#"
+                if not search(star.id_star+'_'+match_old['line'][0]+'.ps', ibdir+folder) == None:
+                    idx = '#'+str(j)
+                else:
+                    idx = str(j)
+                    print('\nWARNING: %s not processed or is missing the .ps\n' % id)
+                file2.write('%s %s %s %s %i %s %i\n' % \
+                (idx,match_old['ID'][0],match_old['path'][0],match_old['Ref_file'][0],
+                match_old['resol'][0],match_old['line'][0],match_old['QIB'][0]))
+            
             # Then there is a new one or a better one:
             elif len(match_old) == 0:
-
                 file2.write('%s %s %s %s %i %s %i\n' % \
                 (str(j),star.id_star,star.fullpath.split(star.filename)[0],\
                 star.filename,star.resolution,line,-1))
-
+        
         file1.write('%i %s %s %s %i %s %i\n' % \
         (i,star.id_star,star.fullpath.split(star.filename)[0],\
         star.filename,star.resolution,line,-1))
         i = i + 1
-
+        
         bar.update(j)
-
+        
         bar.finish()
-
+    
     if old_input is not None:
         file2.close()
 
     file1.close()
+    
+    # If new_master is True, it will create a new master table with the new input
+    if old_input is None and new_master == True:
+        print('Cannot create a new master table without an old one.\n')
+    elif old_input is not None and new_master == True:
+        table = findtable('input_IB_updated.txt')
+        table['i'] = table['i'].astype(str)
+        for row in table:
+            if row['Ref_file'] in old_input['Ref_file']:
+                old_input_i = old_input[old_input['Ref_file'] == row['Ref_file']]
+                # To catch potential issues (not really necessary)
+                if row['QIB'] != old_input_i['QIB'] or row['line'] != old_input_i['line']:
+                    print('Something went wrong for:', row['Ref_file'], row['QIB'], row['line'], old_input_i['QIB'], old_input_i['line'])
+                    continue
+            else:
+                old_input = vstack([old_input, row])
+        
+        old_input['i'] = np.arange(len(old_input)).astype(str)
+        
+        file3 = open(maindir+'tables/input_IB_new.txt', 'w')
+        file3.write('#i ID path Ref_file resol line QIB\n')
+        for row in old_input:
+            file3.write('%s %s %s %s %s %s %i\n' % \
+            (row['i'],row['ID'],row['path'],row['Ref_file'],row['resol'],row['line'],row['QIB']))
+        file3.close()
     
     return 'DONE'
 
@@ -123,7 +174,7 @@ def ib_results(table, folder, check_best=False, format='fits'):
 
     check_best : boolean, optional
         True if each spectra from the .xdr file is checked against the best
-        spectrum in the database. Default is True.
+        spectrum in the database. Default is False.
 
     format : str, optional
         Enter the output format for the table: 'fits' (default), 'ascii' or 'csv'.

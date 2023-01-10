@@ -54,13 +54,18 @@ class spec():
 
         if type(spectrum) == list:
             if len(spectrum) > 1:
-                print('Error: More than one spectrum selected.\nExitting...')
+                print('Error in spec(): More than one spectrum selected.\nExitting...')
                 return None
             else: spectrum = spectrum[0]
 
         self.fullpath = findstar(spectrum, SNR=SNR)
+        
+        if self.fullpath is None:
+            print('Error in spec(): No spectrum found.\nExitting...')
+            return None
+
         if len(self.fullpath) > 1:
-            print('Error: More than one spectrum selected.\nExitting...')
+            print('Error in spec(): More than one spectrum selected.\nExitting...')
             return None
         self.fullpath = self.fullpath[0]
         self.filename = self.fullpath.split(os.sep)[-1]
@@ -242,7 +247,7 @@ class spec():
         '''
 
         if self.filename.endswith('.fits'):
-            print('Error: This is a fits file, use a .txt/.dat/.ascii or similar file.')
+            print('Error in spec(): This is a fits file, use a .txt/.dat/.ascii or similar file.')
             return None
 
         data = findtable(self.filename, path=datadir+'ASCII/', format='no_header')
@@ -348,7 +353,7 @@ class spec():
         #============================== Parameters =============================
         # Catch line input containing more than one line
         if type(line) == str and (',' in line or ' ' in line.strip()):
-            print('Error: More than one line selected.\nExitting...')
+            print('Error in spec(): More than one line selected.\nExitting...')
             return fitsol
 
         line = float(line)
@@ -527,16 +532,21 @@ class spec():
                 lowval = (max(flux_fit) + 3*min(flux_fit))/4
                 uppval = (3*max(flux_fit) + min(flux_fit))/4
 
+                medpos = []; FW34_14 = []
                 for par,val in zip(['FW14_Hb','FW34_Hb'],[lowval,uppval]):
-                    medpos = [np.where(flux_fit <= val)[0][value] for value in (0,-1)]
-                    try: l_val = np.interp(val,[flux_fit[medpos[0]],flux_fit[medpos[0]-1]],
-                                                   [wave[medpos[0]],wave[medpos[0]-1]])
-                    except: l_val = wave[medpos[0]]
-                    try: r_val = np.interp(val,[flux_fit[medpos[1]],flux_fit[medpos[1]+1]],
-                                                  [wave[medpos[1]],wave[medpos[1]+1]])
-                    except: r_val = wave[medpos[1]]
+                    medpos_i = [np.where(flux_fit <= val)[0][value] for value in (0,-1)]
+                    medpos.append(medpos_i)
+                    try: l_val = np.interp(val,[flux_fit[medpos_i[0]],flux_fit[medpos_i[0]-1]],
+                                                   [wave[medpos_i[0]],wave[medpos_i[0]-1]])
+                    except: l_val = wave[medpos_i[0]]
+                    try: r_val = np.interp(val,[flux_fit[medpos_i[1]],flux_fit[medpos_i[1]+1]],
+                                                  [wave[medpos_i[1]],wave[medpos_i[1]+1]])
+                    except: r_val = wave[medpos_i[1]]
 
-                    FW34_14 = round(r_val-l_val, 3)
+                    FW34_14.append(round(r_val-l_val, 3))
+
+                FW34_14 = FW34_14[1]-FW34_14[0]
+
             except:
                 print('Problem calculating the FW at 1/4 and 3/4 of the Hb line.')
                 FW34_14 = np.nan
@@ -558,6 +568,11 @@ class spec():
         if plot is True:
 
             fig, ax = plt.subplots()
+
+            if fw3414 is True and FW34_14 != np.nan:
+                print(medpos,lowval,uppval)
+                ax.plot([wave[medpos[0][0]],wave[medpos[0][1]]],[lowval,lowval],'gray',linestyle='--',lw=.5)
+                ax.plot([wave[medpos[1][0]],wave[medpos[1][1]]],[uppval,uppval],'gray',linestyle='--',lw=.5)
 
             ax.plot(wave, flux, c='orange', lw=.5)
             ax.plot(wave, continuum, c='r', lw=.5)
@@ -1115,7 +1130,7 @@ def f_rot(x, A, lam0, sigma, vsini):
     R = A*(2*(1 - eps)*np.sqrt(doppl) + np.pi*eps/2.*doppl)/(np.pi*delta*(1 - eps/3))
     R = np.nan_to_num(R)
 
-    return 1-convolve(G,R,mode='same')
+    return 1-convolve(G, R, mode='same')
 
 def f_voigtrot(x, A, lam0, sigma, gamma, vsini, y):
     V = A*np.real(wofz((x-lam0+1j*gamma)/sigma/np.sqrt(2)))/sigma/np.sqrt(2*np.pi) + y

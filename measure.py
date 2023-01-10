@@ -165,7 +165,7 @@ def measure(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol
                 for par,val in zip(['RV_','EW_','FW_','dep_','snr_'],[RV,EW,FW,dep,snr]):
                     T_source[par+str(round(line))] = val
 
-            next = input("\nRepeat Hb / continue to the next star / save and exit ['n'/''/'q']: ")
+            next = input("\nRepeat / continue to the next star / save and exit ['n'/''/'q']: ")
             plt.close('all')
 
             if next == 'n':
