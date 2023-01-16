@@ -150,9 +150,9 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', lwl=None, rwl=None, rv_c
 
             if spt <= 2.:
                 spt_list = 'rv_Os.lst'
-            elif spt > 2. and spt < 2.9:
+            elif spt > 2. and spt < 2.7:
                 spt_list = 'rv_Bs.lst'
-            elif spt >=2.9:
+            elif spt >=2.7:
                 spt_list = 'rv_As.lst'
 
             next_rv0 = 'n'; fun = 'g'; wid = 15; tmp_wave = star.wave
@@ -278,7 +278,7 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', lwl=None, rwl=None, rv_c
                         mask = (star.wave >= line-width/2.) & (star.wave <= line+width/2.)
                         ax_i.plot(star.wave[mask], star.flux[mask], c='orange', lw=.7, label='RV corrected')
                         ax_i.plot(star.wave[mask], tmp_star.flux[mask], c='b', lw=.5, label='Cosmic corrected')
-                        ax_i.set_title(elem, fontsize=6, pad=0.5)
+                        ax_i.set_title(elem, fontsize=6, pad=0.55)
                         ax_i.tick_params(direction='in', top='on', labelsize=5)
                         ax_i.set_yticks([])
                         if ax_i.get_ylim()[0] > 0.9:

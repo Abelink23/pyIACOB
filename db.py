@@ -1195,6 +1195,9 @@ def query_Gaia(gaia='dr3', name=None, ra=None, dec=None, radec=None, radius=2, g
     radius : int, optional
         Enter an integer with the radius for the sky search in arcseconds. Default is 2.
 
+    get_zp : boolean, optional
+        If True, the zero point will be also calculated. Default is False.
+
     Returns
     -------
     Queried object in Table format.
