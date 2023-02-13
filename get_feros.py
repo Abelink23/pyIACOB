@@ -28,9 +28,7 @@ def get_feros(fname,colname=None,radius=2,limit=9999):
     Returns: None (but it downloads the fits files).
     '''
 
-    path = maindir
-
-    file = search(fname,path)
+    file = search(fname,maindir)
 
     if fname.endswith('.lst') or fname.endswith('.txt'):
         sources = findlist(fname)
@@ -49,10 +47,15 @@ def get_feros(fname,colname=None,radius=2,limit=9999):
     i = 0
     for source in sources:
 
-        bar.update(i); i = i + 1
+        bar.update(i)
+        i += 1
 
-        if type(source) != str: name = str(source)
-        name = source.strip(); print('\nSearching data for %s...\n' % name)
+        if type(source) != str:
+            name = str(source)
+
+        name = source.strip()
+        
+        print('\nSearching data for %s...\n' % name)
 
         query = eso.query_surveys('FEROS',cache=False,target=name)
         if query is None:
@@ -87,7 +90,7 @@ def get_feros(fname,colname=None,radius=2,limit=9999):
 
         spectra = 0
         for dataset in datasets:
-            miliseconds = round(float(dataset[-5:])+0.001,3)
+            miliseconds = round(float(dataset[-5:])+0.001, 3)
 
             if miliseconds == 1.0:
                 db.write('Please check: data from %s is probably missing.\n' % name)
@@ -98,14 +101,17 @@ def get_feros(fname,colname=None,radius=2,limit=9999):
             #if os.path.exists(datadir+dataset_f) == True: continue
 
             try:
-                data_files = eso.retrieve_data(dataset_f,destination=datadir+'FEROS/raw')
+                print('Files will be downloaded to %s' % datadir+'FEROS/raw/')
+                data_files = eso.retrieve_data(dataset_f,destination=datadir+'FEROS/raw/')
+                print(data_files)
             except:
-                db.write('ERROR: Dataset %s could not be retrieved.\n' %dataset_f); continue
+                db.write('ERROR: Dataset %s could not be retrieved.\n' %dataset_f)
+                continue
 
             try:
                 os.remove(datadir+'FEROS/raw/'+dataset_f+'.xml')
             except:
-                None#;db.write('Could not remove dataset %s.xml\n' % dataset_f)
+                None
 
             folder_name = datadir+'FEROS/raw/'+dataset_f
 
@@ -117,7 +123,6 @@ def get_feros(fname,colname=None,radius=2,limit=9999):
             except:
                 db.write('Tar file for %s had problems during download. Denied access?\n' % name)
                 continue
-
 
             fits_files = [file for file in os.listdir(folder_name) if file.endswith('.fits')]
             for fit_file in fits_files:

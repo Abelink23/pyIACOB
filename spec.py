@@ -250,14 +250,18 @@ class spec():
             print('Error in spec(): This is a fits file, use a .txt/.dat/.ascii or similar file.')
             return None
 
-        data = findtable(self.filename, path=datadir+'ASCII/', format='no_header')
-
-        # In case the file has a header with the wavelenght and flux column names:
-        if str(data[0][0].lower()) in ['wavelenght','wave']:
-            data = data[1:]
-
-        wave = np.asarray(data['col1'].astype(np.float))
-        flux = np.asarray(data['col2'].astype(np.float))
+        data = findtable(self.filename, path=datadir+'ASCII/', format='basic')
+        
+        if data.colnames[0].lower() in ['wave','wavelength','lambda','lamb','ang','angstroms']:
+            wave = data[data.colnames[0]]
+        else:
+            print('Error in spec(): No wavelength column found in the firs column of the ascii file.')
+            return None
+        if data.colnames[1].lower() in ['flux','fluxes','norm_flux','flux_norm']:
+            flux = data[data.colnames[1]]
+        else:
+            print('Error in spec(): No flux column found in the second column of the ascii file.')
+            return None
 
         wave = wave*(1 - 1000*self.rv0/cte.c)
 
@@ -315,6 +319,10 @@ class spec():
         func : str, optional
             Choose the function to fit the line:
             'g' Gaussian (default); 'l' Lorentzian; 'v' Voigt; 'r' Rotational.
+            'vr_H' Voigt profile with rotation for H lines.
+            'vr_Z' Voigt profile with rotation for metallic lines.
+            'vrg_H' Voigt profile with rotation and extra gaussian wings for H lines.
+            'vrg_Z' Voigt profile with rotation and extra gaussian wings for metallic lines.
 
         iter : int, optional
             Number of iterations to optimize window width. Default is 3.
@@ -921,7 +929,7 @@ class spec():
         self.flux = f(self.wave)
 
 
-    def export(self, tail='', extension='.dat'):
+    def export(self, tail='', extension='.ascii'):
 
         '''
         Function to export the current wavelenght and flux of the spectrum in the class
@@ -934,7 +942,7 @@ class spec():
             Default is ''.
 
         extension : str, optional
-            Extenstion of the output file. Default is '.dat'.
+            Extenstion of the output file. Default is '.ascii'.
 
         Returns
         -------
@@ -943,7 +951,8 @@ class spec():
 
         filename = self.filename.replace('.fits', '')
         np.savetxt(maindir+'tmp/%s' % (filename + tail + extension),
-            np.c_[self.wave,self.flux], fmt=('%.4f','%.6f'))
+            np.c_[self.wave,self.flux], fmt=('%.4f','%.6f'),
+            header='lambda    flux', comments='')
 
         return None
 
