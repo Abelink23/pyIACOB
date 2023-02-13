@@ -1299,6 +1299,26 @@ def query_Gaia(gaia='dr3', name=None, ra=None, dec=None, radec=None, radius=2, g
     return query
 
 
+def show_header(fitsfile):
+    
+    '''
+    Function to show the header of a fits file separated in rows.
+
+    Parameters
+    ----------
+    fitsfile : str
+        Enter the name of the fits file.
+
+    Returns
+    -------
+    Nothing, but the header is printed.
+    '''
+    
+    hdul = fits.open(fitsfile)
+    hdul.info()
+    print(hdul[0].header.items)
+
+
 def check_fits(list, max_dist=90):
 
     '''
