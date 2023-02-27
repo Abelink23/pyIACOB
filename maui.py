@@ -1,4 +1,4 @@
-from spec import *
+from spec_posproc import *
 from scipy.io.idl import readsav
 
 
@@ -143,8 +143,8 @@ def gen_gridlimits(models_dir=mauidir+'MODELS/'):
     return 'DONE'
 
 
-def maui_input(table, table_IB='IB_results.fits', table_REF=None,
-    output_name='MAUI_input', RV0tol=200, ascii=False, txt=False):
+def maui_input(table, table_IB='IB_results.fits', table_REF=None, output_name='MAUI_input', 
+    RV0tol=200, ascii=False, spectra_path='/SPECTRA/', txt=False):
 
     '''
     Function to generate the input table for MAUI given an input table with the
@@ -175,6 +175,9 @@ def maui_input(table, table_IB='IB_results.fits', table_REF=None,
         If True, ascii files will be created for each of the input sources.
         Default is False.
 
+    spectra_path : str, optional
+        Enter the path to the spectra inside the maui folder defined in paths.txt.
+
     txt : boolean, optional
         If True, it will parse it to spec() in case that the input spectrum is in ascii.
 
@@ -183,12 +186,17 @@ def maui_input(table, table_IB='IB_results.fits', table_REF=None,
     Nothing but the MAUI input file is generated.
     '''
 
-    if type(table) is type(Table()): pass # In case the input table is already a table
-    else: table = findtable(table) # file where star names and quality flags are
+    if type(table) is type(Table()):
+        print('Input table is already a table. Disabling generation of ascii files (not implemented yet)...\n')
+        ascii = False
+        pass # In case the input table is already a table
+    else:
+        db_table = table
+        table = findtable(table) # file where star names and quality flags are
 
     inpt_id = ''
     if len(table.colnames) > 1:
-        print('If you want to use a specific column as the ID, type it here.')
+        print('If you want to use a specific column for the ID, type it here.')
         inpt_id = input('It must contain the full filename.\nOtherwise, press enter: \n')
         if inpt_id != '' and inpt_id in table.colnames:
             table['ID'] = table[inpt_id]
@@ -273,14 +281,14 @@ def maui_input(table, table_IB='IB_results.fits', table_REF=None,
 
         # Checks if the ascii file for the star already exists to not repeat it
         if do_ascii == True and not search(star.filename.split('.')[0]+'_RV.ascii',\
-        os.path.expanduser('~')+'/Documents/MAUI/SPECTRA/') is None:
+        mauidir+spectra_path) is None:
             print('Info: ascii file for %s already exists' % star.filename.split('.')[0])
             do_ascii = False
 
         if do_ascii == True:
 
-            gen_ascii(star.filename, db_table=table, spt='auto', rv_corr=True, RV0tol=200,
-                cosmetic=True, cosmic=True, degrade=None, show_plot=True)
+            gen_ascii(star.filename, db_table=db_table, spt='auto', rv_corr=True, RV0tol=RV0tol,
+                export_rv=True, cosmetic=True, cosmic=True, degrade=None, show_plot=True)
 
         # MAUI input last modifications:
         match_IB['evsini'] = abs(match_IB['vsini_GF_eDW'] + match_IB['vsini_GF_eUP'])/2
@@ -995,6 +1003,7 @@ def gen_synthetic(output_dir, save_dir='server', lwl=3900, rwl=5080):
 
                 np.savetxt(save_dir + new_star, np.c_[star_idl.wave,star_idl.flux],
                     fmt=('%.4f','%.6f'))
+
 
 def even_plot(n):
     '''

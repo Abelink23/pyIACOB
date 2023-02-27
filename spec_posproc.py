@@ -90,6 +90,8 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', lwl=None, rwl=None, rv_c
             elif 'SpC' in db_table.colnames:
                 print('Initial spectral type taken from SpC column.')
                 spt = spc_code(row_id['SpC'])[0]
+        elif spt in db_table.colnames:
+            spt = spc_code(row_id[spt])[0]
 
     if spt == 'auto':
         if txt == False:

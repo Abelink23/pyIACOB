@@ -1313,10 +1313,14 @@ def show_header(fitsfile):
     -------
     Nothing, but the header is printed.
     '''
-    
+
+    fitsfile = findstar(fitsfile)
+
     hdul = fits.open(fitsfile)
     hdul.info()
     print(hdul[0].header.items)
+
+    return hdul[0].header
 
 
 def check_fits(list, max_dist=90):
