@@ -484,7 +484,7 @@ class solution_idl():
 
 
 def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=False,
-    pdfplots=False, pdflines='diag', grids_table='MAUI_grid_limits.fits', grid_only=[],
+    do_pdf=False, pdflines='diag', grids_table='MAUI_grid_limits.fits', grid_only=[],
     output_table=True, format_table='fits'):
 
     '''
@@ -512,7 +512,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
         True if the analyses correspond to Fast Rotator stars for which whe MAUI windows
         are different. Default is False.
 
-    pdfplots : boolean, optional
+    do_pdf : boolean, optional
         If True, a pdf comparing the synthetic diagnostic lines with the original is made.
 
     pdflines : str, optional
@@ -571,9 +571,12 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
     bar.start()
 
     # Create pdf file to save the plots of the results
-    if pdfplots == True:
+    if do_pdf == True:
 
         from matplotlib.backends.backend_pdf import PdfPages
+
+        if not os.path.exists(maindir + 'plots/MAUI/'):
+            os.makedirs(maindir + 'plots/MAUI/')
 
         pdf_solution = PdfPages(maindir + 'plots/MAUI/MAUI_results_lines_%s.pdf' % timenow)
         pdf_makchain = PdfPages(maindir + 'plots/MAUI/MAUI_results_chain_%s.pdf' % timenow)
@@ -626,7 +629,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
             if grid_only != [] and not star.gridname in grid_only: continue
 
             # Find the best SNR spectra in the DB
-            if check_best == True or pdfplots == True:
+            if check_best == True or do_pdf == True:
                 best_SNR = spec(star.id_star, SNR='bestHF')
 
             # Check if the input file matches with the best SNR spectra available
@@ -646,7 +649,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
             # Append the raw to the table
             data_rows.append(tuple(data_row))
 
-            if pdfplots == True:
+            if do_pdf == True:
 
                 # PLOT OF SPECTRAL LINES OUT OF THE IDL SOLUTION FILES
                 if pdflines == 'diag':
@@ -839,7 +842,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
 
         bar.update(i)
 
-    if pdfplots == True:
+    if do_pdf == True:
         pdf_solution.close()
         pdf_makchain.close()
 

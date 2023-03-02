@@ -371,9 +371,19 @@ class spec():
         # Maximum shift between the minimum of the fitted line and the tabulated value
         tol_aa = float(tol)*(line)*1000/cte.c  # Changes km/s to angstroms
 
-        # Maximum FWHM allowed (should be up to 18 for H lines)
+        # Maximum FWHM allowed (could be up to 18-20 for H lines in very cold stars)
         FWHM_max = 17
 
+        #======== Determine the SNR based on the wavelength of the line ========
+        if line > 3000 and line < 4000:
+            snr_spec = self.snrcalc('uv')
+        elif line > 4000 and line < 5000:
+            snr_spec = self.snrcalc('b')
+        elif line > 5000 and line < 6000:
+            snr_spec = self.snrcalc('v')
+        elif line > 6000 and line < 7000:
+            snr_spec = self.snrcalc('r')
+            
         #=========== Dictionary and boundary limits for the functions ==========
         fit_dic = {'g': ('A','lam0','sigma'),
                    'l': ('A','lam0','gamma','y'),
@@ -470,14 +480,21 @@ class spec():
                 FWHM = round(wave[medpos[1]] - wave[medpos[0]], 2)
 
                 # Checking step results
+                
                 # The min FWHM will be defined by either 3 times the dlam, or 3/4 of the
                 # minimum theoretical FWHM given the input line and resolution
-                FWHM_min = np.max([3*dlam_mean,3/4*dlamb])
+                FWHM_min = np.max([3*dlam_mean, 3/4*dlamb])
                 
                 if FWHM_min < FWHM < FWHM_max:
-                    flux_norm = flux_norm_i; continuum = continuum_i; mask = mask_i
-                    flux_fit = flux_fit_i; popt = popt_i; width = width_i
-                    i = i + 1; width_i = FWHM*7
+                    continuum = continuum_i
+                    flux_norm = flux_norm_i
+                    flux_fit = flux_fit_i
+                    mask = mask_i
+                    popt = popt_i
+                    width = width_i
+                    width_i = FWHM*7
+                    i = i + 1
+
                 elif FWHM < FWHM_min:
                     print('WARNING: FWHM(%.1f) < minimum FWHM for %.3fA' % (FWHM,line))
                     break
@@ -492,16 +509,34 @@ class spec():
         flux = self.flux[window]
         wave = self.wave[window]
 
+        # If the line was not fitted
         if i == 0:
+
+            if outfit == True:
+                fitsol['wave'] = wave
+                fitsol['flux_norm'] = flux_norm_i
+                fitsol['flux_fit'] = [np.nan]*len(wave)
+
             if info is True:
                 print('Problem in spectrum %s' % self.filename)
                 print('Line %sA could not be fitted or does not exist.\n' % line)
+
             return fitsol
 
+        # If the line was fitted
         line_f = wave[flux_fit == min(flux_fit)][0]
+
+        # ...but the line is found outside the tolerance
         if abs(line - line_f) > tol_aa:
+
+            if outfit == True:
+                fitsol['wave'] = wave
+                fitsol['flux_norm'] = flux_norm
+                fitsol['flux_fit'] = [np.nan]*len(wave)
+
             if info is True:
                 print('Line %sA found outside tolerance.\n' % line)
+
             return fitsol
 
         RV_A   = round((line_f - line), 3)
@@ -567,9 +602,13 @@ class spec():
         #===================== Calculate the SNR continuum =====================
         sigma_cont = np.std(flux_norm[mask])
         snr = int(1/sigma_cont)
+        # If the SNR measured on the continuum of the line is too different from
+        # the SNR measured on the wider region, the latter is used.
+        if abs(snr_spec-snr)/snr_spec > 0.30:
+            snr = snr_spec
 
         #============================= Quality value ===========================
-        q_fit = 1/np.std(flux_norm[flux_fit<(1-.2*depth)]/flux_fit[flux_fit<(1-.2*depth)]) #simple
+        q_fit = 1/np.std(flux_norm[flux_fit<(1-0.2*depth)]/flux_fit[flux_fit<(1-0.2*depth)]) #simple
         q_fit = round(q_fit, 3)
 
         #================================ Plot =================================
@@ -612,7 +651,6 @@ class spec():
 
         if outfit == True:
             fitsol['wave'] = wave
-            #fitsol['flux'] = flux
             fitsol['flux_norm'] = flux_norm
             fitsol['flux_fit'] = flux_fit
 
@@ -646,14 +684,16 @@ class spec():
         Measured signal-to-noise ratio value.
         '''
 
-        if zone in ['b','B']:
+        if zone in ['uv','UV']:
+            mask = (self.wave > 3000) & (self.wave < 4000)
+        elif zone in ['b','B']:
             mask = (self.wave > 4000) & (self.wave < 5000)
         elif zone in ['v','V']:
             mask = (self.wave > 5000) & (self.wave < 6000)
         elif zone in ['r','R']:
             mask = (self.wave > 6000) & (self.wave < 7000)
         elif zone in ['all','ALL']:
-            mask = (self.wave > 4000) & (self.wave < 7000)
+            mask = (self.wave > 3000) & (self.wave < 7000)
 
         lambda0 = np.mean(self.wave[mask])
         resol = 10000

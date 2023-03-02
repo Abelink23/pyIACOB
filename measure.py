@@ -3,8 +3,8 @@ from rv import *
 from binarity import *
 
 
-def measure(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150,
-    ewcut=10, snrcut=100, tol=100, redo='n'):
+def measure(lines, table, output_table, rv_lines='rv_Bs.lst', rv_func='g', rv_tol=150,
+    ewcut=10, tol=100, redo='n', show_plot=False, do_pdf=True):
 
     '''
     Function to interactively calculate and store radial velocity, equivalent
@@ -24,30 +24,33 @@ def measure(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol
     output_table : str
         Name of the output (new) table contaning the results.
 
-    RV0lines : str, list
+    rv_lines : str, list
         Enter the wavelenght(s) of the line(s) to fit, either in a coma-separated
         string, or in a .txt/.lst file containing the lines.
 
-    RV0fun : str, optional
+    rv_func : str, optional
         Choose the function to fit the lines used for the initial RV:
         'g' Gaussian (default); 'l' Lorentzian; 'v' Voigt; 'r' Rotational.
 
-    RV0tol : int, optional
+    rv_tol : int, optional
         Tolerance for a line to be considered for the RV0 calculation.
 
     ewcut : float, optional
         EW threshold value for a line to be considered as detected. Default is 10.
 
-    snrcut : float/int, optional
-        Cut in the SNR of a line window for the SNR to be replaced by 100. It is then used
-        to prevent the line properties to be exported if 3/ snr(line) > depth(line)
-
     tol : int, optional
-        Sets the tolerance [km/s] to shifting the spectrum in order to fit the lines.
-        Default is 100.
+        Sets the tolerance [km/s] to shifting the spectrum in order to fit the lines 
+        after being corrected from radial velocity. Default is 100.
 
     redo : str, optional
         Coma separated string with the list of stars for which repeat the analysis.
+
+    show_plot : bool, optional
+        If True, the plot of the spectrum and the fit is shown for each line.
+        Default is False.
+
+    do_pdf : bool, optional
+        If True, the plots of the spectrum and the fittings are saved in a pdf file.
 
     Returns
     -------
@@ -84,6 +87,30 @@ def measure(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol
                 ['S16','S50','int64','int64','int64','float64','float64']
                 + ['float64','int64','float64','float64','int64']*len(lines))
             )
+
+    # To create the pdf file
+    if do_pdf == True:
+
+        from matplotlib.backends.backend_pdf import PdfPages
+
+        if not os.path.exists(maindir + 'plots/measure/'):
+            os.makedirs(maindir + 'plots/measure/')
+
+        pdf_fitting = PdfPages(maindir + 'plots/measure/measure_lines_%s.pdf' % time.strftime('%Y%m%d_%H%M%S'))
+
+        plt.rcParams.update({
+            'xtick.labelsize' : 6,
+            'ytick.labelsize' : 6,
+            'axes.titlesize' : 6,
+            'axes.titlepad' : 3
+            })
+
+        # To define the number of rows and columns for the plots
+        nrows, ncols = even_plot(len(lines))
+
+        # Avoid showing the spectrum for each line when is already saved in pdf
+        show_plot = False
+
 
     quit = ''
     for source in table:
@@ -130,20 +157,30 @@ def measure(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol
                     try: wid = float(wid)
                     except: wid = '-'
 
-            plt.close()
+            plt.close('all')
 
-            star.rv0, eRV0 = RV0(RV0lines, star.filename, func=RV0fun, ewcut=30, tol=RV0tol)
+            star.rv0, eRV0 = RV0(rv_lines, star.filename, func=rv_func, ewcut=30, tol=rv_tol)
             star.waveflux(min(lines)-30, max(lines)+30) # PONER MIN MAX EN FUNCION DE LOS LIM DE LINES
             star.cosmic()
             star.plotspec(4510,4600, lines='35-10K')
 
-            input('Hit return to continue...'); plt.close()
+            input('Hit return to continue...')
+            plt.close('all')
 
             T_source = Table(
                 [[star.id_star],[star.filename],[snr_b],[snr_v],[snr_r],[round(star.rv0, 2)],[round(eRV0, 2)]],
                 names=('ID','Ref_file','SNR_B','SNR_V','SNR_R','RV0','eRV0'))
-            for line in lines:
-                fit = star.fitline(line, width=wid, tol=tol, func=fun, plot=True)
+
+            for i,line in zip(range(len(lines)),lines):
+
+                if do_pdf == True and (i % 36) == 0:
+                    if len(lines) <= 36:
+                        fig, ax = plt.subplots(nrows, ncols, figsize=(13,8))
+                    else:
+                        fig, ax = plt.subplots(6, 6, figsize=(13,8))
+                    axs = ax.flatten()
+
+                fit = star.fitline(line, width=wid, tol=tol, func=fun, plot=show_plot, outfit=do_pdf)
 
                 RV = round(fit['RV_kms']+star.rv0, 2)
                 EW = fit['EW']
@@ -151,19 +188,58 @@ def measure(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol
                 dep = fit['depth']
                 snr = fit['snr']
 
-                if EW != None:
-                    if EW < ewcut:
-                        EW = FW = np.nan
+                if EW != None and EW < ewcut:
+                    EW = FW = np.nan
 
+                # Threshold in the SNR of a line window for the SNR to be replaced by 100. This is used
+                # to prevent the line properties to be exported if 3/snr(line) > depth(line)
+                snrcut = 100 
                 if snr > snrcut:
-                    snr_min = 100
-                else: snr_min = snr
+                    snr_min = snrcut
+                else:
+                    snr_min = snr
 
                 if 3/snr_min > dep:
                     RV = EW = FW = dep = snr = np.nan
 
                 for par,val in zip(['RV_','EW_','FW_','dep_','snr_'],[RV,EW,FW,dep,snr]):
                     T_source[par+str(round(line))] = val
+
+                if do_pdf == True:
+
+                    c_fit = 'g'
+                    c_spec = 'k'
+
+                    if fit['sol'] == 0:
+                        c_spec = 'maroon'
+
+                    elif fit['sol'] == 1:
+                        if abs(fit['RV_kms']) > 0.5*tol:
+                            c_fit = 'orange'
+                        elif fit['EW'] < ewcut:
+                            c_fit = 'gold'
+                        elif 3/snr_min > dep:
+                            c_fit = 'maroon'
+                        else:
+                            c_fit = 'g'
+
+                    axs[i % 36].set_title('%.2f' % line)
+                    axs[i % 36].tick_params(direction='in', top='on', right='on')
+
+                    axs[i % 36].plot(fit['wave'], fit['flux_norm'], c=c_spec, lw=0.5)
+                    axs[i % 36].plot(fit['wave'], fit['flux_fit'], c=c_fit, ls='--', lw=1.5)
+
+                    if i % 36 == 35 or i == len(lines)-1:
+                        fig.suptitle(star.id_star + ' -- Filename: ' + star.filename + ' -- Lines for rv corrextion: ' + rv_lines, fontsize=8)
+
+                        # Delete the unused axes
+                        [fig.delaxes(axs[i]) for i in np.arange(i % 36 + 1, len(axs))]
+
+                        fig.tight_layout()
+                        fig.subplots_adjust(wspace=0.2, hspace=0.3)
+
+                        pdf_fitting.savefig(fig)
+                        plt.close(fig)
 
             next = input("\nRepeat / continue to the next star / save and exit ['n'/''/'q']: ")
             plt.close('all')
@@ -176,12 +252,16 @@ def measure(lines, table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol
                 if next == 'q':
                     quit = next
 
+    if do_pdf == True:
+        pdf_fitting.close()
+
     output.write(maindir+'tables/'+output_table, format='fits', overwrite=True)
 
     return 'DONE'
 
 
-def measure_Hb(table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150, binarity=False, redo='n'):
+
+def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='g', rv_tol=150, binarity=False, redo='n'):
 
     '''
     Function to interactively calculate and store radial velocity, equivalent
@@ -195,15 +275,15 @@ def measure_Hb(table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150
     output_table : str
         Name of the output (new) table contaning the results.
 
-    RV0lines : str, list
+    rv_lines : str, list
         Enter the wavelenght(s) of the line(s) to fit, either in a coma-separated
         string, or in a .txt/.lst file containing the lines.
 
-    RV0fun : str, optional
+    rv_func : str, optional
         Choose the function to fit the lines used for the initial RV:
         'g' Gaussian (default); 'l' Lorentzian; 'v' Voigt; 'r' Rotational.
 
-    RV0tol : int, optional
+    rv_tol : int, optional
         Tolerance for a line to be considered for the RV0 calculation.
 
     binarity : bool, optional
@@ -276,7 +356,7 @@ def measure_Hb(table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150
         snr_v = star.snrcalc(zone='V')
         snr_r = star.snrcalc(zone='R')
 
-        star.rv0, eRV0 = RV0(RV0lines, star.filename, func=RV0fun, ewcut=30, tol=RV0tol)
+        star.rv0, eRV0 = RV0(rv_lines, star.filename, func=rv_func, ewcut=30, tol=rv_tol)
         star.waveflux(4795,6605)
         star.cosmic()
 
@@ -323,6 +403,7 @@ def measure_Hb(table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150
                     try: wid = float(wid)
                     except: wid = '-'
 
+            plt.close('all')
             fit = star.fitline(4861.325, width=wid, func=fun, iter=1, info=True, outfit=True, plot=True)
 
             if fit['sol'] != 0:
@@ -373,6 +454,7 @@ def measure_Hb(table, output_table, RV0lines='rv_Bs.lst', RV0fun='g', RV0tol=150
     output.write(maindir+'tables/'+output_table, format='fits', overwrite=True)
 
     return 'DONE'
+
 
 
 def auto_measure(lines, table='IACOB_new_N+M_ToDo.fits', output_table='new_RVEWFW.fits',
@@ -565,12 +647,22 @@ def auto_measure(lines, table='IACOB_new_N+M_ToDo.fits', output_table='new_RVEWF
     return 'DONE'
 
 
-# %% ===========================================================================
-#''' Scrip to show the stars for which new spectra with higher SNR is available '''
-#table_old = findtable('IACOB_O9-B7_SNR20.fits')
-#table_new = findtable('IACOB_O9BAs_SNR20.fits')
-#
-#for row in table_new:
-#    snr_old = table_old[table_old['ID']==row['ID']]['SNR_best']
-#    if row['SNR_best'] > snr_old:
-#        print(str(row['ID']).strip(),row['SNR_best'],float(snr_old))
+def even_plot(n):
+    '''
+    Function to determine the number of rows, columns needed to have a square plot.
+
+    Parameters
+    ----------
+    n : int
+        Number of elements to be splited.
+
+    Returns
+    -------
+        Number of rows and columns
+    '''
+
+    nrows, ncols = int(np.ceil(np.sqrt(n))), round(n/np.ceil(np.sqrt(n))+0.4)
+
+    return nrows,ncols
+
+

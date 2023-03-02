@@ -534,9 +534,11 @@ def snr(spectra, snrcut=None, get_HF=None):
                 if snrcut == None:
                     # Date is used for spectra with same SNR choosing the newest one.
                     # Instr is used for when get_HF is enabled.
-                    if SNR > SNR_best or (SNR == SNR_best and date > best_spec_date):
-                        SNR_best = SNR; best_spec = spectrum
-                        best_spec_date = date; best_spec_inst = instr
+                    if SNR > SNR_best or (SNR == SNR_best and SNR != 0 and date > best_spec_date):
+                        SNR_best = SNR
+                        best_spec = spectrum
+                        best_spec_date = date
+                        best_spec_inst = instr
 
                     if get_HF == True and instr in ['M','F'] and SNR > SNR_best_HF:
                         SNR_best_HF = SNR; best_spec_MF = spectrum
@@ -1510,6 +1512,8 @@ def fix_fits(list, coords_Simbad=True, radius=60, savepath=''):
             RADEC_OBJ = SkyCoord(str(header['OBJ_RA']),str(header['OBJ_DEC']), unit=u.deg)
         elif 'OBJRA' in header:
             RADEC_OBJ = SkyCoord(str(header['OBJRA']),str(header['OBJDEC']), unit=(u.hour,u.deg))
+        elif 'RA' in header:
+            RADEC_OBJ = SkyCoord(str(header['RA']),str(header['DEC']), unit=u.deg)
 
         print('From header:\n--------------------------')
         print('RADEC / RADEC_OBJ\n%s / %s' % (RADEC.ra,RADEC_OBJ.ra))

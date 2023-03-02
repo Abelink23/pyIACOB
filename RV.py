@@ -141,7 +141,7 @@ def RV1_cc(spectra1, spectra2, windows=[(3950,4160),(4310,4360),(4370,4490),(454
 
 
 
-def RV0(lines, spectrum, txt=False, ewcut=50, width=20, tol=150, func='g', check_fits=False, plot=False):
+def RV0(lines, spectrum, txt=False, ewcut=50, width=20, tol=150, func='g', check_fit=False, plot=False):
 
     '''
     Function to calculate the radial velocity of a given spectrum using a set of input
@@ -164,7 +164,7 @@ def RV0(lines, spectrum, txt=False, ewcut=50, width=20, tol=150, func='g', check
     ewcut : float, optional
         Enter the EW threshold value for a line to be used for RV. Default is 30.
 
-    check_fits : boolean, optional
+    check_fit : boolean, optional
         True if you want to see the individual information of each fitting and discard
         potential bad fittings from a plot. Note: this set the plot option to True.
         Default is False.
@@ -185,13 +185,16 @@ def RV0(lines, spectrum, txt=False, ewcut=50, width=20, tol=150, func='g', check
     RVs = []; i = 0
     for line in lines:
 
-        fit = spec(spectrum, txt=txt).fitline(line, width=width, tol=tol, func=func, info=check_fits, outfit=True)
+        fit = spec(spectrum, txt=txt).fitline(line, width=width, tol=tol, func=func, info=check_fit, outfit=True)
 
-        if np.isnan(fit['RV_kms']): continue
-        elif fit['EW'] < ewcut: continue
-        else: RVs.append(fit['RV_kms'])
+        if np.isnan(fit['RV_kms']):
+            continue
+        elif fit['EW'] < ewcut:
+            continue
+        else:
+            RVs.append(fit['RV_kms'])
 
-        if plot == True or check_fits == True:
+        if plot == True or check_fit == True:
 
             if i == 0:
                 fig, axs = plt.subplots(1,len(lines), tight_layout=True, figsize=(16,2))
@@ -218,7 +221,7 @@ def RV0(lines, spectrum, txt=False, ewcut=50, width=20, tol=150, func='g', check
         print('Not enought values for sigma clipping. Skipping... ')
         return 0,0
 
-    if plot == True or check_fits == True:
+    if plot == True or check_fit == True:
         # Remove plots with failed fittings
         [fig.delaxes(axs[j]) for j in np.arange(i, len(axs), 1)]
         # Remove plots with distarded fittings after the sigma clipping
@@ -230,7 +233,7 @@ def RV0(lines, spectrum, txt=False, ewcut=50, width=20, tol=150, func='g', check
 
         plt.show(block=False)
 
-        if check_fits == True:
+        if check_fit == True:
             remove = input('Which lines from the plotted ones you want to remove'\
             '(e.g. 0,3). Hit return to continue.\n').split(',')
             remove = [int(j) for j in remove if not remove == ['']]
