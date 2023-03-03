@@ -604,8 +604,10 @@ class spec():
         snr = int(1/sigma_cont)
         # If the SNR measured on the continuum of the line is too different from
         # the SNR measured on the wider region, the latter is used.
-        if abs(snr_spec-snr)/snr_spec > 0.30:
+        if snr == None or abs(snr_spec-snr)/snr_spec > 0.30:
             snr = snr_spec
+        if snr_spec == None and snr == None:
+            snr = np.nan
 
         #============================= Quality value ===========================
         q_fit = 1/np.std(flux_norm[flux_fit<(1-0.2*depth)]/flux_fit[flux_fit<(1-0.2*depth)]) #simple
