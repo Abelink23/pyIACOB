@@ -3,7 +3,7 @@
 This package has been created mainly to manipulate data from the IACOB spectroscopic
 database (see Simón-Díaz et al. 2011), which currently gathers high-resolution spectra
 (R~25000-85000) of Galactic OBA stars taken with the FIES@NOT2.5m and HERMES@MERCATOR1.2m
-facilities at the Roque de los Muchachos Observatory, and FEROS@ESO2.2m at La Silla
+facilities at the Roque de los Muchachos Observatory, and FEROS@MPG2.2m at La Silla
 Observatory.
 
 The main scientific goal pursued by the IACOB project is to use these data to perform
