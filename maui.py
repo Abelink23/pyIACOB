@@ -452,10 +452,10 @@ class solution_idl():
                 # Alternatively given by lower/upper limit of the grid for the param
                 # label, err_dw, err_up = 'd', grid[par_name+'_DW'][0], grid[par_name+'_UP'][0]
 
-            elif round(hpd_dw * 0.99, 3) < grid[par_name+'_DW'][0]:
+            elif round(hpd_dw * 0.95, 3) < grid[par_name+'_DW'][0]:
                 label, err_dw, err_up = '<', grid[par_name+'_DW'][0], hpd_up
 
-            elif round(hpd_up * 1.01, 3) > grid[par_name+'_UP'][0]:
+            elif round(hpd_up * 1.05, 3) > grid[par_name+'_UP'][0]:
                 label, err_dw, err_up = '>', hpd_dw, grid[par_name+'_UP'][0]
 
             else:
