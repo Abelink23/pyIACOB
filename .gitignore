@@ -14,7 +14,5 @@ matplotlibrc
 paths.txt
 paths_win.txt
 
-tmp*.py
+tmp*
 *_bkp.py
-ML.py
-quick_review.py
