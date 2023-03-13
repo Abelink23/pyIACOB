@@ -35,18 +35,30 @@ with open('paths.txt', 'w') as f:
     f.write('tess=' + tess_dir)
 
 # Create the subfolders inside the main_dir directory
+print('Creating the subfolders inside the main directory...\n')
 subfolders = ['list', 'list/lines', 'plots', 'tables', 'tmp']
 for subfolder in subfolders:
     if not os.path.exists(os.path.join(main_dir, subfolder)):
+        print(f"Creating {subfolder} directory...")
         os.mkdir(os.path.join(main_dir, subfolder))
 
 # Copy the file 'snr_gaps.txt' to the main_dir/list directory.
+print('Copying the file snr_gaps.txt to the main/list directory...\n')
 shutil.copyfile('snr_gaps.txt', os.path.join(main_dir, 'list', 'snr_gaps.txt'))
 
 # List of packages to check/install
-packages = ['numpy', 'matplotlib', 'scipy', 'astropy', 'astroquery', 'progressbar', 'random', 'lightkurve']
+packages = [
+    'numpy=1.21.5',
+    'matplotlib=3.5.2',
+    'scipy=1.7.3',
+    'astropy=5.1',
+    'astroquery=0.4.6',
+    'progressbar=2.5',
+    'lightkurve=2.2.1'
+    ]
 
 # Loop through packages and check if they are installed
+print("Checking if all packages are installed...")
 for package in packages:
     try:
         # Attempt to import the package
@@ -60,4 +72,4 @@ for package in packages:
         else:
             subprocess.call(['conda', 'install', package, '-y'])
 
-print("All packages are installed!")
+print("\nAll packages are installed!")

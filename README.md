@@ -1,4 +1,4 @@
-# Introduction to pyIACOB (v1.00):
+# Introduction to pyIACOB (v1.10):
 
 This package has been created mainly to manipulate data from the IACOB spectroscopic
 database (see Simón-Díaz et al. 2011), which currently gathers high-resolution spectra
@@ -20,17 +20,16 @@ creating summary tables with their results. The current list of supported progra
 
 Created by: Abel de Burgos
 
-# Python Requirements:
+# Python Requirements (installed automatically - see below):
 
 - Python 3.8.5 or above
-- numpy 1.21.2
+- numpy 1.21.5
 - scipy 1.7.3
-- random 1.2.2
-- astropy 5.0
-- astroquery 0.4.3
-- matplotlib 3.5
+- astropy 5.1
+- astroquery 0.4.6
+- matplotlib 3.5.2
 - progressbar 2.5
-- lightkurve 2.1.0
+- lightkurve 2.2.1
 
 # Other Requirements:
 
@@ -78,6 +77,8 @@ NOTE: For the actual models needed in models.py to work, drop me an email and
 
 - binarity.py contains functions review multi-epoch spectra and perform a preliminary
   analysis of the binary nature of the target.
+  
+- get_feros.py contains functions to download FEROS spectra from the ESO archive.
 
 - tools.py contains utility functions which could also be interested while using 
   spectroscopic data.
