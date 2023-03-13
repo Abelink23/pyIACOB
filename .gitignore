@@ -8,11 +8,10 @@ edr3_zp/.DS_Store
 
 plots/
 scripts/
-old/
 
 matplotlibrc
 paths.txt
 paths_win.txt
 
 tmp*
-*_bkp.py
+*_bkp

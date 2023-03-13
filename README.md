@@ -39,19 +39,11 @@ database can be downloaded from http://research.iac.es/proyecto/iacob/iacobcat/
 
 # Installation:
 
-1. Modify the paths in *paths.txt* to match with your working directories:
-  - *main* path must point to the location of your working directory.
-  - *data* path must point to the directory where the spectra are located.
-  - *maui*, *ib* paths to the respective directories of each of these programs.
-  - *mist* path must point to where the MIST isochrones/tracks are located.
+Run the following command in the terminal in python 3.8.5 or above:
 
-2. Create the main working sub-folders that are needed in your working directory:
-  - lists/lines/
-  - plots/
-  - tables/
-  - tmp/
+      python setup.py
 
-3. The file snr_gaps.txt needed in spec.py should be placed under lists/
+The required folders will be created and the package will be installed.
 
 NOTE: For the actual models needed in models.py to work, drop me an email and 
       I will send you the needed files (~700mb).
@@ -78,13 +70,17 @@ NOTE: For the actual models needed in models.py to work, drop me an email and
 - models.py contains functions to retrieve either evolutionary tracks or isochrones from 
   different libraries (MIST, PADOVA, GENEVA).
 
-- IACOBBroad.py contains functions which helps the user to generate output and input
+- IACOBroad.py contains functions which helps the user to generate output and input
   tables for IACOB-Broad program.
 
 - maui.py contains functions which helps the user to generate output and input tables for
   MAUI, with some additional features regarding the analysis of the results.
 
-- tools.py contains utility functions which could also be interested.
+- binarity.py contains functions review multi-epoch spectra and perform a preliminary
+  analysis of the binary nature of the target.
+
+- tools.py contains utility functions which could also be interested while using 
+  spectroscopic data.
 
 # Sending corrections / comments:
 
