@@ -82,10 +82,10 @@ def gen_gridlimits(models_dir=mauidir+'MODELS/'):
     data_rows = []
     for file in os.listdir(models_dir):
         if not file.startswith('._') and file.endswith('.idl'):
-            idldata = readsav(models_dir+file)
+            soldata = readsav(models_dir+file)
 
             data_row = []; data_row.extend([file.split('.idl')[0]])
-            parameters = [i.decode() for i in idldata.param_labl]
+            parameters = [i.decode() for i in soldata.param_labl]
 
             # To fix for the B8-As grid with different param labels:
             for i,par_name in zip(range(len(parameters)),parameters):
@@ -104,21 +104,21 @@ def gen_gridlimits(models_dir=mauidir+'MODELS/'):
 
                 if par_name == 'Teff':
                     data_row.extend(
-                    [1e-4*idldata.param[idx].max(),
-                    1e-4*idldata.param[idx].min()])
+                    [1e-4*soldata.param[idx].max(),
+                    1e-4*soldata.param[idx].min()])
 
                 elif par_name == 'logg':
                     # NOTE: with this we add loggf from logg to compare with the solution
                     # files from MAUI.
-                    data_row.extend([idldata.param[idx].max(),idldata.param[idx].min()])
+                    data_row.extend([soldata.param[idx].max(),soldata.param[idx].min()])
 
                     data_row.extend([
-                    (idldata.param[1] -4*np.log10(idldata.param[0]) + 16).max(),
-                    (idldata.param[1] -4*np.log10(idldata.param[0]) + 16).min(),
+                    (soldata.param[1] -4*np.log10(soldata.param[0]) + 16).max(),
+                    (soldata.param[1] -4*np.log10(soldata.param[0]) + 16).min(),
                     ])
 
                 else:
-                    data_row.extend([idldata.param[idx].max(),idldata.param[idx].min()])
+                    data_row.extend([soldata.param[idx].max(),soldata.param[idx].min()])
 
             data_rows.append(tuple(data_row))
 
@@ -334,85 +334,77 @@ def maui_input(table, table_IB='IB_results.fits', table_REF=None, output_name='M
     return 'DONE'
 
 
-class solution_idl():
-    def __init__(self, idlfile, solution='max', grids_table='MAUI_grid_limits.fits'):
+class solution_maui():
+    def __init__(self, solfile, mcmcfile, solution='max'):
 
         '''
         Parameters
         ----------
-        idlfile : str
-            Enter the input spectrum full path to the .idl file.
+        solfile : str
+            Enter the input spectrum full path to the solution*.idl file.
 
+        mcmcfile : str
+            Enter the input spectrum full path to the mcmc*.idl file.
+            
         solution : str, optional
             Choose between 'max'/'smooth' for taking the solution values from the maximum
             value of the distribution or from the maximum value after gaussian smoothing.
             Default is 'max'.
 
-        grids_table : str, optional
-            Provide the name of the table containing the information of the MAUI grids.
-            Default is
-
         '''
 
-        # Load the .idl file
-        idldata = readsav(idlfile)
-        #for i in idldata.keys():
-        #    try: print(i,len(idldata[i]))
+        # Load the solution*.idl file
+        soldata = readsav(solfile)
+        #for i in soldata.keys():
+        #    try: print(i,len(soldata[i]))
         #    except: print(i)
 
         # Identifiers
-        self.filename = idldata.aa.label[0].decode() + '.fits'
+        self.filename = soldata.aa.label[0].decode() + '.fits'
         self.id_star = self.filename.split('_')[0]
 
         # Resolution
-        self.resolution = int(idldata.obsdat.spectrum[0].reso_for_obs)
+        self.resolution = int(soldata.obsdat.spectrum[0].reso_for_obs)
 
         # vsini and vmac used in the input for MAUI
-        self.vsini = idldata.obsdat.spectrum[0].VSINI[0]
-        self.vmac = idldata.obsdat.spectrum[0].MACRO[0]
+        self.vsini = soldata.obsdat.spectrum[0].VSINI[0]
+        self.vmac = soldata.obsdat.spectrum[0].MACRO[0]
 
         # Grid used
-        self.gridname = idldata.modelgridname.decode()
+        self.gridname = soldata.modelgridname.decode()
 
         # Observed and synthetic spectrum
-        self.obswave = idldata.xobs_out
-        self.obsflux = idldata.yobs_out
+        self.obswave = soldata.xobs_out
+        self.obsflux = soldata.yobs_out
 
-        self.synwave = idldata.xx_mod
+        self.synwave = soldata.xx_mod
         try:
-            self.synflux = idldata.spec_prim
+            self.synflux = soldata.spec_prim
         except:
-            print(idlfile)
+            print(solfile)
 
-        self.synconv = idldata.sol_conv # This is flux. Combine with self.obswave
+        self.synconv = soldata.sol_conv # This is flux. Combine with self.obswave
 
         # Delta lambda of spectrum
-        self.dx = (idldata.xx_mod[-1]-idldata.xx_mod[0])/len(idldata.xx_mod)
+        self.dx = (soldata.xx_mod[-1]-soldata.xx_mod[0])/len(soldata.xx_mod)
 
         # Photometric information
-        if idldata.phot_prim.dtype == 'int16':
+        if soldata.phot_prim.dtype == 'int16':
             self.BC = self.B_V0 = np.nan
         else:
-            self.BC = round(idldata.phot_prim[0], 3)
-            self.B_V0 = round(idldata.phot_prim[2], 3)
+            self.BC = round(soldata.phot_prim[0], 3)
+            self.B_V0 = round(soldata.phot_prim[2], 3)
 
-        # Load table with the boundaries of each MAUI grid:
-        try:
-            grids = findtable(grids_table)
-        except:
-            print('Cannot find table with the MAUI grid boudaries (rquiered)')
-
-        grid  = grids[grids['Grid_name'] == idldata.modelgridname.decode()]
-        if len(grid) == 0:
-            print('Cannot find the used grid in the grid database.')
+        # Load the mcmc*.idl file
+        mcmcdata = readsav(mcmcfile)
 
         # QSA Parameters
         param_lst = ['Teff','logg','lgf','He','Micro','logQs','beta',
             'C','N','O','Mg','Si','S','Fe','Ti','fcl','vcl']
 
         # Fill the class with the parameter values:
-        self.parameters = [j.decode() for j in idldata.solution.var_label[0]] # 11/13 param.
-        if 'SOL_LOGG' in idldata.solution.dtype.names:
+        self.parameters = [j.decode() for j in soldata.solution.var_label[0]] # 11/13 param.
+        if 'SOL_LOGG' in soldata.solution.dtype.names:
             self.parameters.append('logg') # assumes lgf is always
 
         for par_name in param_lst:
@@ -426,37 +418,44 @@ class solution_idl():
 
             if par_name == 'logg':
                 if solution == 'max': # maximum of distribution without smoothing
-                    sol_max = idldata.solution[0].sol_logg[0].map
+                    sol_max = soldata.solution[0].sol_logg[0].map
                 elif solution == 'smooth': # maximum of distribution without smoothing
-                    sol_max = idldata.solution[0].sol_logg[0].map_smooth
-                hpd_dw = idldata.solution[0].sol_logg[0].hpdint[0]
-                hpd_up = idldata.solution[0].sol_logg[0].hpdint[1]
+                    sol_max = soldata.solution[0].sol_logg[0].map_smooth
+                hpd_dw = soldata.solution[0].sol_logg[0].hpdint[0]
+                hpd_up = soldata.solution[0].sol_logg[0].hpdint[1]
+
+                idx_lgf = self.parameters.index('lgf')
+                idx_tef = self.parameters.index('Teff')
+
+                chain = [mcmcdata.xmin[idx_lgf] -4*np.log10(mcmcdata.xmin[idx_tef]) + 16,
+                    mcmcdata.xmax[idx_lgf] -4*np.log10(mcmcdata.xmax[idx_tef]) + 16]
 
             else:
                 if solution == 'max': # maximum of distribution without smoothing
-                    sol_max = idldata.solution[0].sol_max[0][idx]
+                    sol_max = soldata.solution[0].sol_max[0][idx]
                 elif solution == 'smooth': # maximum of distribution with smoothing
-                    sol_max = idldata.solution[0].sol_max[1][idx]
-                hpd_dw = idldata.solution[0].hpd_interval[0][idx]
-                hpd_up = idldata.solution[0].hpd_interval[1][idx]
+                    sol_max = soldata.solution[0].sol_max[1][idx]
+                hpd_dw = soldata.solution[0].hpd_interval[0][idx]
+                hpd_up = soldata.solution[0].hpd_interval[1][idx]
+
+                chain = [mcmcdata.xmin[idx], mcmcdata.xmax[idx]]
 
             # logQs is given as logQs-10:
             if par_name == 'logQs':
                 sol_max -= 10
                 hpd_up -= 10
                 hpd_dw -= 10
+                chain = [i-10 for i in chain]
 
             # Use 60% of the range to be considered as a degenerated case
-            if abs(hpd_up-hpd_dw) > abs(grid[par_name+'_UP']-grid[par_name+'_DW'])[0]*0.6:
+            if abs(hpd_up-hpd_dw) > abs(max(chain)-min(chain))*0.6:
                 label, err_dw, err_up = 'd', hpd_dw, hpd_up
-                # Alternatively given by lower/upper limit of the grid for the param
-                # label, err_dw, err_up = 'd', grid[par_name+'_DW'][0], grid[par_name+'_UP'][0]
 
-            elif round(hpd_dw * 0.99, 3) < grid[par_name+'_DW'][0]:
-                label, err_dw, err_up = '<', abs(sol_max - grid[par_name+'_DW'][0]), abs(sol_max - hpd_up)
+            elif round(hpd_dw * 0.99, 3) < min(chain):
+                label, err_dw, err_up = '<', abs(sol_max - min(chain)), abs(sol_max - hpd_up)
 
-            elif round(hpd_up * 1.01, 3) > grid[par_name+'_UP'][0]:
-                label, err_dw, err_up = '>', abs(sol_max - hpd_dw), abs(sol_max - grid[par_name+'_UP'][0])
+            elif round(hpd_up * 1.01, 3) > max(chain):
+                label, err_dw, err_up = '>', abs(sol_max - hpd_dw), abs(sol_max - max(chain))
 
             else:
                 label, err_dw, err_up = '=', abs(sol_max - hpd_dw), abs(sol_max - hpd_up)
@@ -473,7 +472,7 @@ class solution_idl():
         # Lines used in the analysis
         line_weights = []; line_names = []; line_windows = []
         for i in ['balmer','helium1','helium2','silicon']:
-            lines = idldata.obsdat.spectrum[0][i][0]
+            lines = soldata.obsdat.spectrum[0][i][0]
             line_weights += [j for j in lines.weight[0]]
             line_names += [j.decode() for j in lines.line[0]]
             line_windows += [[j,k] for j,k in zip(lines.lmin[0],lines.lmax[0])]
@@ -603,7 +602,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
                     matches.append(output_dir + 'SOLUTION/' + file)
 
         if len(matches) == 0:
-            print('\nWARNING: No .idl file found for %s. Continuing...' % name)
+            print('\nWARNING: No solution*.idl file found for %s. Continuing...' % name)
             continue
 
         if len(matches) > 1 and last_only == True:
@@ -611,11 +610,19 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
 
         for match in matches:
 
+            # Search for the corresponding markov chain file
+            mcmcfile = match.split('emulated_solution_')[1]
+            if not mcmcfile in os.listdir(output_dir + 'MARKOV_CHAIN/'):
+                print('%s associated mcmc file not found in MARKOV_CHAIN/ folder...' % match)
+                continue
+            else:
+                mcmcfile = output_dir + 'MARKOV_CHAIN/' + mcmcfile
+
             # Load the idl class for the file
             try:
-                star = solution_idl(match)
+                star = solution_maui(match, mcmcfile)
             except:
-                print('ERROR: Problem loading file: %s, skipping...' % match)
+                print('ERROR: Problem loading maui output files: %s, skipping...' % match)
                 continue
 
             # Skip the used grid if not selected from the grid_only keyword
@@ -804,38 +811,45 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
 
                 for j in range(len(parameters)):
 
-                    xin = mcmc_data.chain_final.T[j]*(mcmc_data.xmax[j] - mcmc_data.xmin[j]) + mcmc_data.xmin[j]
+                    chain = mcmc_data.chain_final.T[j]*(mcmc_data.xmax[j] - mcmc_data.xmin[j]) + mcmc_data.xmin[j]
 
                     if parameters[j] == 'logQs':
-                        xin -= 10
+                        chain -= 10
                     
                     # Replace lgf by logg
                     #if 'lgf' in parameters and parameters.index('lgf') == i:
                     #    idx = parameters.index('Teff')
                     #    teff = mcmc_data.chain_final.T[idx]*(mcmc_data.xmax[idx] - mcmc_data.xmin[idx]) + mcmc_data.xmin[idx]
-                    #    xin = xin + 4*np.log10(teff)
+                    #    chain = chain + 4*np.log10(teff)
                     #    parameters[i] = 'logg'
 
-                    iqr = np.quantile(xin, q=[.25, .75])
-                    fd_bin = 2*np.diff(iqr)/(len(xin)**(0.3))
+                    iqr = np.quantile(chain, q=[.25, .75])
+                    fd_bin = 2*np.diff(iqr)/(len(chain)**(0.3))
+                    
+                    # change the original fd_bin value to the nearest one to fit within the range of the data evenly
+                    fd_bin = (max(chain) - min(chain))/np.round((max(chain) - min(chain))/fd_bin[0])
 
-                    weights = np.ones_like(xin)/float(len(xin))
-                    axs[j].hist(xin, bins=np.arange(min(xin), max(xin) + fd_bin[0], fd_bin[0]),
+                    weights = np.ones_like(chain)/float(len(chain))
+                    axs[j].hist(chain, bins=np.arange(min(chain), max(chain) + fd_bin, fd_bin),
                         weights=weights, histtype='stepfilled', fc='gray', ec='g', lw=1, alpha=0.6)
 
                     ylim = axs[j].get_ylim()[1]
  
                     # plot the values of sol_max and the hdp intervals
-                    axs[j].plot([getattr(star, parameters[j])]*2, [0,ylim], '--', c='r')
+                    axs[j].plot([getattr(star, parameters[j])]*2, [0,ylim], '--', c='r', label='sol_max + HDP')
                     
                     if not 'd' in getattr(star, 'l_'+parameters[j]):
-                        axs[j].plot([getattr(star, parameters[j])-getattr(star, parameters[j]+'_eDW')]*2, [0,ylim*.8], ':', c='r')
-                        axs[j].plot([getattr(star, parameters[j])+getattr(star, parameters[j]+'_eUP')]*2, [0,ylim*.8], ':', c='r')
+                        axs[j].plot([getattr(star, parameters[j])-getattr(star, parameters[j]+'_eDW')]*2, [0,ylim*.8], ':', lw=2, c='r')
+                        axs[j].plot([getattr(star, parameters[j])+getattr(star, parameters[j]+'_eUP')]*2, [0,ylim*.8], ':', lw=2, c='r')
 
                     # plot the median and the IQR intervals
-                    axs[j].plot([np.median(xin),np.median(xin)], [0,ylim], '--', c='orange')
+                    axs[j].plot([np.median(chain),np.median(chain)], [0,ylim], '--', c='orange', label='median + IQR')
                     axs[j].plot([iqr[0],iqr[0]], [0,ylim*.8], ':', c='orange')
                     axs[j].plot([iqr[1],iqr[1]], [0,ylim*.8], ':', c='orange')
+
+                    # add the legend
+                    if j == 0:
+                        fig.legend(fontsize=8, loc='upper left', handlelength=3)
 
                     axs[j].set_title(parameters[j], fontsize=8)
                     axs[j].tick_params(direction='in', top='on')
@@ -990,7 +1004,7 @@ def gen_synthetic(output_dir, save_dir='server', lwl=3900, rwl=5080):
 
     for file in os.listdir(output_dir + 'SOLUTION/'):
         if not file.startswith('._') and file.endswith('.idl'):
-            star = solution_idl(output_dir + 'SOLUTION/' + file)
+            star = solution_maui(output_dir + 'SOLUTION/' + file)
 
             star_db = spec(star.id_star, SNR='bestHF')
 

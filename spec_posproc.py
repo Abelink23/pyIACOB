@@ -1,4 +1,3 @@
-from tkinter import font
 from rv import *
 
 import random
