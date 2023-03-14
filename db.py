@@ -669,7 +669,7 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
     #===========================================================================
     #============================== Progress Bar ===============================
     bar = pb.ProgressBar(maxval=len(lst_sources_f),
-                         widgets=[pb.Bar('=', '[', ']'), ' ', pb.Percentage()])
+        widgets=[pb.Bar('=', '[', ']'), ' ', pb.Percentage(), ' ', pb.ETA()])
     bar.start()
 
     #===========================================================================
@@ -1350,7 +1350,7 @@ def check_fits(list, max_dist=90):
     dir_spectra = findstar(list)
 
     bar = pb.ProgressBar(maxval=len(dir_spectra),
-                         widgets=[pb.Bar('=', '[', ']'), ' ', pb.Percentage()])
+        widgets=[pb.Bar('=', '[', ']'), ' ', pb.Percentage(), ' ', pb.ETA()])
     bar.start()
 
     type_errors = {'Simbad':[],'filename':[],'duplicate':[],'baddate':[],'radec0':[],'distance':[]}

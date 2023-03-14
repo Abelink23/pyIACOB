@@ -452,10 +452,10 @@ class solution_idl():
                 # Alternatively given by lower/upper limit of the grid for the param
                 # label, err_dw, err_up = 'd', grid[par_name+'_DW'][0], grid[par_name+'_UP'][0]
 
-            elif round(hpd_dw * 0.95, 3) < grid[par_name+'_DW'][0]:
+            elif round(hpd_dw * 0.99, 3) < grid[par_name+'_DW'][0]:
                 label, err_dw, err_up = '<', grid[par_name+'_DW'][0], hpd_up
 
-            elif round(hpd_up * 1.05, 3) > grid[par_name+'_UP'][0]:
+            elif round(hpd_up * 1.01, 3) > grid[par_name+'_UP'][0]:
                 label, err_dw, err_up = '>', hpd_dw, grid[par_name+'_UP'][0]
 
             else:
@@ -484,8 +484,7 @@ class solution_idl():
 
 
 def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=False,
-    do_pdf=False, pdflines='diag', grids_table='MAUI_grid_limits.fits', grid_only=[],
-    output_table=True, format_table='fits'):
+    do_pdf=False, pdflines='diag', grid_only=[], output_table=True, format_table='fits'):
 
     '''
     Function to generate a table with the results from MAUI given an input table
@@ -518,9 +517,6 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
     pdflines : str, optional
         Choose between 'diag'/'all'/'def' to select the lines to be used in the pdf plots.
         Default is 'diag'.
-
-    grids_table : str, obtional
-        Name of the table containing the limits of the grids in MAUI.
 
     grid_only : list, optional
         List of grid names to limit the output to those results analysed with such grid.
@@ -562,12 +558,9 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
     else:
         stars = input_list.split(',')
 
-    # Load the table with the information of the different grids
-    grids = findtable(grids_table)
-
     # Set the progress bar
     bar = pb.ProgressBar(maxval=len(stars),
-                         widgets=[pb.Bar('=','[',']'),' ',pb.Percentage()])
+                         widgets=[pb.Bar('=','[',']'),' ',pb.Percentage(),' ',pb.ETA()])
     bar.start()
 
     # Create pdf file to save the plots of the results
@@ -637,7 +630,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
                 print('\nWARNING: %s does not match with best spectrum available.' % star.filename)
 
             # Generate the table with the results of each of the parameters (basic and with errors)
-            data_row = [star.id_star,star.filename,star.gridname,star.BC,star.B_V0]
+            data_row = [star.id_star, star.filename, star.gridname, star.BC, star.B_V0]
 
             [data_row.extend([
                 getattr(star, 'l_'+par_name),
@@ -700,7 +693,6 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
                     if label == 'd': label = '=d.'
                     if par_name == 'Teff':
                         val = val*1e4
-                        Teff = val
 
                     fig_title += par_name+label+str(round(val,2))+'  '
 
@@ -826,7 +818,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
 
                     weights = np.ones_like(xin)/float(len(xin))
                     axs[j].hist(xin, bins=np.arange(min(xin), max(xin) + fd_bin[0], fd_bin[0]),
-                        weights=weights, histtype='stepfilled', fc='gray', ec='g', lw=2, alpha=0.6)
+                        weights=weights, histtype='stepfilled', fc='gray', ec='g', lw=1, alpha=0.6)
                     ylim = axs[j].get_ylim()[1]
                     axs[j].plot([np.median(xin),np.median(xin)], [0,ylim], '--', c='orange')
                     axs[j].plot([iqr[0],iqr[0]], [0,ylim], '-.', c='orange')
