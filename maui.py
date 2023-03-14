@@ -453,10 +453,10 @@ class solution_idl():
                 # label, err_dw, err_up = 'd', grid[par_name+'_DW'][0], grid[par_name+'_UP'][0]
 
             elif round(hpd_dw * 0.99, 3) < grid[par_name+'_DW'][0]:
-                label, err_dw, err_up = '<', grid[par_name+'_DW'][0], hpd_up
+                label, err_dw, err_up = '<', abs(sol_max - grid[par_name+'_DW'][0]), abs(sol_max - hpd_up)
 
             elif round(hpd_up * 1.01, 3) > grid[par_name+'_UP'][0]:
-                label, err_dw, err_up = '>', hpd_dw, grid[par_name+'_UP'][0]
+                label, err_dw, err_up = '>', abs(sol_max - hpd_dw), abs(sol_max - grid[par_name+'_UP'][0])
 
             else:
                 label, err_dw, err_up = '=', abs(sol_max - hpd_dw), abs(sol_max - hpd_up)
@@ -806,6 +806,9 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
 
                     xin = mcmc_data.chain_final.T[j]*(mcmc_data.xmax[j] - mcmc_data.xmin[j]) + mcmc_data.xmin[j]
 
+                    if parameters[j] == 'logQs':
+                        xin -= 10
+                    
                     # Replace lgf by logg
                     #if 'lgf' in parameters and parameters.index('lgf') == i:
                     #    idx = parameters.index('Teff')
@@ -819,11 +822,22 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
                     weights = np.ones_like(xin)/float(len(xin))
                     axs[j].hist(xin, bins=np.arange(min(xin), max(xin) + fd_bin[0], fd_bin[0]),
                         weights=weights, histtype='stepfilled', fc='gray', ec='g', lw=1, alpha=0.6)
+
                     ylim = axs[j].get_ylim()[1]
+ 
+                    # plot the values of sol_max and the hdp intervals
+                    axs[j].plot([getattr(star, parameters[j])]*2, [0,ylim], '--', c='r')
+                    
+                    if not 'd' in getattr(star, 'l_'+parameters[j]):
+                        axs[j].plot([getattr(star, parameters[j])-getattr(star, parameters[j]+'_eDW')]*2, [0,ylim*.8], ':', c='r')
+                        axs[j].plot([getattr(star, parameters[j])+getattr(star, parameters[j]+'_eUP')]*2, [0,ylim*.8], ':', c='r')
+
+                    # plot the median and the IQR intervals
                     axs[j].plot([np.median(xin),np.median(xin)], [0,ylim], '--', c='orange')
-                    axs[j].plot([iqr[0],iqr[0]], [0,ylim], '-.', c='orange')
-                    axs[j].plot([iqr[1],iqr[1]], [0,ylim], '-.', c='orange')
-                    axs[j].set_title(parameters[j])
+                    axs[j].plot([iqr[0],iqr[0]], [0,ylim*.8], ':', c='orange')
+                    axs[j].plot([iqr[1],iqr[1]], [0,ylim*.8], ':', c='orange')
+
+                    axs[j].set_title(parameters[j], fontsize=8)
                     axs[j].tick_params(direction='in', top='on')
 
                 [fig.delaxes(axs[i]) for i in np.arange(len(parameters), len(axs), 1)]
