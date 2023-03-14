@@ -335,7 +335,7 @@ def maui_input(table, table_IB='IB_results.fits', table_REF=None, output_name='M
 
 
 class solution_maui():
-    def __init__(self, solfile, mcmcfile, solution='max'):
+    def __init__(self, solfile, mcmcfile, solution='smooth'):
 
         '''
         Parameters
@@ -349,7 +349,7 @@ class solution_maui():
         solution : str, optional
             Choose between 'max'/'smooth' for taking the solution values from the maximum
             value of the distribution or from the maximum value after gaussian smoothing.
-            Default is 'max'.
+            Default is 'smooth'.
 
         '''
 
