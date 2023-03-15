@@ -539,7 +539,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
     if input_list.endswith(('.txt','.fits')):
         stars = findtable(input_list)
         try:
-            stars = stars['filename']
+            stars = [i.replace('.fits','') for i in stars['filename']]
         except:
             stars = stars['ID']
 
