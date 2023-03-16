@@ -670,9 +670,14 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
 
                     line_colors = ['g']*len(line_names)
 
-                elif ',' in pdflines or pdflines.isnumeric() == True:
-                    
-                    line_names = pdflines.split(',')
+                else:
+                    if type(pdflines) == float:
+                        line_names = [str(pdflines)]
+                    elif ',' in pdflines:
+                        line_names = pdflines.split(',')
+                    else:
+                        line_names = [pdflines]
+
                     lines_lamb = [float(i) for i in line_names]
                     lines_lwl = [i-10 for i in lines_lamb]
                     lines_rwl = [i+10 for i in lines_lamb]
@@ -697,7 +702,11 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
                 fig.suptitle(star.id_star + ' -- ' + match.split('emulated_solution_mcmc_sqexp_mat1_')[-1]
                     + ' -- ' + star.gridname + '\n' + fig_title, fontsize=8)
 
-                axs = ax.flatten()
+                if nrows == ncols == 1:
+                    axs = [ax]
+                else:
+                    axs = ax.flatten()
+
                 for ax_i,line_lwl,line_rwl,line_name,c in zip(axs,lines_lwl,lines_rwl,line_names,line_colors):
                     #mask = (star.synwave > line_lwl) & (star.synwave < line_rwl)
                     #ax_i.plot(star.synwave[mask], star.synflux[mask], color='gray', lw=.3)
