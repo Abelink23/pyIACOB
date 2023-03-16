@@ -87,6 +87,10 @@ def gen_gridlimits(models_dir=mauidir+'MODELS/'):
             data_row = []; data_row.extend([file.split('.idl')[0]])
             parameters = [i.decode() for i in soldata.param_labl]
 
+            # Obtain indices of the Teff and logg parameters
+            idx_Teff = parameters.index('Teff')
+            idx_logg = parameters.index('logg')
+
             # To fix for the B8-As grid with different param labels:
             for i,par_name in zip(range(len(parameters)),parameters):
                 if par_name in param_other: parameters[i] = param_other[par_name]
@@ -113,8 +117,8 @@ def gen_gridlimits(models_dir=mauidir+'MODELS/'):
                     data_row.extend([soldata.param[idx].max(),soldata.param[idx].min()])
 
                     data_row.extend([
-                    (soldata.param[1] -4*np.log10(soldata.param[0]) + 16).max(),
-                    (soldata.param[1] -4*np.log10(soldata.param[0]) + 16).min(),
+                    (soldata.param[idx_logg] -4*np.log10(soldata.param[idx_Teff]) + 16).max(),
+                    (soldata.param[idx_logg] -4*np.log10(soldata.param[idx_Teff]) + 16).min(),
                     ])
 
                 else:
@@ -131,7 +135,7 @@ def gen_gridlimits(models_dir=mauidir+'MODELS/'):
     if 'nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1ehot_2022-01-19' in output['Grid_name']:
         output['Teff_DW'][output['Grid_name']=='nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1ehot_2022-01-19'] = 1.4
         output['lgf_UP'][output['Grid_name']=='nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1ehot_2022-01-19'] = 1.85
-        output['logQs_UP'][output['Grid_name']=='nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1ehot_2022-01-19'] = -12.5
+        output['logQs_UP'][output['Grid_name']=='nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1ehot_2022-01-19'] = -12.2
 
     if 'nlte_10.4.7_obgiants_SOLAR_noclump_n12345o123c234mg2si234djl_v1ehot_2022-02-21' in output['Grid_name']:
         output['Teff_DW'][output['Grid_name']=='nlte_10.4.7_obgiants_SOLAR_noclump_n12345o123c234mg2si234djl_v1ehot_2022-02-21'] = 1.6
@@ -143,8 +147,8 @@ def gen_gridlimits(models_dir=mauidir+'MODELS/'):
     return 'DONE'
 
 
-def maui_input(table, table_IB='IB_results.fits', table_REF=None, output_name='MAUI_input', 
-    RV0tol=200, ascii=False, spectra_path='/SPECTRA/', txt=False):
+def maui_input(table, table_IB='IB_results.fits', output_name='MAUI_input', 
+    RV0tol=200, ascii=False, spectra_path=mauidir+'/SPECTRA/', orig='IACOB'):
 
     '''
     Function to generate the input table for MAUI given an input table with the
@@ -162,9 +166,6 @@ def maui_input(table, table_IB='IB_results.fits', table_REF=None, output_name='M
     table_IB : str
         Input table containing IACOB-broad parameters for the stars in 'table'.
 
-    table_REF : str, optional
-        Input table containing RVs, EWs, FWs and SNRs for the stars in 'table'.
-
     output_name : str, optional
         Enter the name for the output table. Default is 'MAUI_input'.
 
@@ -178,8 +179,8 @@ def maui_input(table, table_IB='IB_results.fits', table_REF=None, output_name='M
     spectra_path : str, optional
         Enter the path to the spectra inside the maui folder defined in paths.txt.
 
-    txt : boolean, optional
-        If True, it will parse it to spec() in case that the input spectrum is in ascii.
+    orig : str, optional
+        See spec() function for more information. Default is 'IACOB'.
 
     Returns
     -------
@@ -196,8 +197,8 @@ def maui_input(table, table_IB='IB_results.fits', table_REF=None, output_name='M
 
     inpt_id = ''
     if len(table.colnames) > 1:
-        print('If you want to use a specific column for the ID, type it here.')
-        inpt_id = input('It must contain the full filename.\nOtherwise, press enter: \n')
+        print('If you want to use a specific column for the ID / reference file, type it here.')
+        inpt_id = input('Otherwise, press enter: \n')
         if inpt_id != '' and inpt_id in table.colnames:
             table['ID'] = table[inpt_id]
         else:
@@ -205,9 +206,6 @@ def maui_input(table, table_IB='IB_results.fits', table_REF=None, output_name='M
             return None
 
     table_IB = findtable(table_IB)
-
-    if table_REF is not None:
-        table_REF = findtable(table_REF)
 
     maui_txt = open(maindir + 'lists/%s.txt' % output_name,'a')
     maui_txt.write(
@@ -230,7 +228,7 @@ def maui_input(table, table_IB='IB_results.fits', table_REF=None, output_name='M
         else: 
             SNR = 'bestHF'
 
-        star = spec(source, SNR=SNR, txt=txt)
+        star = spec(source, SNR=SNR, orig=orig)
 
         # Filer based on properties from the main table:
         if 'SB' in table.columns and (row['SB'] == 'SB2' or row['SB'] == 'SB3'):
@@ -243,33 +241,8 @@ def maui_input(table, table_IB='IB_results.fits', table_REF=None, output_name='M
             print('Info: Missing information in IB table for %s, skipping...\n' % source)
             continue
 
-        # Checks if the star is in the IACOB-Broad table:
-        if table_REF is not None:
-            match_REF = table_REF[[i.strip()==star.id_star for i in table_REF['ID']]]
-
-            if len(match_REF) == 0:
-                print('Info: Missing information in RVEWFW table for %s, skipping...\n' % source)
-                continue
-
-            # Filter based on Si lines properties:
-            #if ('QSiII' in table.columns and row['QSiII']<3) \
-            #  or match_REF['EWSiII']<50 or np.isnan(match_REF['EWSiII']) \
-            #  or match_REF['depSiII']<3/match_REF['SNR_B']:
-            #    SiIIFG = 0
-            #else: SiIIFG = 1
-
-            #if ('QSiIII' in table.columns and row['QSiIII']<3) \
-            #  or match_REF['EWSiIII1']<50 or np.isnan(match_REF['EWSiIII1']) \
-            #  or match_REF['depSiIII1']<3/match_REF['SNR_B']:
-            #    SiIIIFG = 0
-            #else: SiIIIFG = 1
-
-            #if SiIIIFG == 0 and SiIIFG == 0:
-            #    print('Info: No SiIII/SiII found for %s, skipping...\n' % id)
-            #    continue
-
-        else:
-            match_REF = Table([[star.snrcalc('B')]], names=('SNR_B',))
+        # Obtains the SNR in the 4000-5000 range
+        SNR_B = star.snrcalc('B')
 
         if str(match_IB['Ref_file'][0].split('.fits')[0]) not in star.filename:
             print('WARNING: Different files from best SNR and from IB results for %s' % id)
@@ -281,7 +254,7 @@ def maui_input(table, table_IB='IB_results.fits', table_REF=None, output_name='M
 
         # Checks if the ascii file for the star already exists to not repeat it
         if do_ascii == True and not search(star.filename.split('.')[0]+'_RV.ascii',\
-        mauidir+spectra_path) is None:
+        spectra_path) is None:
             print('Info: ascii file for %s already exists' % star.filename.split('.')[0])
             do_ascii = False
 
@@ -307,8 +280,8 @@ def maui_input(table, table_IB='IB_results.fits', table_REF=None, output_name='M
             match_IB['vmac_GF'] = 0
             match_IB['evmac'] = 0
 
-        if match_REF['SNR_B'][0] > 200:
-            match_REF['SNR_B'][0] = 200
+        if SNR_B > 200:
+            SNR_B = 200
 
         if star.filename.endswith('_RV.ascii'):
             apen = '.ascii'
@@ -323,7 +296,7 @@ def maui_input(table, table_IB='IB_results.fits', table_REF=None, output_name='M
             +"{:<5}".format(str(int(round(match_IB['vmac_GF'][0]))))\
             +"{:<7}".format(str(int(round(match_IB['evmac'][0]))))\
             +"{:<7}".format(str(star.resolution)+'.')\
-            +"{:<5}".format(str(int(round(match_REF['SNR_B'][0],0))))\
+            +"{:<5}".format(str(int(round(SNR_B))))\
             +' ;#\n')
 
     maui_txt.close()
@@ -424,11 +397,13 @@ class solution_maui():
                 hpd_dw = soldata.solution[0].sol_logg[0].hpdint[0]
                 hpd_up = soldata.solution[0].sol_logg[0].hpdint[1]
 
-                idx_lgf = self.parameters.index('lgf')
                 idx_tef = self.parameters.index('Teff')
+                idx_lgf = self.parameters.index('lgf')
 
-                chain = [mcmcdata.xmin[idx_lgf] -4*np.log10(mcmcdata.xmin[idx_tef]) + 16,
-                    mcmcdata.xmax[idx_lgf] -4*np.log10(mcmcdata.xmax[idx_tef]) + 16]
+                chain_teff = mcmcdata.chain_final.T[idx_tef]*(mcmcdata.xmax[idx_tef] - mcmcdata.xmin[idx_tef]) + mcmcdata.xmin[idx_tef]
+                chain_lgf = mcmcdata.chain_final.T[idx_lgf]*(mcmcdata.xmax[idx_lgf] - mcmcdata.xmin[idx_lgf]) + mcmcdata.xmin[idx_lgf]
+
+                chain = [(chain_lgf +4*np.log10(chain_teff*1e4) - 16).min(), (chain_lgf +4*np.log10(chain_teff*1e4) - 16).max()]
 
             else:
                 if solution == 'max': # maximum of distribution without smoothing
@@ -447,14 +422,18 @@ class solution_maui():
                 hpd_dw -= 10
                 chain = [i-10 for i in chain]
 
+            delta = 0.01
+            if np.sign(sol_max) == -1:
+                delta = -delta
+
             # Use 60% of the range to be considered as a degenerated case
             if abs(hpd_up-hpd_dw) > abs(max(chain)-min(chain))*0.6:
                 label, err_dw, err_up = 'd', hpd_dw, hpd_up
 
-            elif round(hpd_dw * 0.99, 3) < min(chain):
+            elif round(hpd_dw*(1-delta), 3) < min(chain):
                 label, err_dw, err_up = '<', abs(sol_max - min(chain)), abs(sol_max - hpd_up)
 
-            elif round(hpd_up * 1.01, 3) > max(chain):
+            elif round(hpd_up*(1+delta), 3) > max(chain):
                 label, err_dw, err_up = '>', abs(sol_max - hpd_dw), abs(sol_max - max(chain))
 
             else:
@@ -532,6 +511,9 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
     '''
 
     timenow = time.strftime('%Y%m%d_%H%M%S')
+    
+    if output_dir[-1] != '/':
+        output_dir += '/'
 
     # Create the input list from a table.
     # NOTE: A column named 'ID' or 'filename' is required. If 'filename' if provided, then
@@ -619,6 +601,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
                 mcmcfile = output_dir + 'MARKOV_CHAIN/' + mcmcfile
 
             # Load the idl class for the file
+            star = solution_maui(match, mcmcfile)
             try:
                 star = solution_maui(match, mcmcfile)
             except:
@@ -668,7 +651,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
                     #lines_rwl = np.asarray(lines_rwl).tolist()
                     line_colors = ['g' if i == 1 else 'r' for i in star.line_weights]
 
-                else:
+                elif pdflines == 'def' or pdflines == 'default':
                     line_names = [
                         r'H$_{\delta}$',r'H$_{\gamma}$',r'H$_{\beta}$',r'H$_{\alpha}$',
                         'HeI 5016','HeI 5876','HeII 4542','HeII 5412',
@@ -685,6 +668,13 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
                     lines_lwl = [i-10 for i in lines_lamb]
                     lines_rwl = [i+10 for i in lines_lamb]
 
+                    line_colors = ['g']*len(line_names)
+
+                elif ',' in pdflines:
+                    line_names = pdflines.split(',')
+                    lines_lamb = [float(i) for i in line_names]
+                    lines_lwl = [i-10 for i in lines_lamb]
+                    lines_rwl = [i+10 for i in lines_lamb]
                     line_colors = ['g']*len(line_names)
 
                 nrows, ncols = even_plot(len(line_names))
@@ -792,12 +782,12 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
                 # PLOT OF PROBABILLITY DISTRIBUTIONS OUT OF THE IDL MARKOV-CHAIN FILES
                 mcmc_file = match.split('emulated_solution_')[1]
                 try:
-                    mcmc_data = readsav(output_dir + 'MARKOV_CHAIN/' + mcmc_file)
+                    mcmcdata = readsav(output_dir + 'MARKOV_CHAIN/' + mcmc_file)
                 except:
                     print('%s associated mcmc file not found in MARKOV_CHAIN/ folder' % star.id_star)
                     continue
 
-                parameters = [var.decode() for var in mcmc_data.varname]
+                parameters = [var.decode() for var in mcmcdata.varname]
 
                 nrows, ncols = even_plot(len(parameters))
 
@@ -811,7 +801,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
 
                 for j in range(len(parameters)):
 
-                    chain = mcmc_data.chain_final.T[j]*(mcmc_data.xmax[j] - mcmc_data.xmin[j]) + mcmc_data.xmin[j]
+                    chain = mcmcdata.chain_final.T[j]*(mcmcdata.xmax[j] - mcmcdata.xmin[j]) + mcmcdata.xmin[j]
 
                     if parameters[j] == 'logQs':
                         chain -= 10
@@ -819,7 +809,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
                     # Replace lgf by logg
                     #if 'lgf' in parameters and parameters.index('lgf') == i:
                     #    idx = parameters.index('Teff')
-                    #    teff = mcmc_data.chain_final.T[idx]*(mcmc_data.xmax[idx] - mcmc_data.xmin[idx]) + mcmc_data.xmin[idx]
+                    #    teff = mcmcdata.chain_final.T[idx]*(mcmcdata.xmax[idx] - mcmcdata.xmin[idx]) + mcmcdata.xmin[idx]
                     #    chain = chain + 4*np.log10(teff)
                     #    parameters[i] = 'logg'
 
@@ -1018,7 +1008,7 @@ def gen_synthetic(output_dir, save_dir='server', lwl=3900, rwl=5080):
                 np.savetxt(save_dir + new_star, np.c_[star.synwave,star.synflux],
                     fmt=('%.4f','%.6f'))
 
-                star_idl = spec(new_star, txt=True)
+                star_idl = spec(new_star, orig='txt')
                 star_idl.txtwaveflux(lwl, rwl)
                 #plt.plot(star_idl.wave, star_idl.flux, 'r', lw=.3) # plot to check
                 star_idl.degrade(profile='rotmac', vsini=star.vsini, vmac=star.vmac)
