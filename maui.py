@@ -670,7 +670,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
 
                     line_colors = ['g']*len(line_names)
 
-                elif ',' in pdflines:
+                elif ',' in pdflines or pdflines.isnumeric():
                     line_names = pdflines.split(',')
                     lines_lamb = [float(i) for i in line_names]
                     lines_lwl = [i-10 for i in lines_lamb]
