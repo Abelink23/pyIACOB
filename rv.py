@@ -97,7 +97,7 @@ def RV1_cc(spectra1, spectra2, windows=[(3950,4160),(4310,4360),(4370,4490),(454
     '''
 
     spec1 = spec(spectra1)
-    spec2 = spec(spectra2,txt=True)
+    spec2 = spec(spectra2,orig='txt')
 
     resol = 1/np.sqrt((1/spec1.resolution)**2-(1/85000)**2)
     if not resol == np.inf: spec2.degrade(resol=resol)
@@ -141,7 +141,7 @@ def RV1_cc(spectra1, spectra2, windows=[(3950,4160),(4310,4360),(4370,4490),(454
 
 
 
-def RV0(lines, spectrum, txt=False, ewcut=50, width=20, tol=150, func='g', check_fit=False, plot=False):
+def RV0(lines, spectrum, orig='IACOB', ewcut=50, width=20, tol=150, func='g', check_fit=False, plot=False):
 
     '''
     Function to calculate the radial velocity of a given spectrum using a set of input
@@ -157,9 +157,8 @@ def RV0(lines, spectrum, txt=False, ewcut=50, width=20, tol=150, func='g', check
     spectrum : str
         Enter the filename of the spectrum.
 
-    txt : boolean, optional
-        If True, it assumes spectrum from a two-columns file with wavelenght and flux
-        with no header in the file. Default is False.
+    orig : str, optional
+        See spec() for more informatio. Default is 'IACOB'.
 
     ewcut : float, optional
         Enter the EW threshold value for a line to be used for RV. Default is 30.
@@ -185,7 +184,7 @@ def RV0(lines, spectrum, txt=False, ewcut=50, width=20, tol=150, func='g', check
     RVs = []; i = 0
     for line in lines:
 
-        fit = spec(spectrum, txt=txt).fitline(line, width=width, tol=tol, func=func, info=check_fit, outfit=True)
+        fit = spec(spectrum, orig=orig).fitline(line, width=width, tol=tol, func=func, info=check_fit, outfit=True)
 
         if np.isnan(fit['RV_kms']):
             continue

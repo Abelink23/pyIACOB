@@ -5,7 +5,7 @@ from copy import deepcopy
 from matplotlib.backends.backend_pdf import PdfPages
 
 
-def gen_ascii(id, txt=False, db_table=None, spt='auto', lwl=None, rwl=None, rv_corr=True, RV0tol=200, 
+def gen_ascii(id, orig='IACOB', db_table=None, spt='auto', lwl=None, rwl=None, rv_corr=True, RV0tol=200, 
     export_rv=False, cosmetic=False, cosmic=False, lines_cosmic=None, degrade=None, show_plot=False):
 
     '''
@@ -16,9 +16,8 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', lwl=None, rwl=None, rv_c
     id : str
         Name or filename of the star.
 
-    txt : boolean, optional
-        If True, it will search for two-column ascii files matching the input 'id'.
-        See spec.txtwaveflux() for more details.
+    orig : str, optional
+        See spec() function for more information. Default is 'IACOB'.
 
     db_table : str, optional
         Input table containing information of the spectral type for the star.
@@ -93,12 +92,12 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', lwl=None, rwl=None, rv_c
             spt = spc_code(row_id[spt])[0]
 
     if spt == 'auto':
-        if txt == False:
+        if orig == 'IACOB':
             print('Initial spectral type taken from FITS header.')
         else:
             print('Initial spectral type taken from Simbad query.')
 
-        star = spec(id, SNR='bestHF', txt=txt)
+        star = spec(id, SNR='bestHF', orig=orig)
         spt = spc_code(star.SpC)[0]
 
     elif isinstance(spt, str):
@@ -115,7 +114,7 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', lwl=None, rwl=None, rv_c
     finish = 'n'
     while finish == 'n':
 
-        star = spec(id, SNR='bestHF', txt=txt, cut_edges=True)
+        star = spec(id, SNR='bestHF', orig=orig, cut_edges=True)
 
         if show_plot == True:
             fig,axs = plt.subplots(3, 1, figsize=(14,8))
@@ -184,7 +183,7 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', lwl=None, rwl=None, rv_c
                         if wid == '': wid = 15.
                         else: wid = float(wid)
 
-                star.rv0, erv0 = RV0(spt_list, star.filename, txt=txt, ewcut=30, width=wid, tol=RV0tol, func=fun)
+                star.rv0, erv0 = RV0(spt_list, star.filename, orig=orig, ewcut=30, width=wid, tol=RV0tol, func=fun)
                 star.wave = tmp_wave*(1 - 1000*star.rv0/cte.c)
 
                 star.plotspec(4821,4901, lines='35-10K')
@@ -347,7 +346,7 @@ def gen_ascii(id, txt=False, db_table=None, spt='auto', lwl=None, rwl=None, rv_c
     return None
 
 
-def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, cosmic_manual=False, txt=False):
+def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, cosmic_manual=False, orig='txt'):
 
     '''
     IN DEVELOPMENT
@@ -405,8 +404,8 @@ def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, cosmic_manual=Fals
 
         # Determines the RV with a default fitting function and width
         fun = 'g'; wid = 15
-        best_star = spec(row['ID'], SNR='bestHF', txt=txt)
-        best_star.rv0, erv0 = RV0(rv_list, best_star.filename, txt=txt, ewcut=50, func=fun, width=wid, tol=150)
+        best_star = spec(row['ID'], SNR='bestHF', orig=orig)
+        best_star.rv0, erv0 = RV0(rv_list, best_star.filename, orig=orig, ewcut=50, func=fun, width=wid, tol=150)
         best_star.waveflux(3950,6850, cut_edges=True) # Applies the rv0 correction
 
         # If the line is >.1A from where should be, you determine new best function, width and line
@@ -452,7 +451,7 @@ def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, cosmic_manual=Fals
             goodspec = random.sample(goodspec, 10)
 
         for j,n in zip(goodspec, range(len(goodspec))):
-            star = spec(j.split(os.sep)[-1], txt=txt)
+            star = spec(j.split(os.sep)[-1], orig=orig)
             star.waveflux(3950,6850, cut_edges=True)
 
             # Create the plot:

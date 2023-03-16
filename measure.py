@@ -458,7 +458,7 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='g', rv_tol=15
 
 
 def auto_measure(lines, table='IACOB_new_N+M_ToDo.fits', output_table='new_RVEWFW.fits',
-    func='g', width=20, ewcut=10, tol=150, txt=False, table_fit_param=False):
+    func='g', width=20, ewcut=10, tol=150, orig='IACOB', table_fit_param=False):
 
     '''
     Function to automatically calculate and store radial velocity, equivalent
@@ -535,7 +535,7 @@ def auto_measure(lines, table='IACOB_new_N+M_ToDo.fits', output_table='new_RVEWF
 
         #if int(re.findall('[0-9]+',id)[2]) >= 175: continue
 
-        star = spec(id, SNR='bestHF', txt=txt)
+        star = spec(id, SNR='bestHF', orig=orig)
 
         fig = plt.figure(figsize=(12,10))
         fig.suptitle(id, fontsize=9)

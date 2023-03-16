@@ -2,7 +2,7 @@ from spec import *
 from scipy.io.idl import readsav
 
 
-def ib_input(table, folder, old_input=None, new_master=False, txt=False):
+def ib_input(table, folder, old_input=None, new_master=False, orig='IACOB'):
 
     '''
     Function to generate the input table for IACOB broad given an input table with the
@@ -27,8 +27,8 @@ def ib_input(table, folder, old_input=None, new_master=False, txt=False):
         If True, it will create a new master table, adding the new rows to the old input
         table, or updating the old one if that one has to be redone. Default is False.
 
-    txt : boolean, optional
-        If True, it will parse it to spec() in case that the input spectrum is in ascii.
+    orig : str, optional
+        See spec() function for more information. Default is 'IACOB'.
 
     Returns
     -------
@@ -60,7 +60,7 @@ def ib_input(table, folder, old_input=None, new_master=False, txt=False):
         
         id = row['ID'].strip()
         
-        star = spec(id, SNR='bestHF', txt=txt)
+        star = spec(id, SNR='bestHF', orig=orig)
         
         star.get_spc()
         

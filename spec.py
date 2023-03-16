@@ -22,7 +22,7 @@ plt.rc('ytick', direction='in', right='on')
 
 
 class spec():
-    def __init__(self, spectrum, SNR=None, rv0=0, offset=0, txt=False, cut_edges=False):
+    def __init__(self, spectrum, SNR=None, rv0=0, offset=0, orig='IACOB', cut_edges=False):
 
         '''
         Parameters
@@ -43,9 +43,12 @@ class spec():
         offset : float, optional
             Enter the offset in wavelength [A] of the spectrum to plot. Default is 0.
 
-        txt : boolean, optional
-            If True, it assumes spectrum from a two-columns file with wavelenght and flux
-            with no header in the file. Default is False.
+        orig : str, optional
+            If 'IACOB', it assumes that the spectrum comes from the IACOB database.
+            If 'txt', it assumes that the spectrum comes from a two-columns file with
+            wavelenght and flux with no header in the file. 
+            If 'syn', it assumes that the spectrum comes from a synthetic spectrum...
+            Default is IACOB.
 
         cut_edges : boolean, optional
             If True, it cuts the edges of the spectrum where the flux is asymptotic.
@@ -59,7 +62,7 @@ class spec():
             else: spectrum = spectrum[0]
 
         self.fullpath = findstar(spectrum, SNR=SNR)
-        
+
         if self.fullpath is None:
             print('Error in spec(): No spectrum found.\nExitting...')
             return None
@@ -77,11 +80,14 @@ class spec():
 
         self.rv0 = rv0 # Note, run self.waveflux to apply the correction.
 
-        if txt == False:
+        self.SpC = '' # Spectral classification
+
+        if orig == 'IACOB':
             self.waveflux(cut_edges=cut_edges)
-        elif txt == True:
-            self.txtwaveflux(cut_edges=cut_edges)
-        self.txt = txt
+        elif orig == 'txt':
+            self.waveflux_txt(cut_edges=cut_edges)
+        elif orig == 'syn':
+            self.waveflux_syn()
 
 
     def get_spc(self):
@@ -234,7 +240,7 @@ class spec():
         return wave, flux, hjd
 
 
-    def txtwaveflux(self, lwl=None, rwl=None, width=0, cut_edges=False):
+    def waveflux_txt(self, lwl=None, rwl=None, width=0, cut_edges=False):
 
         '''
         Equivalent to spec.waveflux() but for spectra coming from ascii files.
@@ -294,6 +300,11 @@ class spec():
         self.flux = flux
 
         return wave, flux, 0
+
+
+    def waveflux_syn(self, lwl=None, rwl=None, width=0):
+        
+        return None
 
 
     def fitline(self, line, width=15, tol=150., func='g', iter=3, fw3414=False, info=False,
