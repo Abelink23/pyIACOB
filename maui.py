@@ -492,10 +492,11 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
     do_pdf : boolean, optional
         If True, a pdf comparing the synthetic diagnostic lines with the original is made.
 
-    pdflines : str, optional
-        Choose between 'diag'/'all'/'def'/'<line>,<line>' to select the lines to be used 
-        in the pdf plots. If <line> option is used, the line wavelengths must be separated
-        by commas. Default is 'diag'.
+    pdflines : str/float, optional
+        Choose between 'diag'/'all'/'def'/'<line>,<line>',float to select the lines to 
+        be used in the pdf plots. If <line> option is used, the line wavelengths must
+        be a string with lines separated by commas or a single float.
+        Default is 'diag'.
 
     grid_only : list, optional
         List of grid names to limit the output to those results analysed with such grid.

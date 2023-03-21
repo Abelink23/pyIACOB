@@ -148,8 +148,8 @@ class spec():
 
         instrum = header0['INSTRUME']   # Instrument
 
-        lam0 = header0['CRVAL1']          # Get the wavelenght of the first pixel
-        dlam = header0['CDELT1']          # Step of increase in wavelength
+        lam0 = header0['CRVAL1']        # Get the wavelenght of the first pixel
+        dlam = header0['CDELT1']        # Step of increase in wavelength
         pix0 = header0['CRPIX1']        # Reference pixel (generally 1, FEROS -49)
         spec_length = header0['NAXIS1'] # Length of the spectrum
         # Alternatively use len(hdu[0].data[0]) (NOT/MERCATOR) or len(hdu[0].data)
@@ -158,10 +158,11 @@ class spec():
         if any(bad in self.fullpath for bad in ['_20101018_','_20101019_']) and lam0 == 3763.9375:
             lam0 = 3763.61
 
+        # Barycentric rv correction at midpoint [km/s]
         try:
-            vbar = header0['I-VBAR'] # [km/s] Barycent. rv correction at midpoint
-        #    vbar = header0['BVCOR']  # [km/s] Barycent. rv correction at midpoint | MERCATOR
-        #    vbar = header0['VHELIO'] # [km/s] Barycent. rv correction at midpoint | NOT
+            vbar = header0['I-VBAR'] 
+        #    vbar = header0['BVCOR'] # Specific keyword from MERCATOR
+        #    vbar = header0['VHELIO'] # Specific keyword from NOT
         except:
             print('No helio/bary-centric correction applied to' + self.fullpath); vbar = 0
 
@@ -194,7 +195,7 @@ class spec():
             wave = np.exp(wave)
         elif helcorr == 'hel' and not instrum == 'FEROS':
             wave = wave*(1 + 1000*vbar/cte.c)
-        # Those with log and those from FEROS are already corrected from helcorr
+        # Those with log or from FEROS are already corrected from heliocentric velocity
 
         wave = wave*(1 - 1000*self.rv0/cte.c)
 
