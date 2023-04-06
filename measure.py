@@ -4,7 +4,7 @@ from binarity import *
 
 
 def measure(lines, table, output_table, rv_lines='rv_Bs.lst', rv_func='g', rv_tol=150,
-    ewcut=10, tol=100, redo='n', show_plot=False, do_pdf=True):
+    ewcut=10, tol=100, orig='IACOB', redo='n', show_plot=False, do_pdf=True):
 
     '''
     Function to interactively calculate and store radial velocity, equivalent
@@ -41,6 +41,13 @@ def measure(lines, table, output_table, rv_lines='rv_Bs.lst', rv_func='g', rv_to
     tol : int, optional
         Sets the tolerance [km/s] to shifting the spectrum in order to fit the lines 
         after being corrected from radial velocity. Default is 100.
+
+    orig : str, optional
+        If 'IACOB', it assumes that the spectrum comes from the IACOB database.
+        If 'txt', it assumes that the spectrum comes from a two-columns file with
+        wavelenght and flux with no header in the file. 
+        If 'syn', it assumes that the spectrum comes from a synthetic spectrum.
+        Default is IACOB.
 
     redo : str, optional
         Coma separated string with the list of stars for which repeat the analysis.
@@ -135,7 +142,7 @@ def measure(lines, table, output_table, rv_lines='rv_Bs.lst', rv_func='g', rv_to
 
             if skip == 's': break
 
-            star = spec(id, SNR='bestHF')
+            star = spec(id, SNR='bestHF', orig=orig)
 
             snr_b = star.snrcalc(zone='B')
             snr_v = star.snrcalc(zone='V')
@@ -159,7 +166,7 @@ def measure(lines, table, output_table, rv_lines='rv_Bs.lst', rv_func='g', rv_to
 
             plt.close('all')
 
-            star.rv0, eRV0 = RV0(rv_lines, star.filename, func=rv_func, ewcut=30, tol=rv_tol)
+            star.rv0, eRV0 = RV0(rv_lines, star.filename, func=rv_func, ewcut=30, tol=rv_tol, orig=orig)
             star.waveflux(min(lines)-30, max(lines)+30) # PONER MIN MAX EN FUNCION DE LOS LIM DE LINES
             star.cosmic()
             star.plotspec(4510,4600, lines='35-10K')
@@ -261,7 +268,7 @@ def measure(lines, table, output_table, rv_lines='rv_Bs.lst', rv_func='g', rv_to
 
 
 
-def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='g', rv_tol=150, binarity=False, redo='n'):
+def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='vrg_H', rv_tol=150, binarity=False, orig='IACOB', redo='n'):
 
     '''
     Function to interactively calculate and store radial velocity, equivalent
@@ -281,7 +288,9 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='g', rv_tol=15
 
     rv_func : str, optional
         Choose the function to fit the lines used for the initial RV:
-        'g' Gaussian (default); 'l' Lorentzian; 'v' Voigt; 'r' Rotational.
+        'g' Gaussian; 'l' Lorentzian; 'v' Voigt; 'r' Rotational; 
+        'vr_H' Voigt profile with rotation;
+        'vrg_H' (default) Voigt profile with rotation and extra gaussian.
 
     rv_tol : int, optional
         Tolerance for a line to be considered for the RV0 calculation.
@@ -290,6 +299,13 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='g', rv_tol=15
         If True, the function will also make use of the binarity module to help 
         you to identify possible binary stars. See binarity.py for more info.
         Default is False.
+
+    orig : str, optional
+        If 'IACOB', it assumes that the spectrum comes from the IACOB database.
+        If 'txt', it assumes that the spectrum comes from a two-columns file with
+        wavelenght and flux with no header in the file. 
+        If 'syn', it assumes that the spectrum comes from a synthetic spectrum.
+        Default is IACOB.
 
     redo : str, optional
         Coma separated string with the list of stars for which repeat the analysis.
@@ -350,13 +366,13 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='g', rv_tol=15
             findSB(id.split('/')[-1].split('_')[0],SNR=20,degrade=40000,vspace=0)
             plt.figure()
 
-        star = spec(id, SNR='bestHF')
+        star = spec(id, SNR='bestHF', orig=orig)
 
         snr_b = star.snrcalc(zone='B')
         snr_v = star.snrcalc(zone='V')
         snr_r = star.snrcalc(zone='R')
 
-        star.rv0, eRV0 = RV0(rv_lines, star.filename, func=rv_func, ewcut=30, tol=rv_tol)
+        star.rv0, eRV0 = RV0(rv_lines, star.filename, func=rv_func, ewcut=30, tol=rv_tol, orig=orig)
         star.waveflux(4795,6605)
         star.cosmic()
 
@@ -376,7 +392,8 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='g', rv_tol=15
 
             mngr = plt.get_current_fig_manager()
             x,y,dx,dy = mngr.window.geometry().getRect()
-            mngr.window.setGeometry(x+600, y, dx, dy) #900
+            # Get the current window size and position
+            mngr.window.setGeometry(x+1/2*dx, y, dx, dy) #900
 
             plt.figure()
 
@@ -388,7 +405,7 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='g', rv_tol=15
 
             mngr = plt.get_current_fig_manager()
             x,y,dx,dy = mngr.window.geometry().getRect()
-            mngr.window.setGeometry(x-600, y, dx, dy) # -900
+            mngr.window.setGeometry(x-1/2*dx, y, dx, dy) # -900
 
             fun = '-'; iter = 3
             while fun not in ['vr_H','vrg_H']:
@@ -404,7 +421,8 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='g', rv_tol=15
                     except: wid = '-'
 
             plt.close('all')
-            fit = star.fitline(4861.325, width=wid, func=fun, iter=1, info=True, outfit=True, plot=True)
+            fit = star.fitline(4861.325, width=wid, func=fun, iter=1, fw3414=True, 
+                               info=True, outfit=True, plot=True)
 
             if fit['sol'] != 0:
                 RV = round(fit['RV_kms']+star.rv0, 2)
