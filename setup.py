@@ -42,6 +42,11 @@ for subfolder in subfolders:
         print(f"Creating {subfolder} directory...")
         os.mkdir(os.path.join(main_dir, subfolder))
 
+# Create a subfolder 'ASCII' inside the data_dir directory if it does not exist.
+if not os.path.exists(os.path.join(data_dir, 'ASCII')):
+    print("Creating ASCII directory...")
+    os.mkdir(os.path.join(data_dir, 'ASCII'))
+
 # Copy the file 'snr_gaps.txt' to the main_dir/list directory.
 print('Copying the file snr_gaps.txt to the main/list directory...\n')
 shutil.copyfile('snr_gaps.txt', os.path.join(main_dir, 'list', 'snr_gaps.txt'))

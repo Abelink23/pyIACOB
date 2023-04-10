@@ -1,9 +1,7 @@
 # Python Standard Library packages:
 import re
 import os
-import sys
 import time
-import platform
 import warnings
 
 # Other main packages
@@ -12,7 +10,7 @@ import progressbar as pb
 
 # Astro-packages
 import astropy.units as u
-from astropy.io import fits,ascii
+from astropy.io import fits, ascii
 from astropy.table import Table, join, setdiff, vstack, hstack
 from astropy.coordinates import SkyCoord
 
@@ -56,35 +54,38 @@ tessdir  = dirs['tess']
 
 
 def search(myfile, path):
-
-    '''
-    Function to search a file within a directory.
-
-    Parameters
-    ----------
-    myfile : str
-        Name of the file to search.
-
-    path : str
-        Path where to search for the file.
-
-    Returns
-    -------
-    Path to the searched file.
-    '''
-
-    f_dir = []
-    for root, dirs, files in os.walk(path):
-        for file in files:
-            if file == myfile:
-                f_dir = os.path.join(root, file)
-
-    if f_dir == []:
-        print('File %s not found.\n' % myfile)
-        return None
-
-    return f_dir
-
+    
+        '''
+        Function to search a file within a directory.
+    
+        Parameters
+        ----------
+        myfile : str
+            Name of the file to search.
+    
+        path : str
+            Path where to search for the file.
+    
+        Returns
+        -------
+        Path to the searched file.
+        '''
+    
+        f_dir = []
+        for root, dirs, files in os.walk(path):
+            for file in files:
+                if file == myfile:
+                    f_dir.append(os.path.join(root, file))
+    
+        if f_dir == []:
+            print('File %s not found.\n' % myfile)
+            return None
+    
+        elif len(f_dir) > 1:
+            print('Problem in db.search():')
+            print('More than one file found, selecting the first one: %s' % f_dir[0])
+    
+        return f_dir[0]
 
 def findstar(spectra=None, SNR=None):
 
@@ -163,7 +164,7 @@ def findstar(spectra=None, SNR=None):
             print('File/source %s not found.\n' % spectrum)
 
     if len(dir_spectra) == 0:
-        return None #quit()
+        return None
 
     # Spectra selection based on selected SNR.
     if any(['ascii' in spectrum for spectrum in list_spectra]) and SNR != None:
@@ -302,7 +303,7 @@ def findlist(list):
 
     # Lines in a lst/txt file with more information on each line:
     elif '.lst' in list or '.txt' in list:
-        list_dir = search(list,path)
+        list_dir = search(list, path)
         with open(list_dir, 'r') as file_list:
             list = file_list.read().splitlines()
 
@@ -1104,6 +1105,8 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False):
     -------
     Queried object in Table format.
     '''
+
+    warnings.filterwarnings("ignore", message="Warning: The script line number")
 
     if otypes is True:
         Simbad.add_votable_fields('otypes')

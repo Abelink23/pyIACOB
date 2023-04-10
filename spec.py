@@ -22,7 +22,7 @@ plt.rc('ytick', direction='in', right='on')
 
 
 class spec():
-    def __init__(self, spectrum, SNR=None, rv0=0, offset=0, orig='IACOB', cut_edges=False):
+    def __init__(self, spectrum, SNR=None, rv0=0, offset=0, cut_edges=False, orig='IACOB'):
 
         '''
         Parameters
@@ -43,38 +43,49 @@ class spec():
         offset : float, optional
             Enter the offset in wavelength [A] of the spectrum to plot. Default is 0.
 
+        cut_edges : boolean, optional
+            If True, it cuts the edges of the spectrum where the flux is asymptotic.
+            Default is False.
+
         orig : str, optional
             If 'IACOB', it assumes that the spectrum comes from the IACOB database.
             If 'txt', it assumes that the spectrum comes from a two-columns file with
             wavelenght and flux with no header in the file. 
-            If 'syn', it assumes that the spectrum comes from a synthetic spectrum...
+            If 'syn', it assumes that the spectrum comes from a synthetic spectrum.
             Default is IACOB.
-
-        cut_edges : boolean, optional
-            If True, it cuts the edges of the spectrum where the flux is asymptotic.
-            Default is False.
         '''
 
         if type(spectrum) == list:
             if len(spectrum) > 1:
-                print('Error in spec(): More than one spectrum selected.\nExitting...')
+                print('Problem in spec(): More than one spectrum selected.\nExitting...')
                 return None
             else: spectrum = spectrum[0]
 
-        self.fullpath = findstar(spectrum, SNR=SNR)
+        if orig == 'IACOB':
+            self.fullpath = findstar(spectrum, SNR=SNR)
+        elif orig == 'txt' or orig == 'syn':
+            self.fullpath = search(spectrum, datadir+'ASCII/')
+            # So far the search funcion only returns the first match
 
         if self.fullpath is None:
-            print('Error in spec(): No spectrum found.\nExitting...')
+            print('Problem in spec(): No spectrum found.\nExitting...')
             return None
 
-        if len(self.fullpath) > 1:
-            print('Error in spec(): More than one spectrum selected.\nExitting...')
-            return None
-        self.fullpath = self.fullpath[0]
+        if orig == 'IACOB':
+            if len(self.fullpath) > 1:
+                print('Problem in spec(): More than one spectrum selected.\nExitting...')
+                return None
+            else:
+                self.fullpath = self.fullpath[0]
+
         self.filename = self.fullpath.split(os.sep)[-1]
         self.id_star = self.fullpath.split(os.sep)[-1].split('_')[0]
 
-        self.resolution = int(re.split('(\d*\d+)',self.fullpath)[-2])
+        if orig == 'IACOB' or (orig in ['txt','syn'] and '_V' in self.filename):
+            self.resolution = int(re.split('(\d*\d+)',self.filename)[-2])
+        else:
+            self.resolution = 5000
+            print('Warning: Resolution not found in filename. Assuming R5000.')
 
         self.offset = offset # Note, run self.waveflux to apply offset.
 
@@ -84,10 +95,8 @@ class spec():
 
         if orig == 'IACOB':
             self.waveflux(cut_edges=cut_edges)
-        elif orig == 'txt':
-            self.waveflux_txt(cut_edges=cut_edges)
-        elif orig == 'syn':
-            self.waveflux_syn()
+        elif orig == 'txt' or orig == 'syn':
+            self.waveflux_txt(cut_edges=cut_edges, orig=orig)
 
 
     def get_spc(self):
@@ -106,7 +115,7 @@ class spec():
             #self.otypes = query['OTYPES'][0]
 
         except:
-            print('Spectral classification could not be queried for %s' % self.id_star)
+            print('Spectral classification could not be queried for: %s' % self.id_star)
             self.SpC = ''
 
 
@@ -241,7 +250,7 @@ class spec():
         return wave, flux, hjd
 
 
-    def waveflux_txt(self, lwl=None, rwl=None, width=0, cut_edges=False):
+    def waveflux_txt(self, lwl=None, rwl=None, width=0, cut_edges=False, orig='txt'):
 
         '''
         Equivalent to spec.waveflux() but for spectra coming from ascii files.
@@ -254,20 +263,20 @@ class spec():
         '''
 
         if self.filename.endswith('.fits'):
-            print('Error in spec(): This is a fits file, use a .txt/.dat/.ascii or similar file.')
+            print('Problem in spec(): This is a fits file, use a .txt/.dat/.ascii or similar file.')
             return None
 
-        data = findtable(self.filename, path=datadir+'ASCII/', format='basic')
-        
+        data = findtable(self.filename, path=self.fullpath.replace(self.filename,''), format='basic')
+
         if data.colnames[0].lower() in ['wave','wavelength','lambda','lamb','ang','angstroms']:
             wave = data[data.colnames[0]]
         else:
-            print('Error in spec(): No wavelength column found in the firs column of the ascii file.')
+            print('Problem in spec(): No wavelength column found in the firs column of the ascii file.')
             return None
         if data.colnames[1].lower() in ['flux','fluxes','norm_flux','flux_norm']:
             flux = data[data.colnames[1]]
         else:
-            print('Error in spec(): No flux column found in the second column of the ascii file.')
+            print('Problem in spec(): No flux column found in the second column of the ascii file.')
             return None
 
         wave = wave*(1 - 1000*self.rv0/cte.c)
@@ -292,7 +301,8 @@ class spec():
         self.vbar = 0
         self.hjd = 0
 
-        self.get_spc()
+        if orig != 'syn':
+            self.get_spc()
 
         self.wave_0 = wave
         self.flux_0 = flux
@@ -301,11 +311,6 @@ class spec():
         self.flux = flux
 
         return wave, flux, 0
-
-
-    def waveflux_syn(self, lwl=None, rwl=None, width=0):
-        
-        return None
 
 
     def fitline(self, line, width=15, tol=150., func='g', iter=3, fw3414=False, info=False,
@@ -373,7 +378,7 @@ class spec():
         #============================== Parameters =============================
         # Catch line input containing more than one line
         if type(line) == str and (',' in line or ' ' in line.strip()):
-            print('Error in spec(): More than one line selected.\nExitting...')
+            print('Problem in spec(): More than one line selected.\nExitting...')
             return fitsol
 
         line = float(line)
@@ -631,7 +636,6 @@ class spec():
             fig, ax = plt.subplots()
 
             if fw3414 is True and FW34_14 != np.nan:
-                print(medpos,lowval,uppval)
                 ax.plot([wave[medpos[0][0]],wave[medpos[0][1]]],[lowval,lowval],'gray',linestyle='--',lw=.5)
                 ax.plot([wave[medpos[1][0]],wave[medpos[1][1]]],[uppval,uppval],'gray',linestyle='--',lw=.5)
 
