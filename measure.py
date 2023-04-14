@@ -251,11 +251,12 @@ def measure(lines, table, output_table, colnames='lambda', rv_lines='rv_Bs.lst',
                         else:
                             c_fit = 'g'
 
-                    axs[i % 36].set_title('%.2f' % line)
+                    axs[i % 36].set_title(line_names[i])
                     axs[i % 36].tick_params(direction='in', top='on', right='on')
 
-                    axs[i % 36].plot(fit['wave'], fit['flux_norm'], c=c_spec, lw=0.5)
-                    axs[i % 36].plot(fit['wave'], fit['flux_fit'], c=c_fit, ls='--', lw=1.5)
+                    if not fit['sol'] == 0 and 'wave' in fit.keys():
+                        axs[i % 36].plot(fit['wave'], fit['flux_norm'], c=c_spec, lw=0.5)
+                        axs[i % 36].plot(fit['wave'], fit['flux_fit'], c=c_fit, ls='--', lw=1.5)
 
                     if i % 36 == 35 or i == len(lines)-1:
                         fig.suptitle(star.id_star + ' -- Filename: ' + star.filename + ' -- Lines for rv corrextion: ' + rv_lines, fontsize=8)

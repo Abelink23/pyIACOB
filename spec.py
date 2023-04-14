@@ -101,10 +101,7 @@ class spec():
 
         self.SpC = '' # Spectral classification
 
-        if self.orig == 'IACOB':
-            self.waveflux(cut_edges=cut_edges)
-        elif orig == 'txt' or orig == 'syn':
-            self.waveflux_txt(cut_edges=cut_edges, orig=orig)
+        self.waveflux(cut_edges=cut_edges)
 
 
     def get_spc(self):
@@ -690,6 +687,9 @@ class spec():
             mask = (self.wave > 6000) & (self.wave < 7000)
         elif zone in ['all','ALL']:
             mask = (self.wave > 3000) & (self.wave < 7000)
+
+        if len(self.wave[mask]) == 0:
+            return np.nan
 
         lambda0 = np.mean(self.wave[mask])
         resol = 10000
