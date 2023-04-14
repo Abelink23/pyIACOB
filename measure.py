@@ -3,7 +3,7 @@ from rv import *
 from binarity import *
 
 
-def measure(lines, table, output_table, colnames='lambda', rv_lines='rv_Bs.lst', rv_func='g', rv_tol=150,
+def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs.lst', rv_func='g', rv_tol=150,
     ewcut=10, tol=100, orig='IACOB', redo='n', show_plot=False, do_pdf=True):
 
     '''
@@ -24,7 +24,7 @@ def measure(lines, table, output_table, colnames='lambda', rv_lines='rv_Bs.lst',
     output_table : str
         Name of the output (new) table contaning the results.
 
-    colnames : str, optional
+    col_line_names : str, optional
         Use 'lambda' if the table has the wavelenghts from the list of lines.
         Use 'label' if the table has the line labels from the list of lines.
         
@@ -68,12 +68,12 @@ def measure(lines, table, output_table, colnames='lambda', rv_lines='rv_Bs.lst',
     Nothing, but the output table with the results is created.
     '''
 
-    if colnames not in ['lambda','label']:
-        print('Bad input for "colnames" parameter. Exitting...')
+    if col_line_names not in ['lambda','label']:
+        print('Bad input for "col_line_names" parameter. Exitting...')
         return None
-    elif colnames == 'lambda':
+    elif col_line_names == 'lambda':
         line_names = [str(round(i,1)) for i in findlines(lines)[0]]
-    elif colnames == 'label':
+    elif col_line_names == 'label':
         line_names = findlines(lines)
         if len(line_names) == 1:
             print('Lines file must include labels for the lines. Exitting...')
@@ -133,14 +133,15 @@ def measure(lines, table, output_table, colnames='lambda', rv_lines='rv_Bs.lst',
         nrows, ncols = even_plot(len(lines))
 
         # Avoid showing the spectrum for each line when is already saved in pdf
-        show_plot = False
-
+        if show_plot == True:
+            print('Generating plots in pdf is enable. The show_plot parameter is set to False.')
+            show_plot = False
 
     quit = ''
     for source in table:
         if quit == 'q': break
 
-        if 'Ref_file' in source.colnames:
+        if 'Ref_file' in source.col_line_names:
             id = source['Ref_file']
             if source['Ref_file'] in [i.strip() for i in output['Ref_file']]:
                 continue
@@ -149,7 +150,7 @@ def measure(lines, table, output_table, colnames='lambda', rv_lines='rv_Bs.lst',
             if source['ID'] in [i.strip() for i in output['ID']]:
                 continue
 
-        if 'SpC' in source.colnames:
+        if 'SpC' in source.col_line_names:
             spt  = source['SpC']
         else:
             spt = ''
@@ -163,12 +164,15 @@ def measure(lines, table, output_table, colnames='lambda', rv_lines='rv_Bs.lst',
 
             star = spec(id, SNR='bestHF', orig=orig)
 
-            snr_b = star.snrcalc(zone='B')
-            snr_v = star.snrcalc(zone='V')
-            snr_r = star.snrcalc(zone='R')
+            if star.orig != 'synthetic':
+                snr_b = star.snrcalc(zone='B')
+                snr_v = star.snrcalc(zone='V')
+                snr_r = star.snrcalc(zone='R')
+            else:
+                snr_b = snr_v = snr_r = np.nan
 
             #===================================================================
-            print('\nAnalyzing Si III triplet...\n')
+            print('\nShowing the Si III triplet...\n')
             star.plotspec(4510,4600)
 
             fun = '-'
@@ -370,7 +374,7 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='vrg_H', rv_to
     for source in table:
         if quit == 'q': break
 
-        if 'Ref_file' in source.colnames:
+        if 'Ref_file' in source.col_line_names:
             id = source['Ref_file']
             if source['Ref_file'] in [i.strip() for i in output['Ref_file']]:
                 continue
@@ -380,7 +384,7 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='vrg_H', rv_to
             if source['ID'] in [i.strip() for i in output['ID']]:
                 continue
 
-        if 'SpC' in source.colnames:
+        if 'SpC' in source.col_line_names:
             spt  = source['SpC']
         else:
             spt = ''

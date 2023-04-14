@@ -238,7 +238,7 @@ class spec():
             dlam = (wave[-1]-wave[0])/(len(wave)-1)
             self.vbar = 0
             self.hjd  = 0
-            
+
             if self.orig != 'synthetic':
                 self.get_spc()
 
@@ -364,15 +364,18 @@ class spec():
         FWHM_max = 17
 
         #======== Determine the SNR based on the wavelength of the line ========
-        if line > 3000 and line < 4000:
-            snr_spec = self.snrcalc('uv')
-        elif line > 4000 and line < 5000:
-            snr_spec = self.snrcalc('b')
-        elif line > 5000 and line < 6000:
-            snr_spec = self.snrcalc('v')
-        elif line > 6000 and line < 7000:
-            snr_spec = self.snrcalc('r')
-            
+        if self.orig != 'synthetic':
+            if line > 3000 and line < 4000:
+                snr_spec = self.snrcalc('uv')
+            elif line > 4000 and line < 5000:
+                snr_spec = self.snrcalc('b')
+            elif line > 5000 and line < 6000:
+                snr_spec = self.snrcalc('v')
+            elif line > 6000 and line < 7000:
+                snr_spec = self.snrcalc('r')
+        else:
+            snr_spec = np.nan
+
         #=========== Dictionary and boundary limits for the functions ==========
         fit_dic = {'g': ('A','lam0','sigma'),
                    'l': ('A','lam0','gamma','y'),
@@ -622,7 +625,7 @@ class spec():
 
             ax.plot(wave, np.where(mask==False, 1, np.nan) + 0.01, 'k', lw=.5)
 
-            ax.set_title('%s | %.2f | RV: %d | EW: %d | FWHM: %.2f | FW34-14: %.2f | SNR: %d' %
+            ax.set_title('%s | %.2f | RV: %d | EW: %d | FWHM: %.2f | FW34-14: %.2f | SNR: %.f' %
                 (self.id_star,line_f,RV_kms,EW,FWHM,FW34_14,snr), fontsize=8)
 
             ax.set_yticks([])
@@ -676,6 +679,10 @@ class spec():
         -------
         Measured signal-to-noise ratio value.
         '''
+
+        if self.orig == 'synthetic':
+            print('No SNR available for synthetic spectra.')
+            return np.nan
 
         if zone in ['uv','UV']:
             mask = (self.wave > 3000) & (self.wave < 4000)
@@ -1019,7 +1026,8 @@ class spec():
         Nothing, but the plots are generated.
         '''
 
-        self.get_spc()
+        if self.orig != 'synthetic':
+            self.get_spc()
 
         lines,elements,_ = findlines(lines)
         if len(lines) > 1:
@@ -1080,7 +1088,8 @@ class spec():
         Nothing, but the plots are generated.
         '''
 
-        self.get_spc()
+        if self.orig != 'synthetic':
+            self.get_spc()
 
         if lwl < min(self.wave):
             lwl = min(self.wave)
