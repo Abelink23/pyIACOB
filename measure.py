@@ -3,7 +3,7 @@ from rv import *
 from binarity import *
 
 
-def measure(lines, table, output_table, rv_lines='rv_Bs.lst', rv_func='g', rv_tol=150,
+def measure(lines, table, output_table, colnames='lambda', rv_lines='rv_Bs.lst', rv_func='g', rv_tol=150,
     ewcut=10, tol=100, orig='IACOB', redo='n', show_plot=False, do_pdf=True):
 
     '''
@@ -24,6 +24,10 @@ def measure(lines, table, output_table, rv_lines='rv_Bs.lst', rv_func='g', rv_to
     output_table : str
         Name of the output (new) table contaning the results.
 
+    colnames : str, optional
+        Use 'lambda' if the table has the wavelenghts from the list of lines.
+        Use 'label' if the table has the line labels from the list of lines.
+        
     rv_lines : str, list
         Enter the wavelenght(s) of the line(s) to fit, either in a coma-separated
         string, or in a .txt/.lst file containing the lines.
@@ -64,6 +68,19 @@ def measure(lines, table, output_table, rv_lines='rv_Bs.lst', rv_func='g', rv_to
     Nothing, but the output table with the results is created.
     '''
 
+    if colnames not in ['lambda','label']:
+        print('Bad input for "colnames" parameter. Exitting...')
+        return None
+    elif colnames == 'lambda':
+        line_names = [str(round(i,1)) for i in findlines(lines)[0]]
+    elif colnames == 'label':
+        line_names = findlines(lines)
+        if len(line_names) == 1:
+            print('Lines file must include labels for the lines. Exitting...')
+            return None
+        else:
+            line_names = line_names[1]
+
     lines = findlines(lines)[0]
 
     table = findtable(table)
@@ -89,10 +106,10 @@ def measure(lines, table, output_table, rv_lines='rv_Bs.lst', rv_func='g', rv_to
         output = Table(
             names = (
                 ['ID','Ref_file','SNR_B','SNR_V','SNR_R','RV0','eRV0']
-                + [j+i for i in [str(round(k)) for k in lines] for j in ['RV_','EW_','FW_','dep_','snr_']]),
+                + [j+i for i in line_names for j in ['RV_','EW_','FW_','dep_','snr_']]),
             dtype = (
                 ['S16','S50','int64','int64','int64','float64','float64']
-                + ['float64','int64','float64','float64','int64']*len(lines))
+                + ['float64','int64','float64','float64','int64']*len(line_names))
             )
 
     # To create the pdf file
@@ -125,15 +142,17 @@ def measure(lines, table, output_table, rv_lines='rv_Bs.lst', rv_func='g', rv_to
 
         if 'Ref_file' in source.colnames:
             id = source['Ref_file']
+            if source['Ref_file'] in [i.strip() for i in output['Ref_file']]:
+                continue
         else:
             id = source['ID']
+            if source['ID'] in [i.strip() for i in output['ID']]:
+                continue
 
         if 'SpC' in source.colnames:
             spt  = source['SpC']
         else:
             spt = ''
-
-        if source['ID'] in [i.strip() for i in output['ID']]: continue
 
         skip = input("%s (%s) - Hit return to continue, type 's' to skip: " % (id,spt))
 
@@ -167,8 +186,10 @@ def measure(lines, table, output_table, rv_lines='rv_Bs.lst', rv_func='g', rv_to
             plt.close('all')
 
             star.rv0, eRV0 = RV0(rv_lines, star.filename, func=rv_func, ewcut=30, tol=rv_tol, orig=orig)
+
             star.waveflux(min(lines)-30, max(lines)+30) # PONER MIN MAX EN FUNCION DE LOS LIM DE LINES
             star.cosmic()
+
             star.plotspec(4510,4600, lines='35-10K')
 
             input('Hit return to continue...')
@@ -210,7 +231,7 @@ def measure(lines, table, output_table, rv_lines='rv_Bs.lst', rv_func='g', rv_to
                     RV = EW = FW = dep = snr = np.nan
 
                 for par,val in zip(['RV_','EW_','FW_','dep_','snr_'],[RV,EW,FW,dep,snr]):
-                    T_source[par+str(round(line))] = val
+                    T_source[par+line_names[i]] = val
 
                 if do_pdf == True:
 
@@ -350,15 +371,18 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='vrg_H', rv_to
 
         if 'Ref_file' in source.colnames:
             id = source['Ref_file']
+            if source['Ref_file'] in [i.strip() for i in output['Ref_file']]:
+                continue
+
         else:
             id = source['ID']
+            if source['ID'] in [i.strip() for i in output['ID']]:
+                continue
 
         if 'SpC' in source.colnames:
             spt  = source['SpC']
         else:
             spt = ''
-
-        if source['ID'] in [i.strip() for i in output['ID']]: continue
 
         skip = input("%s (%s) - Hit return to continue, type 's' to skip: " % (id,spt))
 
@@ -373,9 +397,7 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='vrg_H', rv_to
         snr_r = star.snrcalc(zone='R')
 
         star.rv0, eRV0 = RV0(rv_lines, star.filename, func=rv_func, ewcut=30, tol=rv_tol, orig=orig)
-        star.waveflux(4795,6605)
-        star.cosmic()
-
+ 
         next = 'n'
         while next == 'n':
 
@@ -400,7 +422,9 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='vrg_H', rv_to
             #=======================================================================
             print('\nAnalyzing H beta line...\n')
 
-            star.waveflux(4801,4921); star.cosmic()
+            star.waveflux(4801,4921)
+            star.cosmic()
+
             star.plotspec(4821,4901, lines='35-10K')
 
             mngr = plt.get_current_fig_manager()

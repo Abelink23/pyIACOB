@@ -1175,18 +1175,18 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False):
         return None
 
 
-def query_Gaia(gaia='dr3', name=None, ra=None, dec=None, radec=None, radius=2, get_zp=False):
+def query_Gaia(name=None, gaia='dr3', ra=None, dec=None, radec=None, radius=2, get_zp=False):
 
     '''
     Function to query an object in Gaia DR3 database.
 
     Parameters
     ----------
-    gaia : str, optional
-        Enter the Gaia data you want to query, either 'dr2' or 'dr3' (default)
-
     name : str, optional
         Enter the name (ID) of the source to query.
+
+    gaia : str, optional
+        Enter the Gaia data you want to query, either 'dr2' or 'dr3' (default)
 
     ra : float, optional
         Enter the right ascension of the source, in degrees.
@@ -1300,6 +1300,10 @@ def query_Gaia(gaia='dr3', name=None, ra=None, dec=None, radec=None, radius=2, g
     query = query[['ID'] + [i for i in query.colnames][:-1]]
     if 'DESIGNATION' in query.colnames:
         query.remove_column('DESIGNATION')
+    if 'phot_variable_flag' in query.colnames:
+        query.remove_column('phot_variable_flag')
+    if 'libname_gspphot' in query.colnames:
+        query.remove_column('libname_gspphot')
 
     return query
 

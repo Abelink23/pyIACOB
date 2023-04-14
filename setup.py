@@ -51,6 +51,10 @@ if not os.path.exists(os.path.join(data_dir, 'ASCII')):
 print('Copying the file snr_gaps.txt to the main/list directory...\n')
 shutil.copyfile('snr_gaps.txt', os.path.join(main_dir, 'list', 'snr_gaps.txt'))
 
+# Copy the 'atlas_lines' folder to the main_dir/list/lines/ directory.
+print('Copying the folder atlas_lines to the main/list/lines directory...\n')
+shutil.copytree('atlas_lines', os.path.join(main_dir, 'list', 'lines', 'atlas_lines'))
+
 # List of packages to check/install
 packages = [
     'numpy=1.21.5',

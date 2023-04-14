@@ -61,17 +61,24 @@ class spec():
                 return None
             else: spectrum = spectrum[0]
 
-        if orig == 'IACOB':
+        if orig in ['IACOB','iacob']:
+            self.orig = 'IACOB'
+        elif orig in ['txt','TXT','ascii','ASCII']:
+            self.orig = 'ascii'
+        elif orig in ['syn','SYN','synthetic','SYNTHETIC']:
+            self.orig = 'synthetic'
+
+        if self.orig == 'IACOB':
             self.fullpath = findstar(spectrum, SNR=SNR)
-        elif orig == 'txt' or orig == 'syn':
-            self.fullpath = search(spectrum, datadir+'ASCII/')
+        elif self.orig == 'ascii' or self.orig == 'synthetic':
+            self.fullpath = search(spectrum, datadir+'ASCII'+os.sep)
             # So far the search funcion only returns the first match
 
         if self.fullpath is None:
             print('Problem in spec(): No spectrum found.\nExitting...')
             return None
 
-        if orig == 'IACOB':
+        if self.orig == 'IACOB':
             if len(self.fullpath) > 1:
                 print('Problem in spec(): More than one spectrum selected.\nExitting...')
                 return None
@@ -81,7 +88,8 @@ class spec():
         self.filename = self.fullpath.split(os.sep)[-1]
         self.id_star = self.fullpath.split(os.sep)[-1].split('_')[0]
 
-        if orig == 'IACOB' or (orig in ['txt','syn'] and '_V' in self.filename):
+        if self.orig == 'IACOB' or \
+            (self.orig in ['ascii','synthetic'] and any([i in self.filename for i in ['_V','_R']])):
             self.resolution = int(re.split('(\d*\d+)',self.filename)[-2])
         else:
             self.resolution = 5000
@@ -93,7 +101,7 @@ class spec():
 
         self.SpC = '' # Spectral classification
 
-        if orig == 'IACOB':
+        if self.orig == 'IACOB':
             self.waveflux(cut_edges=cut_edges)
         elif orig == 'txt' or orig == 'syn':
             self.waveflux_txt(cut_edges=cut_edges, orig=orig)
@@ -144,77 +152,106 @@ class spec():
             If True, it cuts the edges of the spectrum where the flux is asymptotic.
             Default is False.
 
+        Note: All ascii files should be placed inside datadir/ASCII subfolder.
+
         Returns
         -------
         In addition to update the class with new data, it returns the wavelength and flux
         vectors together with the HJD.
         '''
 
-        # Retrieve the key values fron the fits header
-        hdu = fits.open(self.fullpath)  # Open the fits image file
-        hdu.verify('fix')               # Fix possible issues with the keywords
-        header0 = hdu[0].header         # Read header of primary extension
+        if self.orig == 'IACOB':
 
-        instrum = header0['INSTRUME']   # Instrument
+            # Retrieve the key values fron the fits header
+            hdu = fits.open(self.fullpath)  # Open the fits image file
+            hdu.verify('fix')               # Fix possible issues with the keywords
+            header0 = hdu[0].header         # Read header of primary extension
 
-        lam0 = header0['CRVAL1']        # Get the wavelenght of the first pixel
-        dlam = header0['CDELT1']        # Step of increase in wavelength
-        pix0 = header0['CRPIX1']        # Reference pixel (generally 1, FEROS -49)
-        spec_length = header0['NAXIS1'] # Length of the spectrum
-        # Alternatively use len(hdu[0].data[0]) (NOT/MERCATOR) or len(hdu[0].data)
+            instrum = header0['INSTRUME']   # Instrument
 
-        # Correct Mercator CRVAL1 20101018-19:
-        if any(bad in self.fullpath for bad in ['_20101018_','_20101019_']) and lam0 == 3763.9375:
-            lam0 = 3763.61
+            lam0 = header0['CRVAL1']        # Get the wavelenght of the first pixel
+            dlam = header0['CDELT1']        # Step of increase in wavelength
+            pix0 = header0['CRPIX1']        # Reference pixel (generally 1, FEROS -49)
+            spec_length = header0['NAXIS1'] # Length of the spectrum
+            # Alternatively use len(hdu[0].data[0]) (NOT/MERCATOR) or len(hdu[0].data)
 
-        # Barycentric rv correction at midpoint [km/s]
-        try:
-            vbar = header0['I-VBAR'] 
-        #    vbar = header0['BVCOR'] # Specific keyword from MERCATOR
-        #    vbar = header0['VHELIO'] # Specific keyword from NOT
-        except:
-            print('No helio/bary-centric correction applied to' + self.fullpath); vbar = 0
+            # Correct Mercator CRVAL1 20101018-19:
+            if any(bad in self.fullpath for bad in ['_20101018_','_20101019_']) and lam0 == 3763.9375:
+                lam0 = 3763.61
 
-        self.vbar = vbar
+            # Assign barycentric rv correction at midpoint [km/s]
+            if 'I-VBAR' in header0:
+                self.vbar = header0['I-VBAR'] 
+                #self.vbar = header0['BVCOR'] # Specific keyword from MERCATOR
+                #self.vbar = header0['VHELIO'] # Specific keyword from NOT
+            else:
+                print('No helio/bary-centric correction applied to' + self.fullpath)
+                self.vbar = 0
 
-        try:
-            hjd = header0['I-HJD']   # Heliocentric Julian date at midpoint
-        except:
-            hjd = Time(header0['DATE'], scale='utc').jd
+            # Assign Heliocentric Julian Date at midpoint
+            if 'I-HJD' in header0:
+                self.hjd = header0['I-HJD']
+            else:
+                self.hjd = Time(header0['DATE'], scale='utc').jd
 
-        self.hjd = hjd
+            # Assign SNR
+            if 'I-SNR' in header0:
+                self.snr = header0['I-SNR']
+            else:
+                self.snr = np.nan
+            
+            # Assign SpC
+            if 'I-SPC' in header0:
+                self.SpC = header0['I-SPC']
 
-        try:
-            self.snr = header0['I-SNR']  # SNR from header
-        except:
-            self.snr = np.nan
+            # Make lists with wavelenght and flux for each spectrum
+            wave = lam0 + dlam*(np.arange(spec_length) - pix0 + 1)
+            if '_log' in self.fullpath:
+                wave = np.exp(wave)
+            elif helcorr == 'hel' and not instrum == 'FEROS':
+                wave = wave*(1 + 1000*self.vbar/cte.c)
+            # Those with log or from FEROS are already corrected from heliocentric velocity
 
-        try:
-            self.SpC = header0['I-SPC']  # SpC from header
-        except:
-            self.SpC = ''
+            # If width is bigger than the spectrum, set it to the spectrum length
+            if width >= (wave[-1] - wave[0]):
+                width = wave[-1] - wave[0]
 
-        # Make lists with wavelenght and flux for each spectrum
-        if width >= 200:
-            width = 200
-            print('\nWARNING: Width value %f is too large, setting it to 200. ' %width)
+            try:
+                flux = hdu[0].data[0]
+            except:
+                flux = hdu[0].data
 
-        wave = lam0 + dlam*(np.arange(spec_length) - pix0 + 1)
-        if '_log' in self.fullpath:
-            wave = np.exp(wave)
-        elif helcorr == 'hel' and not instrum == 'FEROS':
-            wave = wave*(1 + 1000*vbar/cte.c)
-        # Those with log or from FEROS are already corrected from heliocentric velocity
+            hdu.close()
 
+        elif self.orig == 'ascii' or self.orig == 'synthetic':
+            
+            data = findtable(self.filename, path=self.fullpath.replace(self.filename,''), format='basic')
+
+            if data.colnames[0].lower() in ['wave','wavelength','lambda','lamb','ang','angstroms']:
+                wave = data[data.colnames[0]]
+            else:
+                print('Problem in spec(): No wavelength column found in the firs column of the ascii file.    ')
+                return None
+            if data.colnames[1].lower() in ['flux','fluxes','norm_flux','flux_norm']:
+                flux = data[data.colnames[1]]
+            else:
+                print('Problem in spec(): No flux column found in the second column of the ascii file.')
+                return None
+
+            dlam = (wave[-1]-wave[0])/(len(wave)-1)
+            self.vbar = 0
+            self.hjd  = 0
+            
+            if self.orig != 'synthetic':
+                self.get_spc()
+
+        # Apply the radial velocity correction (if provided)
         wave = wave*(1 - 1000*self.rv0/cte.c)
 
+        # Apply the offset correction (if provided)
         wave = wave - self.offset
 
-        try:
-            flux = hdu[0].data[0]
-        except:
-            flux = hdu[0].data
-
+        # Cut the edges of the spectrum where the flux is asymptotic
         if cut_edges == True:
             if flux[1] < flux[0]:
                 l_cut = next(pix for pix in range(len(wave)) if flux[pix+1] > flux[pix])
@@ -228,89 +265,27 @@ class spec():
             wave = wave[l_cut:r_cut]
             flux = flux[l_cut:r_cut]
 
+        # Cut the spectrum to the desired wavelenght range given by lwl and rwl
         if lwl != None and rwl != None:
             if wave[0] > lwl+dlam or wave[-1] < rwl-dlam:
                 print('WARNING: Wavelenght limits outside spectrum wavelenght range.')
             flux = flux[(wave >= lwl-width/2.) & (wave <= rwl+width/2.)]
             wave = wave[(wave >= lwl-width/2.) & (wave <= rwl+width/2.)]
 
-        if '_log' in self.fullpath:
+        if '_log' in self.fullpath and self.orig in ['IACOB','ascii']:
             self.dlam = (wave[-1]-wave[0])/(len(wave)-1)
         else:
             self.dlam = dlam
 
-        hdu.close()
-
         self.wave_0 = wave
         self.flux_0 = flux
 
         self.wave = wave
         self.flux = flux
+
+        hjd = self.hjd
 
         return wave, flux, hjd
-
-
-    def waveflux_txt(self, lwl=None, rwl=None, width=0, cut_edges=False, orig='txt'):
-
-        '''
-        Equivalent to spec.waveflux() but for spectra coming from ascii files.
-
-        Note: The ascii files should be placed in a /ASCII/ subfolder inside data folder.
-
-        Parameters
-        ----------
-        See help for spec.waveflux
-        '''
-
-        if self.filename.endswith('.fits'):
-            print('Problem in spec(): This is a fits file, use a .txt/.dat/.ascii or similar file.')
-            return None
-
-        data = findtable(self.filename, path=self.fullpath.replace(self.filename,''), format='basic')
-
-        if data.colnames[0].lower() in ['wave','wavelength','lambda','lamb','ang','angstroms']:
-            wave = data[data.colnames[0]]
-        else:
-            print('Problem in spec(): No wavelength column found in the firs column of the ascii file.')
-            return None
-        if data.colnames[1].lower() in ['flux','fluxes','norm_flux','flux_norm']:
-            flux = data[data.colnames[1]]
-        else:
-            print('Problem in spec(): No flux column found in the second column of the ascii file.')
-            return None
-
-        wave = wave*(1 - 1000*self.rv0/cte.c)
-
-        wave = wave - self.offset
-
-        if cut_edges == True:
-            l_cut = next(pix for pix in range(len(wave)) if flux[pix+1] > flux[pix])
-            r_cut = next(pix for pix in reversed(range(len(wave))) if flux[pix-1] > flux[pix])
-
-            wave = wave[l_cut:r_cut]
-            flux = flux[l_cut:r_cut]
-
-        if lwl != None and rwl != None:
-            dlam = (wave[-1]-wave[0])/(len(wave)-1)
-            if wave[0] > lwl+dlam or wave[-1] < rwl-dlam:
-                print('WARNING: Wavelenght limits outside spectrum wavelenght range.')
-            flux = flux[(wave >= lwl-width/2.) & (wave <= rwl+width/2.)]
-            wave = wave[(wave >= lwl-width/2.) & (wave <= rwl+width/2.)]
-
-        self.dlam = (wave[-1]-wave[0])/len(wave)
-        self.vbar = 0
-        self.hjd = 0
-
-        if orig != 'syn':
-            self.get_spc()
-
-        self.wave_0 = wave
-        self.flux_0 = flux
-
-        self.wave = wave
-        self.flux = flux
-
-        return wave, flux, 0
 
 
     def fitline(self, line, width=15, tol=150., func='g', iter=3, fw3414=False, info=False,
@@ -617,14 +592,17 @@ class spec():
         depth = round(1 - min(flux_fit), 3)
 
         #===================== Calculate the SNR continuum =====================
-        sigma_cont = np.std(flux_norm[mask])
-        snr = int(1/sigma_cont)
-        # If the SNR measured on the continuum of the line is too different from
-        # the SNR measured on the wider region, the latter is used.
-        if snr == None or abs(snr_spec-snr)/snr_spec > 0.30:
-            snr = snr_spec
-        if snr_spec == None and snr == None:
+        if self.orig == 'synthetic':
             snr = np.nan
+        else:
+            sigma_cont = np.std(flux_norm[mask])
+            snr = int(1/sigma_cont)
+            # If the SNR measured on the continuum of the line is too different from
+            # the SNR measured on the wider region, the latter is used.
+            if snr == None or abs(snr_spec-snr)/snr_spec > 0.30:
+                snr = snr_spec
+            if snr_spec == None and snr == None:
+                snr = np.nan
 
         #============================= Quality value ===========================
         q_fit = 1/np.std(flux_norm[flux_fit<(1-0.2*depth)]/flux_fit[flux_fit<(1-0.2*depth)]) #simple
@@ -790,6 +768,10 @@ class spec():
         -------
         Nothing, but the flux is replaced and cleaned from rays.
         '''
+
+        if self.orig == 'synthetic':
+            print('Cosmic rays removal not available for synthetic spectra.')
+            return None
 
         if method == 'zscore':
             # www.towardsdatascience.com/removing-spikes-from-raman-spectra-8a9fdda0ac22
@@ -1072,7 +1054,7 @@ class spec():
         return None
 
 
-    def plotspec(self, lwl=3800, rwl=8000, lines=None, ylim=None, path='sp_lines/'):
+    def plotspec(self, lwl=3800, rwl=8000, lines=None, ylim=None):
 
         '''
         Function to create a plot of a portion of the spectra and optionally overplot
@@ -1092,9 +1074,6 @@ class spec():
 
         ylim : tuple/list, optional
             Sets the y-limits for the plot. Input must be like "[ymin,ymax]".
-
-        path : str, optional
-            Path to where the spectral line files are located. Default inside sp_lines/.
 
         Returns
         -------
@@ -1122,13 +1101,13 @@ class spec():
                 print('Spectrum not corrected from RV, lines will have offset.')
 
             if  lines == 'ALL':
-                table = findtable('ALL_all.txt', delimiter=',', path=path)
+                table = findtable('ALL_all.txt', delimiter=',', path=maindir+'lists/lines/atlas_lines/')
                 table = table[table['-lg(gf)'] > -1]
             elif lines == 'ALLOB':
-                table = findtable('ALL_OBs_n4+.txt', delimiter=',', path=path)
+                table = findtable('ALL_OBs_n4+.txt', delimiter=',', path=maindir+'lists/lines/atlas_lines/')
                 table = table[table['-lg(gf)'] > -1]
             elif lines in ['35-10K','35K','30K','25K','20K','15K','10K']:
-                table = findtable('%s.fits' % lines, path=path)
+                table = findtable('%s.fits' % lines, path=maindir+'lists/lines/atlas_lines/')
                 # www.lsw.uni-heidelberg.de/projects/hot-stars/websynspec.php
 
             table = table[(table['wl_air'] >= lwl) & (table['wl_air'] <= rwl)]
