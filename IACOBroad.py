@@ -60,7 +60,7 @@ def ib_input(table, folder, old_input=None, new_master=False, orig='IACOB'):
         
         id = row['ID'].strip()
         
-        star = spec(id, SNR='bestHF', orig=orig)
+        star = spec(id, snr='bestHF', orig=orig)
         
         star.get_spc()
         
@@ -218,7 +218,7 @@ def ib_results(table, folder, check_best=False, format='fits'):
 
         idldata = readsav(match[0])
 
-        if check_best == True and filename != spec(id_star,SNR='bestHF').filename:
+        if check_best == True and filename != spec(id_star, snr='bestHF').filename:
             print('\nWARNING: %s does not match with best spectrum available.'
             % filename)
 

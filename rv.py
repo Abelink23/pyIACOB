@@ -248,7 +248,7 @@ def RV0(lines, spectrum, orig='IACOB', ewcut=50, width=20, tol=150, func='g', ch
     return RV_0, e_RV_0
 
 
-def RV(lines, spectra, SNR=None, linesRV0=None, linecut=1, ewcut=25, width=None, tol=50,\
+def RV(lines, spectra, snr=None, linesRV0=None, linecut=1, ewcut=25, width=None, tol=50,\
        func='g', info=False, plot=False):
 
     '''
@@ -302,7 +302,7 @@ def RV(lines, spectra, SNR=None, linesRV0=None, linecut=1, ewcut=25, width=None,
 
 
     '''=============================== SPECTRA =============================='''
-    spectra = findstar(spectra=spectra, SNR=SNR)
+    spectra = findstar(spectra=spectra, snr=snr)
     lines,elements,_ = findlines(lines)
 
     fig, ax = plt.subplots()

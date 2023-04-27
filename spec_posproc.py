@@ -97,7 +97,7 @@ def gen_ascii(id, orig='IACOB', db_table=None, spt='auto', lwl=None, rwl=None, r
         else:
             print('Initial spectral type taken from Simbad query.')
 
-        star = spec(id, SNR='bestHF', orig=orig)
+        star = spec(id, snr='bestHF', orig=orig)
         spt = spc_code(star.SpC)[0]
 
     elif isinstance(spt, str):
@@ -114,7 +114,7 @@ def gen_ascii(id, orig='IACOB', db_table=None, spt='auto', lwl=None, rwl=None, r
     finish = 'n'
     while finish == 'n':
 
-        star = spec(id, SNR='bestHF', orig=orig, cut_edges=True)
+        star = spec(id, snr='bestHF', orig=orig, cut_edges=True)
 
         if show_plot == True:
             fig,axs = plt.subplots(3, 1, figsize=(14,8))
@@ -404,7 +404,7 @@ def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, cosmic_manual=Fals
 
         # Determines the RV with a default fitting function and width
         fun = 'g'; wid = 15
-        best_star = spec(row['ID'], SNR='bestHF', orig=orig)
+        best_star = spec(row['ID'], snr='bestHF', orig=orig)
         best_star.rv0, erv0 = RV0(rv_list, best_star.filename, orig=orig, ewcut=50, func=fun, width=wid, tol=150)
         best_star.waveflux(3950,6850, cut_edges=True) # Applies the rv0 correction
 
@@ -446,7 +446,7 @@ def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, cosmic_manual=Fals
                 next_rv0 = input("Type 'n' to repeat, hit return to continue with last chosen parameters. ")
 
         # For all available spectra withing a limit, create the final output ascii
-        goodspec = findstar(row['ID'], SNR=60)
+        goodspec = findstar(row['ID'], snr=60)
         if len(goodspec) > 10:
             goodspec = random.sample(goodspec, 10)
 

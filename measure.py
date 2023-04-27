@@ -162,7 +162,7 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
 
             if skip == 's': break
 
-            star = spec(id, SNR='bestHF', orig=orig)
+            star = spec(id, snr='bestHF', orig=orig)
 
             if star.orig != 'synthetic':
                 snr_b = star.snrcalc(zone='B')
@@ -392,10 +392,10 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='vrg_H', rv_to
         skip = input("%s (%s) - Hit return to continue, type 's' to skip: " % (id,spt))
 
         if binarity == True:
-            findSB(id.split('/')[-1].split('_')[0],SNR=20,degrade=40000,vspace=0)
+            findSB(id.split('/')[-1].split('_')[0],snr=20,degrade=40000,vspace=0)
             plt.figure()
 
-        star = spec(id, SNR='bestHF', orig=orig)
+        star = spec(id, snr='bestHF', orig=orig)
 
         snr_b = star.snrcalc(zone='B')
         snr_v = star.snrcalc(zone='V')
@@ -582,7 +582,7 @@ def auto_measure(lines, table='IACOB_new_N+M_ToDo.fits', output_table='new_RVEWF
 
         #if int(re.findall('[0-9]+',id)[2]) >= 175: continue
 
-        star = spec(id, SNR='bestHF', orig=orig)
+        star = spec(id, snr='bestHF', orig=orig)
 
         fig = plt.figure(figsize=(12,10))
         fig.suptitle(id, fontsize=9)

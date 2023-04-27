@@ -2,7 +2,7 @@ from rv import *
 
 import random
 
-def findSB(ID, SNR, zone='full', degrade=None, RV0lines='rv_Bs.lst', vspace=0.07, c=None):
+def findSB(ID, snr, zone='full', degrade=None, RV0lines='rv_Bs.lst', vspace=0.07, c=None):
 
     '''
     Function to plot all the available spectra from a star in order to visually
@@ -13,7 +13,7 @@ def findSB(ID, SNR, zone='full', degrade=None, RV0lines='rv_Bs.lst', vspace=0.07
     ID : str
         ID of the source to be analysed.
 
-    SNR : str/int
+    snr : str/int
         SNR criteria for selecting the input spectra. See db.findstar().
 
     zone : str, optional
@@ -36,7 +36,7 @@ def findSB(ID, SNR, zone='full', degrade=None, RV0lines='rv_Bs.lst', vspace=0.07
     Nothing, but the plot is created.
     '''
 
-    spectra = findstar(ID, SNR=SNR)
+    spectra = findstar(ID, snr=snr)
 
     n_max = 15 # Maximum number of spectra to be plotted if there are more than 15
 

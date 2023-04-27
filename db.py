@@ -87,7 +87,7 @@ def search(myfile, path):
     
         return f_dir[0]
 
-def findstar(spectra=None, SNR=None):
+def findstar(spectra=None, snr=None):
 
     '''
     Function to get the paths of the searched spectra allowing to limitate the
@@ -100,7 +100,7 @@ def findstar(spectra=None, SNR=None):
         separated by coma, a .txt/.lst file containing the (file)names, or '*'
         if you want to select all the fits files inside the working folder.
 
-    SNR : str/int, optional
+    snr : str/int, optional
         If 'best' as input, it finds only the best SNR spectrum for each star.
         If 'bestHF' same as 'best' but prioritizing spectra from HERMES/FEROS.
         If specified, it returns all the spectra above the chosen SNR.
@@ -167,18 +167,18 @@ def findstar(spectra=None, SNR=None):
         return None
 
     # Spectra selection based on selected SNR.
-    if any(['ascii' in spectrum for spectrum in list_spectra]) and SNR != None:
+    if any(['ascii' in spectrum for spectrum in list_spectra]) and snr != None:
         print('SNR for ascii files is not yet implemented, ignoring SNR keyword.')
 
     else:
-        if SNR == 'best':
-            dir_spectra = snr(dir_spectra)
+        if snr == 'best':
+            dir_spectra = spec_snr(dir_spectra)
 
-        elif SNR == 'bestHF':
-            dir_spectra = snr(dir_spectra, get_HF=True)
+        elif snr == 'bestHF':
+            dir_spectra = spec_snr(dir_spectra, get_HF=True)
 
-        elif type(SNR) == int:
-            dir_spectra = snr(dir_spectra, snrcut=SNR)
+        elif type(snr) == int:
+            dir_spectra = spec_snr(dir_spectra, snrcut=snr)
 
     # Order all spectra from a single target by date.
     if len(list_spectra) == 1:
@@ -483,7 +483,7 @@ def xmatch_table(table1, table2, match_col=None, output_cols=None,
     table.write(full_path, format=format, overwrite=True)
 
 
-def snr(spectra, snrcut=None, get_HF=None):
+def spec_snr(spectra, snrcut=None, get_HF=None):
 
     '''
     Function to provide the spectrum with best signal to noise ratio, or all the
@@ -626,9 +626,9 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
     '''
 
     if db == 'IACOB':
-        lst_sources_all = findstar(spectra=list, SNR=snrcut)
+        lst_sources_all = findstar(spectra=list, snr=snrcut)
         # For each source, the best available SNR is picked
-        lst_sources_f = snr(lst_sources_all, get_HF=True)
+        lst_sources_f = spec_snr(lst_sources_all, get_HF=True)
         type_list = 'names'
 
     elif db == 'Simbad':

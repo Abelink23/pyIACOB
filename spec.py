@@ -22,7 +22,7 @@ plt.rc('ytick', direction='in', right='on')
 
 
 class spec():
-    def __init__(self, spectrum, SNR=None, rv0=0, offset=0, cut_edges=False, orig='IACOB'):
+    def __init__(self, spectrum, snr=None, rv0=0, offset=0, cut_edges=False, orig='IACOB'):
 
         '''
         Parameters
@@ -33,7 +33,7 @@ class spec():
             separated by coma, a .txt/.lst file containing the filenames, or '*'
             if you want to select all the fits files inside the working folder.
 
-        SNR : str, optional
+        snr : str, optional
             If 'best' as input, it finds the best SNR spectrum for the given name.
             If 'bestHF' same as 'best' but prioritizing spectra from HERMES/FEROS.
 
@@ -69,7 +69,7 @@ class spec():
             self.orig = 'synthetic'
 
         if self.orig == 'IACOB':
-            self.fullpath = findstar(spectrum, SNR=SNR)
+            self.fullpath = findstar(spectrum, snr=snr)
         elif self.orig == 'ascii' or self.orig == 'synthetic':
             self.fullpath = search(spectrum, datadir+'ASCII'+os.sep)
             # So far the search funcion only returns the first match
@@ -134,10 +134,10 @@ class spec():
         Parameters
         ----------
         lwl : float, optional
-            Sets the start wavelenght of the spectrum.
+            Left wavelength limit of the spectra. Default is None (no change).
 
         rwl : float, optional
-            Sets the end wavelenght of the spectrum.
+            Right wavelength limit of the spectra. Default is None (no change).
 
         width : int, optional
             Sets the width in [AA] where the line fits well in. Default is 10.
@@ -202,17 +202,18 @@ class spec():
                 self.SpC = header0['I-SPC']
 
             # Make lists with wavelenght and flux for each spectrum
+            # Those with log or from FEROS are already corrected from heliocentric velocity
             wave = lam0 + dlam*(np.arange(spec_length) - pix0 + 1)
             if '_log' in self.fullpath:
                 wave = np.exp(wave)
             elif helcorr == 'hel' and not instrum == 'FEROS':
                 wave = wave*(1 + 1000*self.vbar/cte.c)
-            # Those with log or from FEROS are already corrected from heliocentric velocity
 
             # If width is bigger than the spectrum, set it to the spectrum length
             if width >= (wave[-1] - wave[0]):
                 width = wave[-1] - wave[0]
 
+            # Get the flux of the spectrum
             try:
                 flux = hdu[0].data[0]
             except:
@@ -908,13 +909,13 @@ class spec():
         Nothing, but the flux is replaced by the degraded one.
         '''
 
-        lambda0 = np.mean(self.wave)
+        lambda0 = np.nanmean(self.wave)
 
         if profile == 'g' and (vsini==None and vmac==None):
             sigma = lambda0/(2.35482*float(resol))
 
             x = np.arange(-10*sigma, 10*sigma+self.dlam, self.dlam)
-            gauss = f_gaussian(x,sigma)
+            gauss = f_gaussian(x, sigma)
             kernel = gauss/np.trapz(gauss)
             self.resolution = resol
 
@@ -923,9 +924,14 @@ class spec():
             rotmac = f_rotmac(x, lambda0, vsini, vmac)
             kernel = rotmac/np.trapz(rotmac)
 
-        convoluted = 1 + convolve(self.flux - 1, kernel, mode='same')
+        # Remove the nans from the flux
+        mask = np.where(np.isnan(self.flux) == False)[0]
 
-        self.flux = convoluted
+        # Convolve the flux with the kernel
+        convoluted = 1 + convolve(self.flux[mask] - 1, kernel, mode='same')
+
+        # Replace the flux by the convoluted one recovering the original flux with the nans
+        self.flux[mask] = convoluted
 
 
     def resamp(self, dlam, lwl=None, rwl=None, method='linear'):
@@ -955,10 +961,10 @@ class spec():
         Nothing, but the spectrum (wavelenght,flux) is resampled.
         '''
 
-        try:
-            float(dlam)
-        except:
-            print('Input should be float or integrer.'); return None
+        # Check that the input dlam is either a float or an integrer 
+        if not isinstance(dlam, float) and not isinstance(dlam, int):
+            print('ERROR: The input delta lambda is not a float or an integrer.')
+            return None
 
         self.dlam = dlam
 
@@ -971,6 +977,7 @@ class spec():
         if rwl is None or rwl > self.wave[-1]:
             rwl = self.wave[-1]
 
+        # Interpolate the spectrum to the new delta lambda / step size
         f = interp1d(self.wave, self.flux, kind=method, fill_value='extrapolate')
         self.wave = np.arange(lwl, rwl+self.dlam, self.dlam)
         self.flux = f(self.wave)
