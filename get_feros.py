@@ -7,10 +7,10 @@ from astroquery.eso import Eso
 # https://astroquery.readthedocs.io/en/latest/eso/eso.html
 
 eso = Eso()
-eso.login(input('Provide the username of your ESO account: '), store_password = True)
+eso.login(input('Provide the username of your ESO account: '), store_password=True)
 eso.ROW_LIMIT = -1
 
-def get_feros(fname,colname=None,radius=2,program=None,limit=9999):
+def get_feros(fname, colname=None, radius=2, program=None, limit=9999):
     '''
     Parameters
     ----------
@@ -31,7 +31,7 @@ def get_feros(fname,colname=None,radius=2,program=None,limit=9999):
     Returns: None (but it downloads the fits files).
     '''
 
-    file = search(fname,maindir)
+    file = search(fname, maindir)
 
     if fname.endswith('.lst') or fname.endswith('.txt'):
         sources = findlist(fname)
@@ -60,7 +60,7 @@ def get_feros(fname,colname=None,radius=2,program=None,limit=9999):
         
         print('\nSearching data for %s...\n' % name)
 
-        query = eso.query_surveys('FEROS',cache=False,target=name)
+        query = eso.query_surveys('FEROS', cache=False, target=name)
         if query is None:
             db.write(name+', 0, 0, Query returned no results.\n')
             continue
@@ -83,7 +83,7 @@ def get_feros(fname,colname=None,radius=2,program=None,limit=9999):
                     datasets.append(entry['ARCFILE'])
 
                 else:
-                    coords_F = SkyCoord(entry['RA'],entry['DEC'],unit=(u.deg,u.deg),frame='icrs')
+                    coords_F = SkyCoord(entry['RA'], entry['DEC'], unit=(u.deg,u.deg), frame='icrs')
 
                     if coords_S.separation(coords_F).arcmin[0] < radius:
                         datasets.append(entry['ARCFILE'])
@@ -110,7 +110,7 @@ def get_feros(fname,colname=None,radius=2,program=None,limit=9999):
 
             try:
                 print('Files will be downloaded to %s' % datadir+'FEROS/raw/')
-                data_files = eso.retrieve_data(dataset_f,destination=datadir+'FEROS/raw/')
+                data_files = eso.retrieve_data(dataset_f, destination=datadir+'FEROS/raw/')
                 print(data_files)
             except:
                 db.write('ERROR: Dataset %s could not be retrieved.\n' %dataset_f)
