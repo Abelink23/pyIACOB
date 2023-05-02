@@ -522,3 +522,49 @@ def rv_corr(spectrum, observatory, correction):
                     obstime=Time(DATE_OBS),location=LOC).to('km/s')
 
     return rv_correction.value
+
+
+def get_programs_feros(input_list, feros_dir='default'):
+    """
+    
+    This function returns a list of the programs of the input files.
+    
+    Parameters
+    ----------
+    input_list : list, str
+        List of filenames or '.txt/.lst' file with the list of them that 
+        will be searched in the data directory defined in feros_dir.
+    
+    feros_dir : str, optional
+        Path to the FEROS data directory. 
+        Default will search in 'datadir' as defined in the paths.txt
+    
+    Returns
+    -------
+    List of programs of the input files.
+    """
+
+    if type(input_list) == str:
+        input_list = findlist(input_list)
+    elif type(input_list) == list:
+        pass
+
+    if feros_dir == 'default':
+        feros_dir = datadir
+
+    programs = []
+    for filename in input_list:
+        filepath = findstar(filename)
+        
+        if filepath != 'None':
+            
+            header = fits.getheader(filepath[0])
+            
+            if 'HIERARCH ESO OBS PROG ID' in header:
+                program = header['HIERARCH ESO OBS PROG ID']
+                programs.append(program)
+            else:
+                print('Program ID not found in header of file ' + filename)
+
+    programs = list(set(programs))
+    return programs
