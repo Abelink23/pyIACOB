@@ -141,7 +141,7 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
     for source in table:
         if quit == 'q': break
 
-        if 'Ref_file' in source.col_line_names:
+        if 'Ref_file' in source.colnames:
             id = source['Ref_file']
             if source['Ref_file'] in [i.strip() for i in output['Ref_file']]:
                 continue
@@ -150,7 +150,7 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
             if source['ID'] in [i.strip() for i in output['ID']]:
                 continue
 
-        if 'SpC' in source.col_line_names:
+        if 'SpC' in source.colnames:
             spt  = source['SpC']
         else:
             spt = ''
@@ -374,7 +374,7 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='vrg_H', rv_to
     for source in table:
         if quit == 'q': break
 
-        if 'Ref_file' in source.col_line_names:
+        if 'Ref_file' in source.colnames:
             id = source['Ref_file']
             if source['Ref_file'] in [i.strip() for i in output['Ref_file']]:
                 continue
@@ -384,7 +384,7 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='vrg_H', rv_to
             if source['ID'] in [i.strip() for i in output['ID']]:
                 continue
 
-        if 'SpC' in source.col_line_names:
+        if 'SpC' in source.colnames:
             spt  = source['SpC']
         else:
             spt = ''
