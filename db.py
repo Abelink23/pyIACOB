@@ -315,7 +315,7 @@ def findlist(list):
     return items
 
 
-def findtable(table, path=None, format=None, delimiter=' ', header_start=None,
+def findtable(table, path=None, format=None, delimiter=',', header_start=None,
     fits_strip_end=True, fix_missing=False, quicklook=False):
 
     '''
@@ -336,7 +336,7 @@ def findtable(table, path=None, format=None, delimiter=' ', header_start=None,
         Default is None.
 
     delimiter : str, optional
-        The string used to separate values. Default is a whitespace.
+        The string used to separate values. Default is a comma ','.
 
     header_start : int, optional
         Index of the row which contains the header. Default is None.
