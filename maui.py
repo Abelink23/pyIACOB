@@ -715,58 +715,68 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
                     mask = (star.obswave > line_lwl) & (star.obswave < line_rwl)
                     ax_i.plot(star.obswave[mask], star.obsflux[mask], color='k', lw=.7)
                     if ax_i.get_ylim()[0] > 0.9:
-                        ax_i.set_ylim(bottom=0.895)
+                        ax_i.set_ylim(bottom=0.9)
 
                     if FR == False:
+                        # Define the regions to be blocked. 
+                        # If only a region within the window is used, then the rest of the window is blocked.
+                        # In this case, I add -0.1 and +0.1 to the window limits defined in '*_lines_for_chi2_*'
+                        # Otherwise I specify the exact region to be blocked within the window.
                         blocked = [None if (
-                            (i >= 6521. and i <= 6532.) or # Halpha, exclude CII lines in the red wing
-                            (i > 6575.75 and i < 6585.29) or # Halpha
-                            (i > 4344.42 and i < 4355.83) or # Hgamma, exclude OII lines in the red wing
+                            (i >= 6521.00 and i <= 6532.00) or # Halpha, exclude CII lines in the red wing
+                            (i >  6575.75 and i <  6585.29) or # Halpha
+                            (i >  4344.42 and i <  4355.83) or # Hgamma, exclude OII lines in the red wing
                             (i >= 4083.20 and i <= 4085.50) or # Hdelta, exclude metal lines
                             (i >  4086.29 and i <  4090.53) or
                             (i >  4092.27 and i <  4093.99) or
-                            (i >= 4096.5  and i <= 4098.) or
+                            (i >= 4096.50 and i <= 4098.00) or
                             (i >= 3953.09 and i <= 3955.05) or # Hepsil, exclude metal lines
                             (i >  3960.70 and i <  3962.24) or
                             (i >  3963.38 and i <  3965.76) or
                             (i >= 3967.00 and i <= 3968.50) or
                             (i >= 3972.53 and i <= 3974.10) or
-                            (i >= 4923.5 and i <= 4926.0) or # HeI 4922
-                            (i >= 5017.5 and i <= 5019.5) or # HeI 5015
-                            (i >= 4544.0 and i <= 4546.0) or # HeII 4541, exclude AlIII lines
-                            (i >  4478.87 and i <  4480.20) or # MgII, exclude the AlIII blend
+                            (i >= 4923.50 and i <= 4926.00) or # HeI 4922
+                            (i >= 5017.50 and i <= 5019.50) or # HeI 5015
+                            (i >= 4544.00 and i <= 4546.00) or # HeII 4541, exclude AlIII lines
+                            (i >  4478.87 and i <  4480.20) or # MgII 4481, exclude the AlIII blend
                             (i >= 4128.71 and i <= 4130.10) or # SiIII 4130
                             (i >= 4131.40 and i <= 4134.08) or
-                            (i >= 4547.60 and i <= 4550.99) or # SiIII 4552
-                            (i >= 4554.20 and i <= 4558.96) or
-                            (i >= 4563.08 and i <= 4565.97) or # SiIII 4567
-                            (i >= 4569.925 and i <= 4571.35) or
-                            (i >= 4571.30 and i <= 4573.01) or # SiIII 4575
-                            (i >= 4575.78 and i <= 4579.32) or
+                            (i >= 4547.60 and i <= 4550.20) or # SiIII 4552
+                            (i >= 4555.00 and i <= 4558.96) or
+                            (i >= 4563.08 and i <= 4565.00) or # SiIII 4567
+                            (i >= 4571.00 and i <= 4571.35) or
+                            (i >= 4571.30 and i <= 4572.50) or # SiIII 4575
+                            (i >= 4576.00 and i <= 4579.32) or
                             (i >= 4114.71 and i <= 4114.81) or # SiIV 4116
                             (i >= 4117.7 and i <= 4125.10)
                             ) else np.asarray(ax_i.get_ylim()).mean() for i in star.obswave[mask]]
 
                     elif FR == True:
                         blocked = [None if (
-                            (i >= 6521. and i <= 6532.) or # Halpha, exclude CII lines in the red wing
-                            (i > 6575.75 and i < 6585.29) or # Halpha
-                            (i > 4344.42 and i < 4355.83) or # Hgamma, exclude OII lines in the red wing
-                            (i >= 4083.20 and i <= 4090.53) or # Hdelta, exclude metal lines
+                            (i >= 6521.00 and i <= 6532.00) or # Halpha, exclude CII lines in the red wing
+                            (i >  6575.75 and i <  6585.29) or # Halpha
+                            (i >  4344.42 and i <  4355.83) or # Hgamma, exclude OII lines in the red wing
+                            (i >= 4083.20 and i <= 4085.50) or # Hdelta, exclude metal lines
+                            (i >  4086.29 and i <  4090.53) or
                             (i >  4092.27 and i <  4093.99) or
-                            (i >= 4096.5  and i <= 4098.) or
+                            (i >= 4096.50 and i <= 4098.00) or
                             (i >= 3953.09 and i <= 3955.05) or # Hepsil, exclude metal lines
                             (i >  3960.70 and i <  3962.24) or
                             (i >  3963.38 and i <  3965.76) or
                             (i >= 3967.00 and i <= 3968.50) or
                             (i >= 3972.53 and i <= 3974.10) or
-                            (i >= 4923.5 and i <= 4926.0) or # HeI 4922
-                            (i >= 5017.5 and i <= 5019.5) or # HeI 5015
-                            (i >= 4544.0 and i <= 4546.0) or # HeII 4541, exclude AlIII lines
+                            (i >= 4923.50 and i <= 4926.00) or # HeI 4922
+                            (i >= 5017.50 and i <= 5019.50) or # HeI 5015
+                            (i >= 4544.00 and i <= 4546.00) or # HeII 4541, exclude AlIII lines
+                            (i >  4478.87 and i <  4480.20) or # MgII 4481, exclude the AlIII blend
                             (i >= 4128.71 and i <= 4130.10) or # SiIII 4130
                             (i >= 4131.40 and i <= 4134.08) or
+                            (i >= 4547.40 and i <= 4549.00) or # SiIII 4552
+                            (i >= 4556.00 and i <= 4558.90) or
+                            (i >= 4561.90 and i <= 4564.00) or # SiIII 4567 + 4575
+                            (i >= 4576.00 and i <= 4581.40) or
                             (i >= 4110.90 and i <= 4111.00) or # SiIV 4116
-                            (i >= 4117.7 and i <= 4126.10)
+                            (i >= 4117.70 and i <= 4126.10)
                             ) else np.asarray(ax_i.get_ylim()).mean() for i in star.obswave[mask]]
 
                     # This is a visual trick to put the synthetic spectra where the normalization
@@ -778,7 +788,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
 
                     ax_i.plot(star.obswave[mask], star.synconv_scaled, color=c, ls='--', lw=1)
 
-                    ax_i.plot(star.obswave[mask], blocked, c='cyan', lw=.5, alpha=0.5)
+                    ax_i.plot(star.obswave[mask], blocked, c='dodgerblue', lw=.5, alpha=0.5)
 
                     ax_i.set_title(line_name)
                     ax_i.tick_params(direction='in', top='on', right='on')
