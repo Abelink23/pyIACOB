@@ -368,10 +368,8 @@ def findtable(table, path=None, format=None, delimiter=',', header_start=None,
         format = 'csv'
 
     if '.fits' in table:
-        #try:
-        #    with fits.open(table_dir,mode='readonly') as hdu_list:
-        #        data = hdu_list[1].data
-        #except: data = Table.read(table_dir,format='fits')
+        #with fits.open(table_dir, mode='readonly') as hdu_list:
+        #   data = Table.read(hdu_list[1].data, format='fits')
 
         data = Table.read(table_dir, format='fits')
         if fits_strip_end == True:
