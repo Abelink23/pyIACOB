@@ -427,7 +427,7 @@ class solution_maui():
                 delta = -delta
 
             # Use 60% of the range to be considered as a degenerated case
-            if abs(hpd_up-hpd_dw) > abs(max(chain)-min(chain))*0.6:
+            if abs(hpd_up-hpd_dw) > abs(max(chain)-min(chain))*0.70:
                 label, err_dw, err_up = 'd', hpd_dw, hpd_up
 
             elif round(hpd_dw*(1-delta), 3) < min(chain):
@@ -715,7 +715,9 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
                     mask = (star.obswave > line_lwl) & (star.obswave < line_rwl)
                     ax_i.plot(star.obswave[mask], star.obsflux[mask], color='k', lw=.7)
                     if ax_i.get_ylim()[0] > 0.9:
-                        ax_i.set_ylim(bottom=0.9)
+                        ax_i.set_ylim(bottom=0.901)
+                    if ax_i.get_ylim()[1] < 1.1:
+                        ax_i.set_ylim(top=1.099)
 
                     if FR == False:
                         # Define the regions to be blocked. 
@@ -747,8 +749,8 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
                             (i >= 4571.00 and i <= 4571.35) or
                             (i >= 4571.30 and i <= 4572.50) or # SiIII 4575
                             (i >= 4576.00 and i <= 4579.32) or
-                            (i >= 4114.71 and i <= 4114.81) or # SiIV 4116
-                            (i >= 4117.7 and i <= 4125.10)
+                            (i >= 4112.41 and i <= 4113.50) or # SiIV 4116
+                            (i >= 4117.70 and i <= 4125.10)
                             ) else np.asarray(ax_i.get_ylim()).mean() for i in star.obswave[mask]]
 
                     elif FR == True:
@@ -775,7 +777,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
                             (i >= 4556.00 and i <= 4558.90) or
                             (i >= 4561.90 and i <= 4564.00) or # SiIII 4567 + 4575
                             (i >= 4576.00 and i <= 4581.40) or
-                            (i >= 4110.90 and i <= 4111.00) or # SiIV 4116
+                            (i >= 4112.41 and i <= 4113.00) or # SiIV 4116
                             (i >= 4117.70 and i <= 4126.10)
                             ) else np.asarray(ax_i.get_ylim()).mean() for i in star.obswave[mask]]
 
