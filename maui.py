@@ -461,7 +461,7 @@ class solution_maui():
         self.line_windows = line_windows
 
 
-def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=False,
+def maui_results(input_list, output_dir, check_best=False, last_only=False, solution='smooth', FR=False,
     do_pdf=False, pdflines='diag', grid_only=[], output_table=True, format_table='fits'):
 
     '''
@@ -484,6 +484,10 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
 
     last_only : boolean, optional
         True if only the last analysed .idl results want to be kept.
+
+    solution : str, optional
+        Choose between 'max'/'smooth' to select either the maximum of the probability distribution, 
+        or the maximum of a smoothed distribution, for the solution provided in the output table.
 
     FR : boolean, optional
         True if the analyses correspond to Fast Rotator stars for which whe MAUI windows
@@ -604,7 +608,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
 
             # Load the idl class for the file
             try:
-                star = solution_maui(match, mcmcfile)
+                star = solution_maui(match, mcmcfile, solution=solution)
             except:
                 print('ERROR: Problem loading maui output files: %s, skipping...' % match)
                 continue
