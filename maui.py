@@ -717,12 +717,6 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                     #ax_i.plot(star.synwave[mask], star.synflux[mask], color='gray', lw=.3)
 
                     mask = (star.obswave > line_lwl) & (star.obswave < line_rwl)
-                    ax_i.plot(star.obswave[mask], star.obsflux[mask], color='k', lw=.7)
-                    if ax_i.get_ylim()[0] > 0.9:
-                        ax_i.set_ylim(bottom=0.901)
-
-                    if ax_i.get_ylim()[1] < 1.1:
-                        ax_i.set_ylim(top=1.099)
 
                     if FR == False:
                         # Define the regions to be blocked. 
@@ -785,6 +779,10 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                             (i >= 4112.41 and i <= 4113.00) or # SiIV 4116
                             (i >= 4117.70 and i <= 4126.10)
                             ) else np.asarray(ax_i.get_ylim()).mean() for i in star.obswave[mask]]
+
+                    ax_i.plot(star.obswave[mask], star.obsflux[mask], color='k', lw=.7)
+                    if ax_i.get_ylim()[0] > 0.9:
+                        ax_i.set_ylim(bottom=0.901)
 
                     # This is a visual trick to put the synthetic spectra where the normalization
                     # feature is putting it as it is not stored but is the way to see its effect
