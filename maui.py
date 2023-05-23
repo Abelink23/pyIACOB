@@ -613,7 +613,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, FR=F
             if grid_only != [] and not star.gridname in grid_only: continue
 
             # Find the best SNR spectra in the DB
-            if check_best == True or do_pdf == True:
+            if check_best == True:
                 best_SNR = spec(star.id_star, snr='bestHF')
 
             # Check if the input file matches with the best SNR spectra available
