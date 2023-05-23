@@ -721,6 +721,9 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                     if ax_i.get_ylim()[0] > 0.9:
                         ax_i.set_ylim(bottom=0.901)
 
+                    if ax_i.get_ylim()[1] < 1.1:
+                        ax_i.set_ylim(top=1.099)
+
                     if FR == False:
                         # Define the regions to be blocked. 
                         # If only a region within the window is used, then the rest of the window is blocked.
