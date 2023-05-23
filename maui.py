@@ -718,15 +718,13 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
                     mask = (star.obswave > line_lwl) & (star.obswave < line_rwl)
                     ax_i.plot(star.obswave[mask], star.obsflux[mask], color='k', lw=.7)
-                    if ax_i.get_ylim()[0] > 0.9:
-                        ax_i.set_ylim(bottom=0.9)
 
                     if FR == False:
-                        # Define the regions to be blocked. 
-                        # If only a region within the window is used, then the rest of the window is blocked.
+                        # Define the regions used for the weight (weight=1). 
+                        # If only a region within the window is used, then the rest of the window has weight 0.
                         # In this case, I add -0.1 and +0.1 to the window limits defined in '*_lines_for_chi2_*'
-                        # Otherwise I specify the exact region to be blocked within the window.
-                        blocked = [None if (
+                        # Otherwise I specify the exact region with weight 1 within the window.
+                        weight = [0 if (
                             (i >= 6521.00 and i <= 6532.00) or # Halpha, exclude CII lines in the red wing
                             (i >  6575.75 and i <  6585.29) or # Halpha
                             (i >  4344.42 and i <  4355.83) or # Hgamma, exclude OII lines in the red wing
@@ -753,10 +751,10 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                             (i >= 4576.00 and i <= 4579.32) or
                             (i >= 4112.41 and i <= 4113.50) or # SiIV 4116
                             (i >= 4117.70 and i <= 4125.10)
-                            ) else np.asarray(ax_i.get_ylim()).mean() for i in star.obswave[mask]]
+                            ) else 1 for i in star.obswave[mask]]
 
                     elif FR == True:
-                        blocked = [None if (
+                        weight = [0 if (
                             (i >= 6521.00 and i <= 6532.00) or # Halpha, exclude CII lines in the red wing
                             (i >  6575.75 and i <  6585.29) or # Halpha
                             (i >  4344.42 and i <  4355.83) or # Hgamma, exclude OII lines in the red wing
@@ -781,18 +779,25 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                             (i >= 4576.00 and i <= 4581.40) or
                             (i >= 4112.41 and i <= 4113.00) or # SiIV 4116
                             (i >= 4117.70 and i <= 4126.10)
-                            ) else np.asarray(ax_i.get_ylim()).mean() for i in star.obswave[mask]]
+                            ) else 1 for i in star.obswave[mask]]
 
                     # This is a visual trick to put the synthetic spectra where the normalization
                     # feature is putting it as it is not stored but is the way to see its effect
-                    weight = [0 if i is None else 1 for i in blocked]
                     scale = np.sum(star.obsflux[mask]*star.synconv[mask]*weight)\
                                 /np.sum(star.synconv[mask]*star.synconv[mask]*weight)
                     star.synconv_scaled = scale * star.synconv[mask]
 
                     ax_i.plot(star.obswave[mask], star.synconv_scaled, color=c, ls='--', lw=1)
 
-                    ax_i.plot(star.obswave[mask], blocked, c='dodgerblue', lw=.5, alpha=0.5)
+                    if ax_i.get_ylim()[0] > 0.875:
+                        ax_i.set_ylim(bottom=0.875)
+                    if ax_i.get_ylim()[1] < 1.025:
+                        ax_i.set_ylim(top=1.025)
+
+                    # Plot the region with weight = 1
+                    ymean = np.asarray(ax_i.get_ylim()).mean()
+                    weight = [None if i==0 else ymean for i in weight]
+                    ax_i.plot(star.obswave[mask], weight, c='dodgerblue', lw=.5, alpha=0.5)
 
                     ax_i.set_title(line_name)
                     ax_i.tick_params(direction='in', top='on', right='on')
