@@ -856,7 +856,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                     ylim = axs[j].get_ylim()[1]
  
                     # plot the values of sol_max and the hdp intervals
-                    axs[j].plot([getattr(star, parameters[j])]*2, [0,ylim], '--', c='r', label='sol_max + HDP')
+                    axs[j].plot([getattr(star, parameters[j])]*2, [0,ylim], '--', c='r', label='sol_%s + HDP' % solution)
                     
                     if not 'd' in getattr(star, 'l_'+parameters[j]):
                         axs[j].plot([getattr(star, parameters[j])-getattr(star, parameters[j]+'_eDW')]*2, [0,ylim*.8], ':', lw=2, c='r')
