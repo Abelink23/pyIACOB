@@ -14,8 +14,8 @@ from astropy.io import fits, ascii
 from astropy.table import Table, join, setdiff, vstack, hstack
 from astropy.coordinates import SkyCoord
 
-# Vizier - Only used to query in Gaia
-from astroquery.vizier import Vizier 
+# Vizier:
+from astroquery.vizier import Vizier # Only used to query in Gaia
 
 # Simbad
 from astroquery.simbad import Simbad
