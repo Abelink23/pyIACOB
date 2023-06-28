@@ -373,9 +373,8 @@ def findtable(table, path=None, format=None, delimiter=',', header_start=None,
 
         data = Table.read(table_dir, format='fits')
         if fits_strip_end == True:
-            tostrip = [i for i in data.colnames if data.dtype[i].type in [np.str_,np.bytes_]]
-            #tostrip = [data.colnames[i] for i in range(len(data.dtype)) if data.dtype[i].char == 'S'] # old kept just in case
-            for col in tostrip:
+            to_strip = [i for i in data.colnames if data.dtype[i].type in [np.str_,np.bytes_]]
+            for col in to_strip:
                  data[col] = [i.strip() if np.ma.is_masked(i) == False else i for i in data[col]]
 
     elif header_start != None:
@@ -395,7 +394,7 @@ def findtable(table, path=None, format=None, delimiter=',', header_start=None,
 
     if quicklook == True:
         data.show_in_browser(jsviewer=True)
-        
+
     return data
 
 
