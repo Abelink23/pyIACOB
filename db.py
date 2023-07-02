@@ -358,6 +358,12 @@ def findtable(table, path=None, format=None, delimiter=',', header_start=None,
     if path == None:
         path = maindir + 'tables'
 
+    else:
+        if os.name == 'nt':
+            path = path.replace('/', '\\')
+        elif os.name == 'posix':
+            path = path.replace('\\', '/')
+
     table_dir = search(table, path)
 
     if table_dir == None:
