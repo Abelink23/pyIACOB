@@ -810,12 +810,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                 pdf_solution.savefig(fig); plt.close(fig)
 
                 # PLOT OF PROBABILLITY DISTRIBUTIONS OUT OF THE IDL MARKOV-CHAIN FILES
-                mcmc_file = match.split('emulated_solution_')[1]
-                try:
-                    mcmcdata = readsav(output_dir + 'MARKOV_CHAIN/' + mcmc_file)
-                except:
-                    print('%s associated mcmc file not found in MARKOV_CHAIN/ folder' % star.id_star)
-                    continue
+                mcmcdata = readsav(mcmcfile)
 
                 parameters = [var.decode() for var in mcmcdata.varname]
 
