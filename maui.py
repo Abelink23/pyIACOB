@@ -809,7 +809,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
                 pdf_solution.savefig(fig); plt.close(fig)
 
-                # PLOT OF PROBABILLITY DISTRIBUTIONS OUT OF THE IDL MARKOV-CHAIN FILES
+                # Plot of probabillity distributions out of the idl markov-chain files
                 mcmcdata = readsav(mcmcfile)
 
                 parameters = [var.decode() for var in mcmcdata.varname]
@@ -841,7 +841,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                     iqr = np.quantile(chain, q=[.25, .75])
                     fd_bin = 2*np.diff(iqr)/(len(chain)**(0.3))
                     
-                    # change the original fd_bin value to the nearest one to fit within the range of the data evenly
+                    # Change the original fd_bin value to the nearest one to fit within the range of the data evenly
                     fd_bin = (max(chain) - min(chain))/np.round((max(chain) - min(chain))/fd_bin[0])
 
                     weights = np.ones_like(chain)/float(len(chain))
