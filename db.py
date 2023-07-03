@@ -369,11 +369,7 @@ def findtable(table, path=None, format=None, delimiter=',', header_start=None,
     if table_dir == None:
         return None
 
-    if 'csv' in table.split('.') or format == 'csv':
-        delimiter = ','
-        format = 'csv'
-
-    if '.fits' in table:
+    if '.fits' in table or format == 'fits':
         #with fits.open(table_dir, mode='readonly') as hdu_list:
         #   data = Table.read(hdu_list[1].data, format='fits')
 
@@ -384,12 +380,10 @@ def findtable(table, path=None, format=None, delimiter=',', header_start=None,
                  data[col] = [i.strip() if np.ma.is_masked(i) == False else i for i in data[col]]
 
     elif header_start != None:
-        data = ascii.read(table_dir, header_start=header_start, format=format, delimiter=delimiter)
+        data = ascii.read(table_dir, header_start=header_start, format=format, delimiter=delimiter, guess=False)
 
     else:
-        data = ascii.read(table_dir, format=format, delimiter=delimiter)
-        #    data = Table.read(table_dir, format='ascii', delimiter=delimiter, fill_values=None)
-        # header_start is not included as a keyword as it slows down the process when is None
+        data = ascii.read(table_dir, format=format, delimiter=delimiter, guess=False)
 
     if fix_missing == True:
         for j in [i for i in data.colnames if data.dtype[i].type in [np.str_,np.bytes_]]:
