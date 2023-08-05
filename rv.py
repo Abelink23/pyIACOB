@@ -68,7 +68,7 @@ def RV_cc(id_star, windows=[(3950,4160),(4310,4360),(4370,4490),(4540,4690),(484
     ax.figure.subplots_adjust(top=.9,bottom=.1,right=.95,left=.15)
 
     completeName = os.path.join(maindir+'tmp_plots/','RVCC_%s.eps' % id_star)
-    fig.savefig(completeName,dpi=300)
+    fig.savefig(completeName, dpi=200)
 
     plt.show(block=False)
 
@@ -276,6 +276,11 @@ def RV(lines, spectra, snr=None, linesRV0=None, linecut=1, ewcut=25, width=None,
     -------
     Nothing, but output text files are created with the individual and global results.
     Terminal output is also prompted.
+    
+    Notes
+    -----
+    The tolerance of the initial RV0 calculation is set to 3 times the tolerance
+    of the individual line fitting.
     '''
 
 
@@ -323,14 +328,14 @@ def RV(lines, spectra, snr=None, linesRV0=None, linecut=1, ewcut=25, width=None,
     std_RVs_all = []
     num_lines = []
     for spectrum in spectra:
-
+        spectrum = spectrum.split('/')[-1]
         print('\n##########################################################')
-        print('Analyzing spectrum: ' + spectrum.split('/')[-1])
+        print('Analyzing spectrum: ' + spectrum)
 
         if linesRV0 == None:
             RV_0 = 0
         else:
-            RV_0, eRV_0 = RV0(linesRV0, spectrum, ewcut=ewcut, width=width, func=func)
+            RV_0, eRV_0 = RV0(linesRV0, spectrum, ewcut=ewcut, width=width, func=func, tol=3*tol)
 
         spectrum = spec(spectrum, rv0=RV_0)
 
@@ -354,7 +359,7 @@ def RV(lines, spectra, snr=None, linesRV0=None, linecut=1, ewcut=25, width=None,
             else:
                 RV_i = fit['RV_kms'] + RV_0
                 RVs.append(RV_i)
-                out_f2.write('%.3f, %.3f, %d, %d, %.2f, %.3f\n' %
+                out_f2.write('%.3f, %.3f, %.2f, %d, %.2f, %.3f\n' %
                     (line,fit['line'],RV_i,fit['EW'],fit['FWHM'],fit['q_fit']))
 
         if RVs == []:
@@ -431,7 +436,7 @@ def RV(lines, spectra, snr=None, linesRV0=None, linecut=1, ewcut=25, width=None,
     ax.tick_params(direction='in',top='on')
     fig.subplots_adjust(top=.9,bottom=.1,right=.95,left=.15)
 
-    completeName = os.path.join(maindir+'tmp_plots/','%s.eps' % ('RV_'+spectrum.id_star))
-    fig.savefig(completeName,dpi=300)
+    completeName = os.path.join(maindir+'tmp_plots/','%s.png' % ('RV_'+spectrum.id_star))
+    fig.savefig(completeName, dpi=200)
 
     plt.show(block=False)
