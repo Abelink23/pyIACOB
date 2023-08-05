@@ -189,7 +189,7 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
 
             plt.close('all')
 
-            star.rv0, eRV0 = RV0(rv_lines, star.filename, func=rv_func, ewcut=30, tol=rv_tol, orig=orig)
+            star.rv0, eRV0 = RV0(rv_lines, star.filename, orig=orig, ewcut=30, width=wid, tol=rv_tol, func=rv_func)
 
             star.waveflux(min(lines)-30, max(lines)+30) # PONER MIN MAX EN FUNCION DE LOS LIM DE LINES
             star.cosmic()
