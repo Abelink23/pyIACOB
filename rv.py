@@ -151,7 +151,7 @@ def RV0(lines, spectrum, orig='IACOB', ewcut=50, width=20, tol=150, func='g', ch
     Parameters
     ----------
     lines : str, list
-        Enter the wavelenght(s) of the line(s) to fit, either in a coma-separated
+        Enter the wavelength(s) of the line(s) to fit, either in a coma-separated
         string, or in a .txt/.lst file containing the lines.
 
     spectrum : str

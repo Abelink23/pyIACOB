@@ -197,7 +197,7 @@ def searchlines(line, tol=1):
     Parameters
     ----------
     line : float
-        Approximate wavelenght of the line to search
+        Approximate wavelength of the line to search
 
     tol : int/float, optional
         Tolerance in the search of the line
@@ -221,17 +221,17 @@ def findlines(list):
 
     '''
     Function to extract atomic lines from a list containing their information or
-    provide output format for a given wavelenght.
+    provide output format for a given wavelength.
 
     Parameters
     ----------
     list : str/float
         Enter the list of lines to fit in .txt/.lst, or coma-separated string
-        with wavelenghts, or single float/int wavelenght.
+        with wavelengths, or single float/int wavelength.
 
     Returns
     -------
-    List of wavelenghts, element names, and loggf.
+    List of wavelengths, element names, and loggf.
     '''
 
     path = maindir+'lists/lines'
@@ -561,7 +561,7 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
 
     '''
     Function to generate a FITS table with information about sources coming from
-    IACOB/FEROS database, a list of names or coordinates, allowing to limitate
+    IACOB/FEROS database, a list of names or coordinates, allowing to limit
     the results by B/V magnitudes, SpT, LC, distance, and also providing Gaia data.
 
     Parameters
@@ -573,7 +573,8 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
         (If "db" is "IACOB", type '*' to select all the available FITS)
 
     db : str
-        Enter the input database: IACOB/Simbad
+        Enter the input database: IACOB/Simbad. If list contains coordinates,
+        Simbad option must be used.
 
     coords : str, optional
         Enter 'header' to take the coordinates from header. Otherwise it
@@ -586,7 +587,7 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
 
     lim_lb : list, optional
         Enter the galactic l(min,max), b(min,max) coordinates in degrees if you want to
-        filter the sources which lie outside the input boudaries. e.g. [100,150,-15,15]
+        filter the sources which lie outside the input boundaries. e.g. [100,150,-15,15]
 
     spt : str, optional
         Enter a desired spectral types to search, separated by coma e.g. 'O,B1'.

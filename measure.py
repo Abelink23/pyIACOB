@@ -15,21 +15,21 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
     Parameters
     ----------
     lines : str, list
-        Enter the wavelenght(s) of the line(s) to fit, either in a coma-separated
+        Enter the wavelength(s) of the line(s) to fit, either in a coma-separated
         string, or in a .txt/.lst file containing the lines.
 
     table : str
-        Name of the input table contaning the list of stars to analyze.
+        Name of the input table containing the list of stars to analyze.
 
     output_table : str
-        Name of the output (new) table contaning the results.
+        Name of the output (new) table containing the results.
 
     col_line_names : str, optional
-        Use 'lambda' if the table has the wavelenghts from the list of lines.
+        Use 'lambda' if the table has the wavelengths from the list of lines.
         Use 'label' if the table has the line labels from the list of lines.
         
     rv_lines : str, list
-        Enter the wavelenght(s) of the line(s) to fit, either in a coma-separated
+        Enter the wavelength(s) of the line(s) to fit, either in a coma-separated
         string, or in a .txt/.lst file containing the lines.
 
     rv_func : str, optional
@@ -49,7 +49,7 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
     orig : str, optional
         If 'IACOB', it assumes that the spectrum comes from the IACOB database.
         If 'txt', it assumes that the spectrum comes from a two-columns file with
-        wavelenght and flux with no header in the file. 
+        wavelength and flux with no header in the file. 
         If 'syn', it assumes that the spectrum comes from a synthetic spectrum.
         Default is IACOB.
 
@@ -69,14 +69,14 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
     '''
 
     if col_line_names not in ['lambda','label']:
-        print('Bad input for "col_line_names" parameter. Exitting...')
+        print('Bad input for "col_line_names" parameter. Exiting...')
         return None
     elif col_line_names == 'lambda':
         line_names = [str(round(i,1)) for i in findlines(lines)[0]]
     elif col_line_names == 'label':
         line_names = findlines(lines)
         if len(line_names) == 1:
-            print('Lines file must include labels for the lines. Exitting...')
+            print('Lines file must include labels for the lines. Exiting...')
             return None
         else:
             line_names = line_names[1]
@@ -94,7 +94,7 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
             try:
                 redo = redo.split(',')
             except:
-                print('Bad input for "redo" parameter. Exitting...')
+                print('Bad input for "redo" parameter. Exiting...')
                 return None
 
             for id in redo:
@@ -309,7 +309,7 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='vrg_H', rv_to
         Name of the output (new) table contaning the results.
 
     rv_lines : str, list
-        Enter the wavelenght(s) of the line(s) to fit, either in a coma-separated
+        Enter the wavelength(s) of the line(s) to fit, either in a coma-separated
         string, or in a .txt/.lst file containing the lines.
 
     rv_func : str, optional
@@ -329,7 +329,7 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='vrg_H', rv_to
     orig : str, optional
         If 'IACOB', it assumes that the spectrum comes from the IACOB database.
         If 'txt', it assumes that the spectrum comes from a two-columns file with
-        wavelenght and flux with no header in the file. 
+        wavelength and flux with no header in the file. 
         If 'syn', it assumes that the spectrum comes from a synthetic spectrum.
         Default is IACOB.
 
@@ -352,7 +352,7 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='vrg_H', rv_to
             try:
                 redo = redo.split(',')
             except:
-                print('Bad input for "redo" parameter. Exitting...')
+                print('Bad input for "redo" parameter. Exiting...')
                 return None
 
             for id in redo:
@@ -514,7 +514,7 @@ def auto_measure(lines, table='IACOB_new_N+M_ToDo.fits', output_table='new_RVEWF
     Parameters
     ----------
     lines : str, list
-        Enter the wavelenght(s) of the line(s) to fit, either in a coma-separated
+        Enter the wavelength(s) of the line(s) to fit, either in a coma-separated
         string, or in a .txt/.lst file containing the lines.
 
     table : str
@@ -527,7 +527,7 @@ def auto_measure(lines, table='IACOB_new_N+M_ToDo.fits', output_table='new_RVEWF
         EW threshold value for a line to be considered as detected. Default is 10.
 
     txt : bolean, optional
-        If True, it assumes spectrum from a two-columns file with wavelenght and flux.
+        If True, it assumes spectrum from a two-columns file with wavelength and flux.
 
     Other parameters : optional
         See help for see spec and spec.fitline

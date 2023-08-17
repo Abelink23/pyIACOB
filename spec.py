@@ -50,14 +50,14 @@ class spec():
         orig : str, optional
             If 'IACOB', it assumes that the spectrum comes from the IACOB database.
             If 'txt', it assumes that the spectrum comes from a two-columns file with
-            wavelenght and flux with no header in the file. 
+            wavelength and flux with no header in the file. 
             If 'syn', it assumes that the spectrum comes from a synthetic spectrum.
             Default is IACOB.
         '''
 
         if type(spectrum) == list:
             if len(spectrum) > 1:
-                print('Problem in spec(): More than one spectrum selected.\nExitting...')
+                print('Problem in spec(): More than one spectrum selected.\nExiting...')
                 return None
             else: spectrum = spectrum[0]
 
@@ -72,15 +72,15 @@ class spec():
             self.fullpath = findstar(spectrum, snr=snr)
         elif self.orig == 'ascii' or self.orig == 'synthetic':
             self.fullpath = search(spectrum, datadir+'ASCII'+os.sep)
-            # So far the search funcion only returns the first match
+            # So far the search function only returns the first match
 
         if self.fullpath is None:
-            print('Problem in spec(): No spectrum found.\nExitting...')
+            print('Problem in spec(): No spectrum found.\nExiting...')
             return None
 
         if self.orig == 'IACOB':
             if len(self.fullpath) > 1:
-                print('Problem in spec(): More than one spectrum selected.\nExitting...')
+                print('Problem in spec(): More than one spectrum selected.\nExiting...')
                 return None
             else:
                 self.fullpath = self.fullpath[0]
@@ -127,7 +127,7 @@ class spec():
     def waveflux(self, lwl=None, rwl=None, width=0, helcorr='hel', cut_edges=False):
 
         '''
-        Function to load or update the wavelenght and flux vectors and optionally apply
+        Function to load or update the wavelength and flux vectors and optionally apply
         an offset or a radial velocity correction if they are different from 0 in the
         class. It also adds the HJD, dlam to the class.
 
@@ -166,7 +166,7 @@ class spec():
 
             instrum = header0['INSTRUME']   # Instrument
 
-            lam0 = header0['CRVAL1']        # Get the wavelenght of the first pixel
+            lam0 = header0['CRVAL1']        # Get the wavelength of the first pixel
             dlam = header0['CDELT1']        # Step of increase in wavelength
             pix0 = header0['CRPIX1']        # Reference pixel (generally 1, FEROS -49)
             spec_length = header0['NAXIS1'] # Length of the spectrum
@@ -201,7 +201,7 @@ class spec():
             if 'I-SPC' in header0:
                 self.SpC = header0['I-SPC']
 
-            # Make lists with wavelenght and flux for each spectrum
+            # Make lists with wavelength and flux for each spectrum
             # Those with log or from FEROS are already corrected from heliocentric velocity
             wave = lam0 + dlam*(np.arange(spec_length) - pix0 + 1)
             if '_log' in self.fullpath:
@@ -263,10 +263,10 @@ class spec():
             wave = wave[l_cut:r_cut]
             flux = flux[l_cut:r_cut]
 
-        # Cut the spectrum to the desired wavelenght range given by lwl and rwl
+        # Cut the spectrum to the desired wavelength range given by lwl and rwl
         if lwl != None and rwl != None:
             if wave[0] > lwl+dlam or wave[-1] < rwl-dlam:
-                print('WARNING: Wavelenght limits outside spectrum wavelenght range.')
+                print('WARNING: Wavelenght limits outside spectrum wavelength range.')
             flux = flux[(wave >= lwl-width/2.) & (wave <= rwl+width/2.)]
             wave = wave[(wave >= lwl-width/2.) & (wave <= rwl+width/2.)]
 
@@ -298,7 +298,7 @@ class spec():
         Parameters
         ----------
         line : float
-            Sets the central wavelenght of the line to search and fit.
+            Sets the central wavelength of the line to search and fit.
 
         width : int, optional
             Sets the width in [AA] where the line fits well in. Default is 15.
@@ -341,7 +341,7 @@ class spec():
         -----
         Emission lines are excluded, see "Filtering emission lines" section.
         Returns: Parameters from the fitted line and a last value containing data
-        with input wavelenght and flux, plus the flux normalized, the flux of the
+        with input wavelength and flux, plus the flux normalized, the flux of the
         fitted line, and the fitting parameters.
         '''
 
@@ -351,7 +351,7 @@ class spec():
         #============================== Parameters =============================
         # Catch line input containing more than one line
         if type(line) == str and (',' in line or ' ' in line.strip()):
-            print('Problem in spec(): More than one line selected.\nExitting...')
+            print('Problem in spec(): More than one line selected.\nExiting...')
             return fitsol
 
         line = float(line)
@@ -754,7 +754,7 @@ class spec():
             Tip: For noisy spectra, rise this value up to 7-9.
 
         wl_split : int/float, optional
-            In the 'kernel' method, wavelenght size used to split the spectrum before
+            In the 'kernel' method, wavelength size used to split the spectrum before
             applying the cosmic removal. Default is 100.
 
         ker_sig : float, optional
@@ -766,7 +766,7 @@ class spec():
 
         sig_g : float, optional
             Sigma of the gaussian function used to construct the kernel.
-            Default is the theoretical sigma based on wavelenght and resolution.
+            Default is the theoretical sigma based on wavelength and resolution.
 
         protect_em_lines : boolean, optional
             If True, some emission lines will be masked from cosmic rays removal.
@@ -937,7 +937,7 @@ class spec():
     def resamp(self, dlam, lwl=None, rwl=None, method='linear'):
 
         '''
-        Function to resample a spectrum into a fixed delta-lambda and wavelenght range.
+        Function to resample a spectrum into a fixed delta-lambda and wavelength range.
 
         Parameters
         ----------
@@ -945,12 +945,12 @@ class spec():
             New delta lambda to be used for the output spectra.
 
         lwl : float/int, optional
-            Enter the forced initial wavelenght to be used during interpolation.
-            If None, the original initial wavelenght will be used.
+            Enter the forced initial wavelength to be used during interpolation.
+            If None, the original initial wavelength will be used.
 
         rwl : float/int, optional
-            Enter the forced final wavelenght to be used during interpolation.
-            If None, the original final wavelenght will be used.
+            Enter the forced final wavelength to be used during interpolation.
+            If None, the original final wavelength will be used.
 
         method : str, optional
             Enter the interpolation method to be used. See doc for np.interp1d.
@@ -958,7 +958,7 @@ class spec():
 
         Returns
         -------
-        Nothing, but the spectrum (wavelenght,flux) is resampled.
+        Nothing, but the spectrum (wavelength,flux) is resampled.
         '''
 
         # Check that the input dlam is either a float or an integrer 
@@ -986,7 +986,7 @@ class spec():
     def export(self, tail='', extension='.ascii'):
 
         '''
-        Function to export the current wavelenght and flux of the spectrum in the class
+        Function to export the current wavelength and flux of the spectrum in the class
         into an ascii file.
 
         Parameters
@@ -1019,7 +1019,7 @@ class spec():
         Parameters
         ----------
         lines : float, str
-            Enter the wavelenght(s) of the line(s) to plot, either in a coma-separated
+            Enter the wavelength(s) of the line(s) to plot, either in a coma-separated
             string, or in a .txt/.lst file containing the lines.
 
         width : int, optional
@@ -1078,10 +1078,10 @@ class spec():
         Parameters
         ----------
         lwl : float, optional
-            Sets the start wavelenght of the spectrum.
+            Sets the start wavelength of the spectrum.
 
         rwl : float, optional
-            Sets the end wavelenght of the spectrum.
+            Sets the end wavelength of the spectrum.
 
         lines : str, optional
             Use to overplot position of spectral lines. Current options are:
