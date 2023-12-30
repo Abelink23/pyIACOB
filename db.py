@@ -21,7 +21,7 @@ from astroquery.vizier import Vizier
 from astroquery.simbad import Simbad
 Simbad.remove_votable_fields('coordinates')
 Simbad.add_votable_fields('ra','dec')
-Simbad.add_votable_fields('flux(B)','flux(V)','sptype')
+Simbad.add_votable_fields('flux(U)','flux(B)','flux(V)','sptype')
 
 # Gaia Query
 from astroquery.gaia import Gaia
@@ -785,11 +785,21 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
                 continue
 
         #=======================================================================
-        #========================= Limit by magnitude ==========================
+        #===================== Get the photometric magnitudes ==================
+        # U magnitude
+        umag_0 = simbad['FLUX_U'][0]
+        if str(umag_0) == '--':
+            umag_0 = np.nan
+
+        row['mag_U'] = round(umag_0, 2)
+        row['mag_U'].unit = u.mag
+
+        # B magnitude
         bmag_0 = simbad['FLUX_B'][0]
         if str(bmag_0) == '--':
             bmag_0 = np.nan
 
+        # Limit by B magnitude (if provided)
         if bmag != None and ~np.isnan(bmag_0):
             if bmag[0] == '<' and float(bmag[1:]) < bmag_0: continue
             elif bmag[0] == '>' and float(bmag[1:]) > bmag_0: continue
@@ -797,10 +807,12 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
         row['mag_B'] = round(bmag_0, 2)
         row['mag_B'].unit = u.mag
 
+        # V magnitude
         vmag_0 = simbad['FLUX_V'][0]
         if str(vmag_0) == '--':
             vmag_0 = np.nan
 
+        # Limit by V magnitude (if provided)
         if vmag != None and ~np.isnan(vmag_0):
             if vmag[0] == '<' and float(vmag[1:]) < vmag_0: continue
             elif vmag[0] == '>' and float(vmag[1:]) > vmag_0: continue
@@ -819,8 +831,10 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
 
             else:
                 row['SpC'] = SpC_0.replace(' ','')
-                try: row['SpC_ref'] = header['I-SPCREF']
-                except: row['SpC_ref'] = '???'
+                if 'I-SPCREF' in header and header['I-SPCREF'] is not None:
+                    row['SpC_ref'] = header['I-SPCREF']
+                else:
+                    row['SpC_ref'] = '???'
 
         else:
             row['SpC'] = SpC_0 = simbad['SP_TYPE'][0].replace(' ','')
@@ -994,6 +1008,7 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
         print('Table is empty, no sources were found.')
 
     # Some final formatting:
+    table['mag_U'] = table['mag_U'].astype('float32')
     table['mag_B'] = table['mag_B'].astype('float32')
     table['mag_V'] = table['mag_V'].astype('float32')
     table['SB'] = table['SB'].astype('<U8')
