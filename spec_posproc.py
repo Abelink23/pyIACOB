@@ -226,12 +226,12 @@ def gen_ascii(id, orig='IACOB', db_table=None, spt='auto', lwl=None, rwl=None, r
                     zs_cut = '-'
                     while type(zs_cut) is not float:
                         zs_cut = input('Choose a new zs_cut value: ')
-                        if zs_cut != '': zs_cut = float(zs_cut)
+                        if zs_cut != '': zs_cut = float(str(zs_cut).replace(',','.'))
                 elif change == 'dmin':
                     dmin = '-'
                     while type(dmin) is not float:
                         dmin = input('Choose a new dmin value: ')
-                        if dmin != '': dmin = float(dmin)
+                        if dmin != '': dmin = float(str(dmin).replace(',','.'))
 
                 tmp_star = deepcopy(star)
                 tmp_star.cosmic(method='zscore', dmin=dmin, zs_cut=zs_cut)
@@ -341,7 +341,11 @@ def gen_ascii(id, orig='IACOB', db_table=None, spt='auto', lwl=None, rwl=None, r
         star.wave = star.wave[mask]
         star.flux = star.flux[mask]
 
-    star.export(tail='_RV', extension='.ascii')
+    # Create the output ascii file:
+    if not os.path.exists(datadir+'ASCII/POSPROC_NEW/'):
+        os.makedirs(datadir+'ASCII/POSPROC_NEW/')
+
+    star.export(output_dir=datadir+'ASCII/POSPROC_NEW/', tail='_RV', extension='.ascii')
 
     return None
 
@@ -591,7 +595,7 @@ def remove_wave(path=maindir+'tmp/', only_list='to_correct.txt'):
                     plt.plot(data['col1'], data['col2'], lw=.5)
                     plt.plot([3950,6850], [2,2], c='k', lw=.5)
                     plt.show(block=False)
-                    inp = input('Wanna print data for %s it? [y/ ]: ' % file)
+                    inp = input('Do you want to print data for %s it? [y/ ]: ' % file)
                     if inp == 'y':
                         print(file,'>1.5',max(data['col2']))
                     plt.close()

@@ -254,8 +254,6 @@ def ib_results(table, folder, check_best=False, format='fits'):
         # No values above 130 km/s were found in Simon-Diaz (2017)
         # we prevent the parameter to take values too large.
     data_rows['vmac_GF'][data_rows['vmac_GF'] > 130] = 130 
-    #data_rows['vmac_GF_eUP'][data_rows['vmac_GF'] > 180] = np.nan
-    #data_rows['vmac_GF_eDW'][data_rows['vmac_GF'] > 180] = np.nan
     data_rows['SNR_IB'] = [int(round(row)) for row in data_rows['SNR_IB']]
 
     # Saving the results:

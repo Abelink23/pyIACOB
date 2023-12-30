@@ -401,7 +401,7 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='vrg_H', rv_to
         snr_r = star.snrcalc(zone='R')
 
         star.rv0, eRV0 = RV0(rv_lines, star.filename, func=rv_func, ewcut=30, tol=rv_tol, orig=orig)
- 
+
         next = 'n'
         while next == 'n':
 
@@ -710,5 +710,3 @@ def even_plot(n):
     nrows, ncols = int(np.ceil(np.sqrt(n))), round(n/np.ceil(np.sqrt(n))+0.4)
 
     return nrows,ncols
-
-

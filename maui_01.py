@@ -147,8 +147,216 @@ def gen_gridlimits(models_dir=mauidir+'MODELS/'):
     return 'DONE'
 
 
+def gen_maui_mask(filename, ascii_dir, table_lines):
+    
+    '''
+    NOTE: This function is not finished yet. 
+    - For example when you decrease the width with the delta, then you cannot increase it again. 
+      You have to do e.g. "O +0" to recover the original width.
+    - If you change the delta of a line affecting other lines, those are not protected.
+    
+    Function to add a third column to an ascii file with 0/1 values indicating the mask. 
+    The mask is defined from an input table created by the user with the following columns:
+    
+    Wavelength, element, width, code, comment
+    6562.80,    Halpha,  80,    B, (Balmer)
+    4552.622,   SiIII,   4,     O, (O - Includes the line)
+    4545.0,     AlIII,   2,     X, (X - Excludes the line)
+    4479.5,     Blend,   1.5,   X,
+    ......,     .....,   ...,   ., ....
+    
+    NOTE: The column 'element' is later used to modify the mask of the lines with a delta.
+          Use 'mask' or 'Blend' to separate the masks from the lines.
+    
+    Parameters
+    ----------
+    filename : str
+        Enter the full path to the ascii file.
+    
+    ascii_dir : str
+        Enter the path to the ascii files.
+    
+    table_lines : str
+        Name of the table with the lines to be included or excluded.
+    
+    Returns
+    -------
+    Nothing but the updated ascii file is generated inside the ascii_dir.
+    '''
+    
+    # Open the ascii file (assumes 3 columns: wavelength, flux, mask)
+    spectrum = findtable(filename, path=ascii_dir, delimiter=' ')    
+    wave = spectrum[spectrum.colnames[0]]
+    flux = spectrum[spectrum.colnames[1]]
+
+    # Open the list of lines to be masked
+    table_lines = findtable(table_lines)
+    lines = table_lines[table_lines['code']!='X']
+    deltas = [0 for i in range(len(table_lines))]
+
+    # Create the final mask
+    mask_lines = np.zeros(len(wave))
+    mask_masks = np.zeros(len(wave))
+
+    # Modify the final mask with the information from the lines/masks and their widths
+    for line in table_lines:
+        if line['code'] != 'X':
+            mask_lines[(wave > line['wavelength'] - line['width']/2) & \
+                       (wave < (line['wavelength'] + line['width']/2))] = 1
+        elif line['code'] == 'X':
+            mask_masks[(wave > line['wavelength'] - line['width']/2) & \
+                       (wave < (line['wavelength'] + line['width']/2))] = -1
+
+    # To construct below the mosaic of the lines with their masks
+    nrows = int(np.ceil(np.sqrt(len(lines))))
+    ncols = round(len(lines)/np.ceil(np.sqrt(len(lines)))+0.4)
+
+    finish = 'n'; mod_delta = 'y'
+    while finish == 'n':
+
+        # Create the final mask as the sum of the lines and masks
+        final_mask = [i+j for i,j in zip(mask_lines,mask_masks)]
+        final_mask = np.asarray([0 if i<0 else i for i in final_mask])
+
+        # Plot the lines with their masks
+        plt.close('all')
+        fig,axs = plt.subplots(nrows, ncols, figsize=(13,8.5))
+        fig.suptitle(filename, y=0.97, fontsize=8)
+
+        axs = axs.flatten()
+        for ax_i,line in zip(axs,lines):
+
+            # First plot the line
+            mask_i = (wave > line['wavelength'] - line['width']/2) & \
+            (wave < line['wavelength'] + line['width']/2)
+            ax_i.plot(wave[mask_i], flux[mask_i], lw=0.5, c='k')
+            # Then plot the mask with 1 values
+            if ax_i.get_ylim()[0] > 0.875:
+                ax_i.set_ylim(bottom=0.875)
+            if ax_i.get_ylim()[1] < 1.025:
+                ax_i.set_ylim(top=1.025)
+
+            # Take the mean of the y-axis to plot the mask with 1 values
+            y_take = 0.50*(ax_i.get_ylim()[1]+ax_i.get_ylim()[0])
+            # Take 0.05 below the y-axis to plot the mask with 0.1 values
+            y_mask = y_take + 0.05*(ax_i.get_ylim()[1]-ax_i.get_ylim()[0])
+
+            # Plot the region with weight = 1
+            values_p1 = [np.nan if i==0 else y_take for i in mask_lines[mask_i]]
+            ax_i.plot(wave[mask_i], values_p1, c='dodgerblue')
+
+            # Plot the region with weight = 0.1
+            values_m1 = [y_mask if i==-1 else np.nan for i in mask_masks[mask_i]]
+            ax_i.plot(wave[mask_i], values_m1, c='r')
+            
+            y_final = y_take - 0.05*(ax_i.get_ylim()[1]-ax_i.get_ylim()[0])
+            # Plot the final mask with a green line
+            values_final = [y_final if i==1 else np.nan for i in final_mask[mask_i]]
+            ax_i.plot(wave[mask_i], values_final, c='g')
+        
+            ax_i.set_title(line['element']+' '+str(round(line['wavelength'])), fontsize=8)
+            ax_i.tick_params(direction='in', top='on')
+            #change the label fontsize to 8
+            ax_i.xaxis.set_tick_params(labelsize=8)
+            ax_i.yaxis.set_tick_params(labelsize=8)
+            
+        # Remove the unused subplots (if any)
+        for ax in axs[len(lines):]:
+            ax.remove()
+        
+        # Show the plot
+        fig.tight_layout()
+        fig.subplots_adjust(wspace=0.17, hspace=0.3)
+        plt.show(block=False)
+
+        if mod_delta != '':
+            print('\nIf are happy with the widths, hit return to continue.')
+            print('To add a +-delta to lines from a specie type: <elem> +/-<delta>')
+            mod_delta = input('Input: ')
+
+            if mod_delta != '' and (len(mod_delta.split(' ')) != 2 or mod_delta.split(' ')[0] not in table_lines['element']):
+                print('Wrong input, try again...')
+                continue
+
+            elif mod_delta != '':
+                c0, c1 = mod_delta.split(' ')
+                deltas = [float(c1) if table_lines['element'][i] == c0 else deltas[i] for i in range(len(table_lines))]
+
+                if c0.lower() in ['blend','mask']:
+                    mask_tmp = mask_masks.copy()
+                    add = -1
+                else:
+                    mask_tmp = mask_lines.copy()
+                    add = 1
+
+                # Modify the mask
+                for line,delta in zip(table_lines,deltas):
+                    if line['element'] != c0: continue
+                    # If c1 begins with '-', then the delta reduces the width of the lines
+                    if c1.startswith('-'):
+                        mask_tmp[((wave > line['wavelength'] - line['width']/2) & \
+                                   (wave < line['wavelength'] - line['width']/2 - delta)) | \
+                                   ((wave > line['wavelength'] + line['width']/2 + delta) & \
+                                   (wave < line['wavelength'] + line['width']/2))] = 0
+                                    
+                    # If c1 begins with '+', then the delta increases the width of the lines
+                    elif c1.startswith('+'):
+                        mask_tmp[(wave > line['wavelength'] - line['width']/2 - delta) & \
+                                 (wave < line['wavelength'] + line['width']/2 + delta)] = add
+
+                if c0.lower() in ['blend','mask']:
+                    mask_masks = mask_tmp.copy()
+                else:
+                    mask_lines = mask_tmp.copy()
+
+
+        if mod_delta == '':
+            print('\nIf are happy with the mask, hit return to finish.')
+            print('If you want to change "ad-hoc" the mask of a line, then use:')
+            print('+ (add) / - (subtract) followed by the range (e.g. "+ 4500-4505")')
+            change = input('Input: ')
+
+            if change == '':
+                finish = 'y'
+                continue
+
+            elif change != '' and (len(change.split(' ')) != 2 or change.split(' ')[0] not in ['+','-']):
+                print('Wrong input, try again...')
+                continue
+
+            c0, c1 = change.split(' ')
+            c1 = c1.split('-')
+            c1 = [float(i) for i in c1]
+            if c1[0] > c1[1]:
+                print('Wrong input, try again...')
+                continue
+
+            if c0 == '+':
+                mask_lines[(wave > c1[0]) & (wave < c1[1])] = 1
+                mask_masks[(wave > c1[0]) & (wave < c1[1])] = 0
+            elif c0 == '-':
+                mask_masks[(wave > c1[0]) & (wave < c1[1])] = -1
+
+    # Create the final mask
+    final_mask = mask_lines + mask_masks
+    final_mask = [0 if i<0 else i for i in final_mask]
+
+    # Make a subfolder for the new ascii files with the masks if it doesn't exist
+    if not os.path.exists(ascii_dir+'new_ascii/'):
+        os.makedirs(ascii_dir+'new_ascii/')
+
+    # Export the new ascii file with the final mask as a third column
+    np.savetxt(ascii_dir+'new_ascii/'+filename, np.c_[wave,flux,final_mask], fmt=('%.4f','%.6f','%i'), header='lambda    flux    mask', comments='')
+
+    # Save the figure
+    fig.savefig(ascii_dir+'new_ascii/'+filename.split('.ascii')[0]+'_mask.png', dpi=200)
+    plt.close('all')
+
+    return final_mask
+
+
 def maui_input(table, table_IB='IB_results.fits', output_name='MAUI_input', 
-    RV0tol=200, ascii=False, spectra_path=mauidir+'/SPECTRA/', orig='IACOB'):
+    RV0tol=200, ascii=False,  spectra_path=mauidir+'/SPECTRA/', orig='IACOB'):
 
     '''
     Function to generate the input table for MAUI given an input table with the
@@ -397,16 +605,13 @@ class solution_maui():
         self.obswave = soldata.xobs_out
         self.obsflux = soldata.yobs_out
 
-        # Synthetic wavelengths for spec_prim
         self.synwave = soldata.xx_mod
-        # Synthetic not convolved flux of the solution
         try:
             self.synflux = soldata.spec_prim
         except:
             print(solfile)
 
-        # The convolved flux of the solution. Combine with self.obswave
-        self.synconv = soldata.sol_conv
+        self.synconv = soldata.sol_conv # This is flux. Combine with self.obswave
 
         # Delta lambda of spectrum
         self.dx = (soldata.xx_mod[-1]-soldata.xx_mod[0])/len(soldata.xx_mod)
@@ -605,11 +810,9 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
         from matplotlib.backends.backend_pdf import PdfPages
 
-        if not os.path.exists(maindir + 'plots/MAUI/'):
-            os.makedirs(maindir + 'plots/MAUI/')
-
-        pdf_solution = PdfPages(maindir + 'plots/MAUI/MAUI_results_lines_%s.pdf' % timenow)
-        pdf_makchain = PdfPages(maindir + 'plots/MAUI/MAUI_results_chain_%s.pdf' % timenow)
+        print('\nCreating pdf files for the plots of the results...')
+        pdf_solution = PdfPages(output_dir + 'MAUI_results_lines_%s.pdf' % timenow)
+        pdf_makchain = PdfPages(output_dir + 'MAUI_results_chain_%s.pdf' % timenow)
 
         plt.rcParams.update({
             'xtick.labelsize' : 6,
@@ -769,83 +972,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
                     mask = (star.obswave > line_lwl) & (star.obswave < line_rwl)
                     ax_i.plot(star.obswave[mask], star.obsflux[mask], color='k', lw=.7)
-
-
-                    if FR == False:
-                        # Define the regions used for the weight (weight=1). 
-                        # If only a region within the window is used, then the rest of the window has weight 0.
-                        # In this case, I add -0.1 and +0.1 to the window limits defined in '*_lines_for_chi2_*'
-                        # Otherwise I specify the exact region with weight 1 within the window.
-                        weight = [0 if (
-                            (i >= 6521.00 and i <= 6532.00) or # Halpha, exclude HeII line in the blue wing
-                            (i >  6575.75 and i <  6585.29) or #         exclude CII lines in the red wing
-                            (i >  4344.42 and i <  4355.83) or # Hgamma, exclude OII lines in the red wing
-                            #(i >= 4330.50 and i <= 4335.00) or # and the XXX in the blue wind | NEW! 2023 not implemented
-                            (i >= 4083.20 and i <= 4085.50) or # Hdelta, exclude metal lines
-                            (i >  4086.29 and i <  4090.53) or
-                            (i >  4092.27 and i <  4093.99) or
-                            (i >= 4096.50 and i <= 4098.00) or
-                            (i >= 3953.09 and i <= 3955.05) or # Hepsil, exclude metal lines
-                            (i >  3960.70 and i <  3962.24) or
-                            (i >  3963.38 and i <  3965.76) or
-                            (i >= 3967.00 and i <= 3969.00) or
-                            (i >= 3972.53 and i <= 3974.10) or
-                            #(i >= 4465.00 and i <= 4468.50) or # HeI 4471 | NEW! 2023 not implemented
-                            (i >= 4923.50 and i <= 4926.00) or # HeI 4922
-                            #(i >= 5013.20 and i <= 5014.50) or # HeI 5015 | NEW! 2023 not implemented
-                            (i >= 5017.50 and i <= 5019.50) or 
-                            (i >= 4544.00 and i <= 4546.00) or # HeII 4541, exclude AlIII lines
-                            (i >  4478.87 and i <  4480.20) or # MgII 4481, exclude the AlIII blend
-                            (i >= 4128.71 and i <= 4130.10) or # SiIII 4130 (remove continuum)
-                            (i >= 4131.40 and i <= 4134.08) or
-                            (i >= 4547.60 and i <= 4550.20) or # SiIII 4552 (remove continuum)
-                            (i >= 4555.00 and i <= 4558.96) or
-                            (i >= 4563.08 and i <= 4565.00) or # SiIII 4567 (remove continuum)
-                            (i >= 4571.00 and i <= 4571.35) or
-                            (i >= 4571.30 and i <= 4572.50) or # SiIII 4575 (remove continuum)
-                            (i >= 4576.00 and i <= 4579.32) or
-                            (i >= 4112.50 and i <= 4113.80) or # SiIV 4116 (first val should match lmin)
-                            (i >= 4117.70 and i <= 4124.70)    # (last val should match lmax)
-                            ) else 1 for i in star.obswave[mask]]
-
-                    elif FR == True:
-                        weight = [0 if (
-                            (i >= 6521.00 and i <= 6532.00) or # Halpha, exclude HeII line in the blue wing
-                            (i >  6575.75 and i <  6585.29) or #         exclude CII lines in the red wing
-                            (i >  4344.42 and i <  4355.83) or # Hgamma, exclude OII lines in the red wing
-                            #(i >= 4330.50 and i <= 4335.00) or # and the XXX in the blue wind | NEW! 2023 not implemented
-                            (i >= 4083.20 and i <= 4085.50) or # Hdelta, exclude metal lines
-                            (i >  4086.29 and i <  4090.53) or
-                            (i >  4092.27 and i <  4093.99) or
-                            (i >= 4096.50 and i <= 4098.00) or
-                            (i >= 3953.09 and i <= 3955.05) or # Hepsil, exclude metal lines
-                            (i >  3960.70 and i <  3962.24) or
-                            (i >  3963.38 and i <  3965.76) or
-                            (i >= 3967.00 and i <= 3969.00) or
-                            (i >= 3972.53 and i <= 3974.10) or
-                            #(i >= 4465.00 and i <= 4468.50) or # HeI 4471 | NEW! 2023 not implemented
-                            (i >= 4923.50 and i <= 4926.00) or # HeI 4922
-                            #(i >= 5013.00 and i <= 5014.50) or # HeI 5015 | NEW! 2023 not implemented
-                            (i >= 5017.50 and i <= 5019.50) or
-                            (i >= 4544.00 and i <= 4546.00) or # HeII 4541, exclude AlIII lines
-                            (i >  4478.87 and i <  4480.20) or # MgII 4481, exclude the AlIII blend
-                            (i >= 4128.71 and i <= 4130.10) or # SiIII 4130 (remove continuum)
-                            (i >= 4131.40 and i <= 4134.08) or
-                            (i >= 4547.40 and i <= 4549.00) or # SiIII 4552 (remove continuum)
-                            (i >= 4556.00 and i <= 4558.90) or
-                            (i >= 4561.90 and i <= 4564.00) or # SiIII 4567 + 4575 (remove continuum)
-                            (i >= 4576.00 and i <= 4581.40) or
-                            (i >= 4112.50 and i <= 4113.80) or # SiIV 4116 (first val should match lmin)
-                            (i >= 4117.70 and i <= 4126.10)    # (last val should match lmax)
-                            ) else 1 for i in star.obswave[mask]]
-
-                    # This is a visual trick to place the synthetic spectra where it really is ifthe 
-                    # normalization option is used, as this is not stored in the solution*.idl file
-                    scale = np.sum(star.obsflux[mask]*star.synconv[mask]*weight)\
-                                /np.sum(star.synconv[mask]*star.synconv[mask]*weight)
-                    star.synconv_scaled = scale * star.synconv[mask]
-
-                    ax_i.plot(star.obswave[mask], star.synconv_scaled, color=c, ls='--', lw=1)
+                    ax_i.plot(star.obswave[mask], star.synconv[mask], color=c, ls='--', lw=1)
 
                     if ax_i.get_ylim()[0] > 0.875:
                         ax_i.set_ylim(bottom=0.875)
@@ -854,7 +981,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
                     # Plot the region with weight = 1
                     ymean = np.asarray(ax_i.get_ylim()).mean()
-                    weight = [None if i==0 else ymean for i in weight]
+                    weight = [None if i==0 else ymean for i in star.mask[mask]]
                     ax_i.plot(star.obswave[mask], weight, c='dodgerblue', lw=.5, alpha=0.5)
 
                     ax_i.set_title(line_name)
@@ -863,7 +990,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                 [fig.delaxes(axs[i]) for i in np.arange(len(line_names), len(axs), 1)]
 
                 fig.tight_layout()
-                fig.subplots_adjust(wspace=0.15, hspace=0.3)
+                fig.subplots_adjust(wspace=0.14, hspace=0.3)
 
                 pdf_solution.savefig(fig); plt.close(fig)
 
@@ -951,12 +1078,13 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
     output = Table(rows=data_rows, names=(names))
 
-    full_path = (maindir + 'tables/MAUI_results_%s.' + format_table) % timenow
+    full_path = (output_dir + 'MAUI_results_%s.' + format_table) % timenow
 
     if format_table == 'ascii':
         format_table += '.fixed_width_two_line'
 
     if output_table == True:
+        print('\nSaving the results in the table: %s' % full_path)
         output.write(full_path, format=format_table, overwrite=True)
 
     return 'DONE'

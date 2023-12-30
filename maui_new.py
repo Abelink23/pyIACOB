@@ -397,16 +397,13 @@ class solution_maui():
         self.obswave = soldata.xobs_out
         self.obsflux = soldata.yobs_out
 
-        # Synthetic wavelengths for spec_prim
         self.synwave = soldata.xx_mod
-        # Synthetic not convolved flux of the solution
         try:
             self.synflux = soldata.spec_prim
         except:
             print(solfile)
 
-        # The convolved flux of the solution. Combine with self.obswave
-        self.synconv = soldata.sol_conv
+        self.synconv = soldata.sol_conv # This is flux. Combine with self.obswave
 
         # Delta lambda of spectrum
         self.dx = (soldata.xx_mod[-1]-soldata.xx_mod[0])/len(soldata.xx_mod)
@@ -511,7 +508,7 @@ class solution_maui():
         self.line_windows = line_windows
 
 
-def maui_results(input_list, output_dir, check_best=False, last_only=False, solution='max', FR=False,
+def maui_results(input_list, output_dir, check_best=False, last_only=False, solution='max', snr_q=130, FR=False,
     do_pdf=False, pdflines='diag', grid_only=[], output_table=True, format_table='fits'):
 
     '''
@@ -538,6 +535,11 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
     solution : str, optional
         Choose between 'max'/'smooth' to select either the maximum of the probability distribution, 
         or the maximum of a smoothed distribution, for the solution provided in the output table.
+        Default is 'max'.
+    
+    snr_q : int, optional
+        Enter the SNR above which you think that the MAUI analysis is not dependent of the SNR of the
+        input spectra (i.e. it is more limited by the models). Default is 130.
 
     FR : boolean, optional
         True if the analyses correspond to Fast Rotator stars for which whe MAUI windows
@@ -685,8 +687,116 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                 getattr(star, par_name+'_eDW'),
                 ]) for par_name in param_err]
 
-            # Append the raw to the table
-            data_rows.append(tuple(data_row))
+            # Calculate the quality flag for the line -----
+            # NOTE: THIS HAS TO BE IMPROVED
+            # Copied from pdflines='diag' option
+            mask = [i == 1. for i in star.line_weights]
+            line_names = np.asarray(star.line_names)[mask].tolist()
+            lines_lwl,lines_rwl = np.asarray(star.line_windows).T
+            lines_lwl = np.asarray(lines_lwl)[mask].tolist()
+            lines_rwl = np.asarray(lines_rwl)[mask].tolist()
+            
+            q = []
+            for line_lwl,line_rwl,line_name in zip(lines_lwl,lines_rwl,line_names):
+                mask = (star.obswave > line_lwl) & (star.obswave < line_rwl)
+
+                if FR == False:
+                    weight = [0 if (
+                        (i >= 6521.00 and i <= 6532.00) or # Halpha, exclude CII lines in the red wing
+                        (i >  6575.75 and i <  6585.29) or # Halpha
+                        (i >  4344.42 and i <  4355.83) or # Hgamma, exclude OII lines in the red wing
+                        (i >= 4330.50 and i <= 4335.00) or # and the XXX in the blue wind
+                        (i >= 4083.20 and i <= 4085.50) or # Hdelta, exclude metal lines
+                        (i >  4086.29 and i <  4090.53) or
+                        (i >  4092.27 and i <  4093.99) or
+                        (i >= 4096.50 and i <= 4098.00) or
+                        (i >= 4110.00 and i <= 4113.00) or
+                        (i >= 3953.09 and i <= 3955.05) or # Hepsil, exclude metal lines
+                        (i >  3960.70 and i <  3962.24) or
+                        (i >  3963.38 and i <  3965.76) or
+                        (i >= 3967.00 and i <= 3968.50) or
+                        (i >= 3972.53 and i <= 3974.10) or
+                        (i >= 4465.00 and i <= 4468.50) or # HeI 4471
+                        (i >= 4923.50 and i <= 4926.00) or # HeI 4922
+                        (i >= 5013.20 and i <= 5014.50) or # HeI 5015
+                        (i >= 5017.50 and i <= 5019.50) or
+                        (i >= 4544.00 and i <= 4546.00) or # HeII 4541, exclude AlIII lines
+                        (i >  4478.87 and i <  4480.20) or # MgII 4481, exclude the AlIII blend
+                        (i >= 4128.71 and i <= 4130.10) or # SiIII 4130
+                        (i >= 4131.40 and i <= 4134.08) or
+                        (i >= 4547.60 and i <= 4550.20) or # SiIII 4552
+                        (i >= 4555.00 and i <= 4558.96) or
+                        (i >= 4563.08 and i <= 4565.00) or # SiIII 4567
+                        (i >= 4571.00 and i <= 4571.35) or
+                        (i >= 4571.30 and i <= 4572.50) or # SiIII 4575
+                        (i >= 4576.00 and i <= 4579.32) or
+                        (i >= 4112.41 and i <= 4113.50) or # SiIV 4116
+                        (i >= 4117.70 and i <= 4125.10)
+                        ) else 1 for i in star.obswave[mask]]
+
+                elif FR == True:
+                    weight = [0 if (
+                        (i >= 6521.00 and i <= 6532.00) or # Halpha, exclude CII lines in the red wing
+                        (i >  6575.75 and i <  6585.29) or # Halpha
+                        (i >  4344.42 and i <  4355.83) or # Hgamma, exclude OII lines in the red wing
+                        (i >= 4330.50 and i <= 4335.00) or # and the XXX in the blue wind
+                        (i >= 4083.20 and i <= 4085.50) or # Hdelta, exclude metal lines
+                        (i >  4086.29 and i <  4090.53) or
+                        (i >  4092.27 and i <  4093.99) or
+                        (i >= 4096.50 and i <= 4098.00) or
+                        (i >= 3953.09 and i <= 3955.05) or # Hepsil, exclude metal lines
+                        (i >  3960.70 and i <  3962.24) or
+                        (i >  3963.38 and i <  3965.76) or
+                        (i >= 3967.00 and i <= 3968.50) or
+                        (i >= 3972.53 and i <= 3974.10) or
+                        (i >= 4465.00 and i <= 4468.50) or # HeI 4471
+                        (i >= 4923.50 and i <= 4926.00) or # HeI 4922
+                        (i >= 5013.00 and i <= 5014.50) or # HeI 5015
+                        (i >= 5017.50 and i <= 5019.50) or
+                        (i >= 4544.00 and i <= 4546.00) or # HeII 4541, exclude AlIII lines
+                        (i >  4478.87 and i <  4480.20) or # MgII 4481, exclude the AlIII blend
+                        (i >= 4128.71 and i <= 4130.10) or # SiIII 4130
+                        (i >= 4131.40 and i <= 4134.08) or
+                        (i >= 4547.40 and i <= 4549.00) or # SiIII 4552
+                        (i >= 4556.00 and i <= 4558.90) or
+                        (i >= 4561.90 and i <= 4564.00) or # SiIII 4567 + 4575
+                        (i >= 4576.00 and i <= 4581.40) or
+                        (i >= 4112.41 and i <= 4113.00) or # SiIV 4116
+                        (i >= 4117.70 and i <= 4126.10)
+                        ) else 1 for i in star.obswave[mask]]
+
+                avg_wl = np.mean([line_lwl,line_rwl])
+                if avg_wl > 3000 and avg_wl < 4000:
+                    zone = 'uv'
+                elif avg_wl > 4000 and avg_wl < 5000:
+                    zone = 'b'
+                elif avg_wl > 5000 and avg_wl < 6000:
+                    zone = 'v'
+                elif avg_wl > 6000 and avg_wl < 7000:
+                    zone = 'r'
+
+                snr = spec(star.filename).snrcalc(zone=zone)
+                if snr > snr_q:
+                    snr = snr_q
+
+                mask_weight = [True if i == 1 else False for i in weight]
+                obswave_i = star.obswave[mask][mask_weight]
+                obsflux_i = star.obsflux[mask][mask_weight]
+                synconv_i = star.synconv[mask][mask_weight]
+                
+                scale = np.sum(star.obsflux[mask]*star.synconv[mask]*weight)\
+                    /np.sum(star.synconv[mask]*star.synconv[mask]*weight)
+                synconv_i = scale * star.synconv[mask][mask_weight]
+                
+                # if its the last star, plot obswave_i, obsflux_i, synconv_i
+                #if i == len(stars)-1:
+                #    plt.plot(obswave_i, obsflux_i, color='k', lw=.3)
+                #    plt.plot(obswave_i, synconv_i, color='r', lw=.3)
+                
+                #q.append(round(1/len(obswave_i) * np.sum(np.log10(obsflux_i/synconv_i))/np.log10(1+1/snr),3))
+                q.append(round(1/len(obswave_i) * np.sum(((obsflux_i-synconv_i)*snr)**2),8))
+                
+                # ---------------------------------------------
 
             if do_pdf == True:
 
@@ -770,17 +880,17 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                     mask = (star.obswave > line_lwl) & (star.obswave < line_rwl)
                     ax_i.plot(star.obswave[mask], star.obsflux[mask], color='k', lw=.7)
 
-
                     if FR == False:
                         # Define the regions used for the weight (weight=1). 
                         # If only a region within the window is used, then the rest of the window has weight 0.
                         # In this case, I add -0.1 and +0.1 to the window limits defined in '*_lines_for_chi2_*'
                         # Otherwise I specify the exact region with weight 1 within the window.
                         weight = [0 if (
-                            (i >= 6521.00 and i <= 6532.00) or # Halpha, exclude HeII line in the blue wing
+                            ACTUALIZAR CON MAUI.PY
+                            (i >= 6522.00 and i <= 6532.00) or # Halpha, exclude HeII line in the blue wing
                             (i >  6575.75 and i <  6585.29) or #         exclude CII lines in the red wing
                             (i >  4344.42 and i <  4355.83) or # Hgamma, exclude OII lines in the red wing
-                            #(i >= 4330.50 and i <= 4335.00) or # and the XXX in the blue wind | NEW! 2023 not implemented
+                            (i >= 4330.50 and i <= 4335.00) or # and the XXX in the blue wind NEW! 2023
                             (i >= 4083.20 and i <= 4085.50) or # Hdelta, exclude metal lines
                             (i >  4086.29 and i <  4090.53) or
                             (i >  4092.27 and i <  4093.99) or
@@ -788,11 +898,11 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                             (i >= 3953.09 and i <= 3955.05) or # Hepsil, exclude metal lines
                             (i >  3960.70 and i <  3962.24) or
                             (i >  3963.38 and i <  3965.76) or
-                            (i >= 3967.00 and i <= 3969.00) or
+                            (i >= 3967.00 and i <= 3968.50) or
                             (i >= 3972.53 and i <= 3974.10) or
-                            #(i >= 4465.00 and i <= 4468.50) or # HeI 4471 | NEW! 2023 not implemented
+                            (i >= 4465.00 and i <= 4468.50) or # HeI 4471 NEW! 2023
                             (i >= 4923.50 and i <= 4926.00) or # HeI 4922
-                            #(i >= 5013.20 and i <= 5014.50) or # HeI 5015 | NEW! 2023 not implemented
+                            (i >= 5013.20 and i <= 5014.50) or # HeI 5015 NEW! 2023
                             (i >= 5017.50 and i <= 5019.50) or 
                             (i >= 4544.00 and i <= 4546.00) or # HeII 4541, exclude AlIII lines
                             (i >  4478.87 and i <  4480.20) or # MgII 4481, exclude the AlIII blend
@@ -804,16 +914,16 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                             (i >= 4571.00 and i <= 4571.35) or
                             (i >= 4571.30 and i <= 4572.50) or # SiIII 4575 (remove continuum)
                             (i >= 4576.00 and i <= 4579.32) or
-                            (i >= 4112.50 and i <= 4113.80) or # SiIV 4116 (first val should match lmin)
+                            (i >= 4112.50 and i <= 4113.50) or # SiIV 4116 (first val should match lmin)
                             (i >= 4117.70 and i <= 4124.70)    # (last val should match lmax)
                             ) else 1 for i in star.obswave[mask]]
 
                     elif FR == True:
                         weight = [0 if (
-                            (i >= 6521.00 and i <= 6532.00) or # Halpha, exclude HeII line in the blue wing
-                            (i >  6575.75 and i <  6585.29) or #         exclude CII lines in the red wing
+                            (i >= 6521.00 and i <= 6532.00) or # Halpha, exclude CII lines in the red wing
+                            (i >  6575.75 and i <  6585.29) or # Halpha
                             (i >  4344.42 and i <  4355.83) or # Hgamma, exclude OII lines in the red wing
-                            #(i >= 4330.50 and i <= 4335.00) or # and the XXX in the blue wind | NEW! 2023 not implemented
+                            (i >= 4330.50 and i <= 4335.00) or # and the XXX in the blue wind NEW! 2023
                             (i >= 4083.20 and i <= 4085.50) or # Hdelta, exclude metal lines
                             (i >  4086.29 and i <  4090.53) or
                             (i >  4092.27 and i <  4093.99) or
@@ -821,22 +931,22 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                             (i >= 3953.09 and i <= 3955.05) or # Hepsil, exclude metal lines
                             (i >  3960.70 and i <  3962.24) or
                             (i >  3963.38 and i <  3965.76) or
-                            (i >= 3967.00 and i <= 3969.00) or
+                            (i >= 3967.00 and i <= 3968.50) or
                             (i >= 3972.53 and i <= 3974.10) or
-                            #(i >= 4465.00 and i <= 4468.50) or # HeI 4471 | NEW! 2023 not implemented
+                            (i >= 4465.00 and i <= 4468.50) or # HeI 4471 NEW! 2023
                             (i >= 4923.50 and i <= 4926.00) or # HeI 4922
-                            #(i >= 5013.00 and i <= 5014.50) or # HeI 5015 | NEW! 2023 not implemented
+                            (i >= 5013.00 and i <= 5014.50) or # HeI 5015 NEW! 2023
                             (i >= 5017.50 and i <= 5019.50) or
                             (i >= 4544.00 and i <= 4546.00) or # HeII 4541, exclude AlIII lines
                             (i >  4478.87 and i <  4480.20) or # MgII 4481, exclude the AlIII blend
-                            (i >= 4128.71 and i <= 4130.10) or # SiIII 4130 (remove continuum)
+                            (i >= 4128.71 and i <= 4130.10) or # SiIII 4130
                             (i >= 4131.40 and i <= 4134.08) or
-                            (i >= 4547.40 and i <= 4549.00) or # SiIII 4552 (remove continuum)
+                            (i >= 4547.40 and i <= 4549.00) or # SiIII 4552
                             (i >= 4556.00 and i <= 4558.90) or
-                            (i >= 4561.90 and i <= 4564.00) or # SiIII 4567 + 4575 (remove continuum)
+                            (i >= 4561.90 and i <= 4564.00) or # SiIII 4567 + 4575
                             (i >= 4576.00 and i <= 4581.40) or
-                            (i >= 4112.50 and i <= 4113.80) or # SiIV 4116 (first val should match lmin)
-                            (i >= 4117.70 and i <= 4126.10)    # (last val should match lmax)
+                            (i >= 4112.41 and i <= 4113.00) or # SiIV 4116
+                            (i >= 4117.70 and i <= 4126.10)
                             ) else 1 for i in star.obswave[mask]]
 
                     # This is a visual trick to place the synthetic spectra where it really is ifthe 
@@ -863,7 +973,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                 [fig.delaxes(axs[i]) for i in np.arange(len(line_names), len(axs), 1)]
 
                 fig.tight_layout()
-                fig.subplots_adjust(wspace=0.15, hspace=0.3)
+                fig.subplots_adjust(wspace=0.14, hspace=0.3)
 
                 pdf_solution.savefig(fig); plt.close(fig)
 
@@ -933,6 +1043,12 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
                 pdf_makchain.savefig(fig); plt.close(fig)
 
+            # Append the quality flag to the table
+            data_row.extend(q)
+
+            # Append the raw to the table
+            data_rows.append(tuple(data_row))
+            
         bar.update(i)
 
     if do_pdf == True:
@@ -948,6 +1064,9 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
     # - Add names for the parameter column names
     for i in range(len(param_err)):
         names += ['l_'+param_err[i],param_err[i],param_err[i]+'_eUP',param_err[i]+'_eDW']
+
+    # - Add names for the quality flags of each line
+    names += ['q_'+i for i in line_names]
 
     output = Table(rows=data_rows, names=(names))
 
