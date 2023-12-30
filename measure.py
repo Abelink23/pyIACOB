@@ -378,7 +378,6 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='vrg_H', rv_to
             id = source['Ref_file']
             if source['Ref_file'] in [i.strip() for i in output['Ref_file']]:
                 continue
-
         else:
             id = source['ID']
             if source['ID'] in [i.strip() for i in output['ID']]:
