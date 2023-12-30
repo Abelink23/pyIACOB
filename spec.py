@@ -22,7 +22,7 @@ plt.rc('ytick', direction='in', right='on')
 
 
 class spec():
-    def __init__(self, spectrum, snr=None, rv0=0, offset=0, cut_edges=False, orig='IACOB'):
+    def __init__(self, spectrum, snr=None, rv0=0, offset=0, cut_edges=False, orig='IACOB', delimiter=','):
 
         '''
         Parameters
@@ -53,6 +53,10 @@ class spec():
             wavelength and flux with no header in the file. 
             If 'syn', it assumes that the spectrum comes from a synthetic spectrum.
             Default is IACOB.
+
+        delimiter : str, optional
+            Delimiter used in the txt file to separate lambda/wavelength and flux.
+            This is valid only if orig='txt'. Default is ','.
         '''
 
         if type(spectrum) == list:
@@ -101,7 +105,7 @@ class spec():
 
         self.SpC = '' # Spectral classification
 
-        self.waveflux(cut_edges=cut_edges)
+        self.waveflux(cut_edges=cut_edges, delimiter=delimiter)
 
 
     def get_spc(self):
@@ -124,7 +128,7 @@ class spec():
             self.SpC = ''
 
 
-    def waveflux(self, lwl=None, rwl=None, width=0, helcorr='hel', cut_edges=False):
+    def waveflux(self, lwl=None, rwl=None, width=0, helcorr='hel', cut_edges=False, delimiter=','):
 
         '''
         Function to load or update the wavelength and flux vectors and optionally apply
@@ -148,6 +152,10 @@ class spec():
         cut_edges : boolean, optional
             If True, it cuts the edges of the spectrum where the flux is asymptotic.
             Default is False.
+
+        delimiter : str, optional
+            Delimiter used in the txt file to separate lambda/wavelength and flux. 
+            Default is ',' (see ascii.read or db.findtable)
 
         Note: All ascii files should be placed inside datadir/ASCII subfolder.
 
@@ -223,7 +231,7 @@ class spec():
 
         elif self.orig == 'ascii' or self.orig == 'synthetic':
             
-            data = findtable(self.filename, path=self.fullpath.replace(self.filename,''), format='basic')
+            data = findtable(self.filename, path=self.fullpath.replace(self.filename,''), delimiter=delimiter, format='basic')
 
             if data.colnames[0].lower() in ['wave','wavelength','lambda','lamb','ang','angstroms']:
                 wave = data[data.colnames[0]]
@@ -983,7 +991,7 @@ class spec():
         self.flux = f(self.wave)
 
 
-    def export(self, tail='', extension='.ascii'):
+    def export(self, output_dir=maindir+'tmp/' ,tail='', extension='.ascii'):
 
         '''
         Function to export the current wavelength and flux of the spectrum in the class
@@ -1004,7 +1012,7 @@ class spec():
         '''
 
         filename = self.filename.replace('.fits', '')
-        np.savetxt(maindir+'tmp/%s' % (filename + tail + extension),
+        np.savetxt(output_dir + filename + tail + extension,
             np.c_[self.wave,self.flux], fmt=('%.4f','%.6f'),
             header='lambda    flux', comments='')
 
@@ -1116,7 +1124,7 @@ class spec():
             if self.rv0 == 0:
                 print('Spectrum not corrected from RV, lines will have offset.')
 
-            if  lines == 'ALL':
+            if  lines in ['ALL','all']:
                 table = findtable('ALL_all.txt', delimiter=',', path=maindir+'lists/lines/atlas_lines/')
                 table = table[table['-lg(gf)'] > -1]
             elif lines == 'ALLOB':
