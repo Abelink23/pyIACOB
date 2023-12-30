@@ -772,7 +772,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
 
                     if FR == False:
-                        # Define the regions used for the weight (weight=1). 
+                        # Define the regions used for the weight (weight=1)
                         # If only a region within the window is used, then the rest of the window has weight 0.
                         # In this case, I add -0.1 and +0.1 to the window limits defined in '*_lines_for_chi2_*'
                         # Otherwise I specify the exact region with weight 1 within the window.
