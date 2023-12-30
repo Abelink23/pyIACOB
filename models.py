@@ -40,14 +40,15 @@ def isomist(myr=None, logmyr=None, av=1.0, vr=0.4):
     MIST isochrone.
     '''
 
-    myr_list = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,22,24,26,28,30,\
-    32,35,38,41,45,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200,210,\
-    220,230,240,250,260,270,280,290,300,310,320,330,340,350,360,370,380,390,400]
-    logmyr_list = [6.0,6.301,6.477,6.602,6.699,6.778,6.845,6.903,6.954,7.0,7.041,7.079,\
-    7.114,7.146,7.176,7.204,7.23,7.255,7.279,7.301,7.342,7.38,7.415,7.447,7.477,7.505,\
-    7.544,7.58,7.613,7.653,7.699,7.778,7.845,7.903,7.954,8.0,8.041,8.079,8.114,8.146,\
-    8.176,8.204,8.23,8.255,8.279,8.301,8.322,8.342,8.362,8.38,8.398,8.415,8.431,8.447,\
-    8.462,8.477,8.491,8.505,8.519,8.531,8.544,8.556,8.568,8.58,8.591,8.602]
+    myr_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 28, 30, \
+    32, 35, 38, 41, 45, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, \
+    220, 230, 240, 250, 260, 270, 280, 290, 300, 310, 320, 330, 340, 350, 360, 370, 380, 390, 400]
+    
+    logmyr_list = [6.0, 6.301, 6.477, 6.602, 6.699, 6.778, 6.845, 6.903, 6.954, 7.0, 7.041, 7.079, \
+    7.114, 7.146, 7.176, 7.204, 7.23, 7.255, 7.279, 7.301, 7.342, 7.38, 7.415, 7.447, 7.477, 7.505, \
+    7.544, 7.58, 7.613, 7.653, 7.699, 7.778, 7.845, 7.903, 7.954, 8.0, 8.041, 8.079, 8.114, 8.146, \
+    8.176, 8.204, 8.23, 8.255, 8.279, 8.301, 8.322, 8.342, 8.362, 8.38, 8.398, 8.415, 8.431, 8.447, \
+    8.462, 8.477, 8.491, 8.505, 8.519, 8.531, 8.544, 8.556, 8.568, 8.58, 8.591, 8.602]
 
     if av < 1.0: Av = str(av).replace('.','')
     else: Av = int(av*10)
@@ -105,7 +106,7 @@ def trackmist(mass=None, av=0.0, vr=0.4):
 
     vr = str(vr).replace('.','')
 
-    mass_list = [.8,.9,1,1.1,1.2,1.3,1.5,1.7,2,2.5,3,4,5,7,9,12,15,20,25,32,40,60,85,120]
+    mass_list = [0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.5, 1.7, 2.0, 2.5, 3, 4, 5, 7, 9, 12, 15, 20, 25, 32, 40, 60, 85, 120]
 
     if mass != None and mass in mass_list:
         mass = str(float(mass)).replace('.',''); digit = 4-len(mass)
@@ -162,16 +163,41 @@ def trackgene(mass=None, vr=0.4):
         If None as input, all the tracks will be selected.
 
     vr : float, optional
-        Enter the initial v/v_crit value [0.0/0.4]. Default is 0.4.
+        Enter the initial v/v_crit value [0.0/0.2/0.4]. Default is 0.4.
 
     Returns
     -------
-    MIST isochrone.
+    Geneva isochrone
+    
+    Notes 'line' column
+    -------------------
+    1: ZAMS
+    2-84: H burning (first part)
+    85: minimum of Teff on the MS
+    86-109: overall contraction phase before the end of the MS
+    110: Turn-off
+    111-189: HR diagram crossing and/or pre-He-b core contraction
+    190: beginning of He burning
+    191-209: He burning (first part)
+    210-350: blue loop (if any, maximal extension on point 280)
+    351-369: He burning (second part)
+    370: core He exhaustion
+    371-399: C burning
+    400: last model
     '''
+
+    if not vr in [0.0, 0.2, 0.4]:
+        print('WARNING: Geneva tracks are only available for v/vcrit = 0.0 or 0.4')
+        print('Setting v/vcrit = 0.4')
+        vr = 0.4
+
+    if vr in [0.0, 0.4]: 
+        mass_list = [0.8, 0.9, 1.0, 1.1, 1.25, 1.35, 1.5, 1.7, 2.0, 2.5, 3, 4, 5, 7, 9, 12, 15, 20, 25, 32, 40, 60, 85, 120]
+    elif vr == 0.2:
+        mass_list = [20, 25, 32, 40, 60, 85, 120]
 
     vr = str(vr).replace('0.','')
 
-    mass_list = [0.8,0.9,1,1.1,1.25,1.35,1.5,1.7,2,2.5,3,4,5,7,9,12,15,20,25,32,40,60,85,120]
 
     if mass != None and mass in mass_list:
 
@@ -192,6 +218,7 @@ def trackgene(mass=None, vr=0.4):
     t_geneva['log_LLsol'] = t_geneva['log_L'] - np.log10(t_geneva['mass']) # NOT SURE ABOUT THIS ONE
     t_geneva['log_g'] = 4*t_geneva['log_Teff'] + np.log10(t_geneva['mass']) - t_geneva['log_L'] - 10.61
     t_geneva['log_Lspec'] = 4*t_geneva['log_Teff'] - t_geneva['log_g'] - 10.61
+    t_geneva['He'] = t_geneva['4He_surf']/4/t_geneva['1H_surf']
 
     # missing to implement a table with everything
     #else:
@@ -199,3 +226,60 @@ def trackgene(mass=None, vr=0.4):
     #        (Av,vr,Av,vr))
 
     return t_geneva
+
+
+##########################################################################################
+#     BONN BROTT 2011
+##########################################################################################
+# Models (tracks) and isochrones from Brott et al. are downloaded from:
+# https://cdsarc.u-strasbg.fr/viz-bin/qcat?J/A+A/530/A115
+
+
+def trackbonn(mass=None, vr=np.nan):
+    
+    '''
+    Function to retrieve a specific track from the Geneva.
+
+    Parameters
+    ----------
+    
+    [UNDER CONSTRUCTION]
+    
+    '''
+    
+    mass_list = [5, 7, 9, 10, 12, 15, 20, 25, 30, 35, 40, 50, 60]
+    
+    while mass not in mass_list:
+        print('Mass not in list %s' % mass_list)
+        mass = int(input('Pick a new mass from %s: ' % mass_list))
+    
+    # find all models starting with f+mass
+    path = modeldir + 'BONN/'
+    models = [f for f in os.listdir(path) if f.startswith('f'+str(mass))]
+    
+    vr_list = [int(m.split('-')[1].split('.mw.fits')[0]) for m in models]
+    
+    # pick the nearest vsini
+    tmp_vr = min(vr_list, key=lambda x:abs(x-vr))
+    if abs(tmp_vr-vr) > 20:
+        print('WARNING: Difference to closest vsini is grater than 20 km/s')
+        print('Closest vsini is %s km/s' % tmp_vr)
+    
+    vr = tmp_vr
+    
+    #while vr not in vr_list:
+    #    print('vsini not in list %s' % vr_list)
+    #    vr = int(input('Pick a new vsini from %s: ' % vr_list))
+    
+    t_brott = Table.read(modeldir+'BONN/f%s-%s.mw.fits' % (mass,vr), format='fits')
+    
+    # log(X/H) + 12
+    for elem in ['He','C','N','O','Mg','Si']:
+        t_brott[elem] = 10**(t_brott['eps(%s)' % elem]-12)
+    
+    t_brott.rename_column('logL','log_L')
+    t_brott['log_Teff'] = np.log10(t_brott['Teff'])
+    t_brott['log_g'] = 4*t_brott['log_Teff'] + np.log10(t_brott['Mass']) - t_brott['log_L'] - 10.61
+    t_brott['log_Lspec'] = 4*t_brott['log_Teff'] - t_brott['log_g'] - 10.61
+    
+    return t_brott
