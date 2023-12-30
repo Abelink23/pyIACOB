@@ -1,6 +1,5 @@
 main=/Users/abelink/MEGA/PhD/
 data=/Users/abelink/Documents/DB/
-#data=/Users/abelink/Desktop/STD_spectra/
 maui=/Users/abelink/Documents/MAUI/
 ib=/Users/abelink/MEGA/PhD/programs/idl/iacob_broad_v8/
 models=/Users/abelink/Documents/MODELS/
