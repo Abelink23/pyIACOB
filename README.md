@@ -67,7 +67,7 @@ NOTE: For the actual models needed in models.py to work, drop me an email and
   including the radial velocity correction or the cosmetic defects and cosmic rays removal.
 
 - models.py contains functions to retrieve either evolutionary tracks or isochrones from 
-  different libraries (MIST, PADOVA, GENEVA).
+  different libraries (MIST, Bonn, Geneva...).
 
 - IACOBroad.py contains functions which helps the user to generate output and input
   tables for IACOB-Broad program.

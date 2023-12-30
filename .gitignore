@@ -15,4 +15,4 @@ paths_win.txt
 
 tmp*
 *_bkp.py
-
+*tmp*.py
