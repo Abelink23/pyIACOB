@@ -503,8 +503,8 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='vrg_H', rv_to
 
 
 
-def auto_measure(lines, table='IACOB_new_N+M_ToDo.fits', output_table='new_RVEWFW.fits',
-    func='g', width=20, ewcut=10, tol=150, orig='IACOB', table_fit_param=False):
+def auto_measure(lines, table, output_table='new_RVEWFW.fits',
+    width=20, tol=150, func='g', orig='IACOB', table_fit_param=False):
 
     '''
     Function to automatically calculate and store radial velocity, equivalent
@@ -521,12 +521,14 @@ def auto_measure(lines, table='IACOB_new_N+M_ToDo.fits', output_table='new_RVEWF
 
     output_table : str
         Name of the output (new) table contaning the results.
+        Default is 'new_RVEWFW.fits'.
 
-    ewcut : float, optional
-        EW threshold value for a line to be considered as detected. Default is 10.
-
-    txt : bolean, optional
-        If True, it assumes spectrum from a two-columns file with wavelength and flux.
+    orig : str, optional
+        If 'IACOB', it assumes that the spectrum comes from the IACOB database.
+        If 'txt', it assumes that the spectrum comes from a two-columns file with
+        wavelength and flux with no header in the file. 
+        If 'syn', it assumes that the spectrum comes from a synthetic spectrum.
+        Default is IACOB.
 
     Other parameters : optional
         See help for see spec and spec.fitline
@@ -593,7 +595,7 @@ def auto_measure(lines, table='IACOB_new_N+M_ToDo.fits', output_table='new_RVEWF
 
             #star.cosmic()
 
-            fit = star.fitline(line, width=width, func=func, iter=iter, outfit=True)
+            fit = star.fitline(line, width=width, tol=tol, func=func, iter=iter, outfit=True)
 
             if fit['sol'] == 0:
                 row_data += [np.nan]*7
