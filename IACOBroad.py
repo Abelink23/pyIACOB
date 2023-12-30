@@ -57,13 +57,13 @@ def ib_input(table, folder, old_input=None, new_master=False, orig='IACOB'):
     bar.start()
 
     for row,j in zip(table,range(len(table))):
-        
+
         id = row['ID'].strip()
-        
+
         star = spec(id, snr='bestHF', orig=orig)
-        
+
         star.get_spc()
-        
+
         if star.SpC != '':
             spt = spc_code(star.SpC)[0]
             if not np.isnan(spt):
@@ -75,17 +75,17 @@ def ib_input(table, folder, old_input=None, new_master=False, orig='IACOB'):
                 line = 'SiIII4567'
         else:
             line = 'SiIII4567'
-        
+
         # Exists in the old table?
         if old_input is not None:
-            
+
             if 'Ref_file' in row.colnames:
                 match_old = old_input[old_input['Ref_file'] == star.filename]
             else:
                 match_old = old_input[old_input['ID'] == star.id_star]
-            
+
             if len(match_old) >= 1:
-            
+
                 # If Ref_file is used as input, but there are several matches in old table:
                 if 'Ref_file' in row.colnames:
                     match_old = match_old[match_old['Ref_file'] == star.filename]
@@ -96,7 +96,7 @@ def ib_input(table, folder, old_input=None, new_master=False, orig='IACOB'):
                 # Despite the Ref_file is different, picks the old line used there
                 else:
                     line = match_old[0]['line'][0]
-            
+
             # For the same Ref_file as in the old table...
             if len(match_old) == 1:
                 # If it has been already processed, add "#"
@@ -108,27 +108,27 @@ def ib_input(table, folder, old_input=None, new_master=False, orig='IACOB'):
                 file2.write('%s %s %s %s %i %s %i\n' % \
                 (idx,match_old['ID'][0],match_old['path'][0],match_old['Ref_file'][0],
                 match_old['resol'][0],match_old['line'][0],match_old['QIB'][0]))
-            
+
             # Then there is a new one or a better one:
             elif len(match_old) == 0:
                 file2.write('%s %s %s %s %i %s %i\n' % \
                 (str(j),star.id_star,star.fullpath.split(star.filename)[0],\
                 star.filename,star.resolution,line,-1))
-        
+
         file1.write('%i %s %s %s %i %s %i\n' % \
         (i,star.id_star,star.fullpath.split(star.filename)[0],\
         star.filename,star.resolution,line,-1))
         i = i + 1
-        
+
         bar.update(j)
-        
+
         bar.finish()
-    
+
     if old_input is not None:
         file2.close()
 
     file1.close()
-    
+
     # If new_master is True, it will create a new master table with the new input
     if old_input is None and new_master == True:
         print('Cannot create a new master table without an old one.\n')
@@ -144,16 +144,16 @@ def ib_input(table, folder, old_input=None, new_master=False, orig='IACOB'):
                     continue
             else:
                 old_input = vstack([old_input, row])
-        
+
         old_input['i'] = np.arange(len(old_input)).astype(str)
-        
+
         file3 = open(maindir+'tables/input_IB_new.txt', 'w')
         file3.write('#i ID path Ref_file resol line QIB\n')
         for row in old_input:
             file3.write('%s %s %s %s %s %s %i\n' % \
             (row['i'],row['ID'],row['path'],row['Ref_file'],row['resol'],row['line'],row['QIB']))
         file3.close()
-    
+
     return 'DONE'
 
 
