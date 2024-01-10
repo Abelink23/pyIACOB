@@ -316,7 +316,7 @@ def findlist(list):
 
 
 def findtable(table, path=None, format=None, delimiter=',', header_start=None,
-    fits_strip_end=True, fix_missing=False, quicklook=False):
+    fits_strip_end=True, fix_missing=False, guess=False, quicklook=False):
 
     '''
     Function to get the data from a table with different formats.
@@ -346,6 +346,9 @@ def findtable(table, path=None, format=None, delimiter=',', header_start=None,
 
     fix_missing : boolean, optional
         If 'True' it will replace missing strings by '' abd missing floats by float 'nan'.
+
+    guess : boolean, optional
+        If 'True' it will try to guess the format of the table.
 
     quicklook : boolean, optional
         If 'True' it will show the table in the web browser. Default is 'False'.
@@ -380,10 +383,10 @@ def findtable(table, path=None, format=None, delimiter=',', header_start=None,
                  data[col] = [i.strip() if np.ma.is_masked(i) == False else i for i in data[col]]
 
     elif header_start != None:
-        data = ascii.read(table_dir, header_start=header_start, format=format, delimiter=delimiter, guess=False)
+        data = ascii.read(table_dir, header_start=header_start, format=format, delimiter=delimiter, guess=guess)
 
     else:
-        data = ascii.read(table_dir, format=format, delimiter=delimiter, guess=False)
+        data = ascii.read(table_dir, format=format, delimiter=delimiter, guess=guess)
 
     if fix_missing == True:
         for j in [i for i in data.colnames if data.dtype[i].type in [np.str_,np.bytes_]]:
