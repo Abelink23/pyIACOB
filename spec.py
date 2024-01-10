@@ -962,7 +962,7 @@ class spec():
 
         method : str, optional
             Enter the interpolation method to be used. See doc for np.interp1d.
-            Default is 'linear'.
+            Default is 'linear'. See interp1d (keyword kind) for more options.
 
         Returns
         -------
