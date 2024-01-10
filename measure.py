@@ -341,7 +341,16 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='vrg_H', rv_to
     Nothing, but the output table with the results is created.
     '''
 
-    table = findtable(table)
+    # If input table is a string, it will try to find the table in the tables folder
+    # if input table is already a table, it will continue
+    # if input table is not a string or a table, it will exit
+    if type(table) is str:
+        table = findtable(table)
+    elif type(table) is Table:
+        pass
+    else:
+        print('Bad input for "table" parameter. Exiting...')
+        return None
 
     #===========================================================================
     output = findtable(output_table)
@@ -408,7 +417,7 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='vrg_H', rv_to
             if skip == 's': break
 
             T_source = Table(
-                [[star.id_star],[star.filename],[snr_b],[snr_v],[snr_r],[round(star.rv0, 2)],[eRV0]],
+                [[star.id_star],[star.filename],[snr_b],[snr_v],[snr_r],[round(star.rv0,2)],[round(eRV0,2)]],
                 names=('ID','Ref_file','SNR_B','SNR_V','SNR_R','RV0','eRV0'))
 
             #=======================================================================
