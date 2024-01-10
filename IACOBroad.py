@@ -5,13 +5,13 @@ from scipy.io.idl import readsav
 def ib_input(table, folder, old_input=None, new_master=False, orig='IACOB'):
 
     '''
-    Function to generate the input table for IACOB broad given an input table with the
-    target stars or specific spectrum.
+    Function to generate the input table for IACOB broad given an input table
+    with the target stars or specific spectrum.
 
     Parameters
     ----------
     table : str
-        Enter the input table contaning a column 'ID' or 'Ref_file' with the identifier
+        Enter the input table containing a column 'ID' or 'Ref_file' with the identifier
         of the stars. If the ID is provided, then the best SNR spectrum is used for each
         star (prioritizing HERMES+FEROS).
 
@@ -21,7 +21,7 @@ def ib_input(table, folder, old_input=None, new_master=False, orig='IACOB'):
 
     old_input : str, optional
         Name of a previous IACOB-Broad input table. If used, it will be used to create
-        an updated verstion of it. Default is None.
+        an updated version of it. Default is None.
 
     new_master : boolean, optional
         If True, it will create a new master table, adding the new rows to the old input
@@ -45,7 +45,7 @@ def ib_input(table, folder, old_input=None, new_master=False, orig='IACOB'):
     file1.write('#i ID path Ref_file resol line QIB\n')
 
     if old_input is not None:
-        old_input = findtable(old_input)
+        old_input = findtable(old_input, delimiter=' ', guess=True)
         old_input['i'] = old_input['i'].astype(str)
         file2 = open(maindir+'tables/input_IB_todo-updated.txt', 'w')
         file2.write('#i ID path Ref_file resol line QIB\n')
@@ -133,7 +133,8 @@ def ib_input(table, folder, old_input=None, new_master=False, orig='IACOB'):
     if old_input is None and new_master == True:
         print('Cannot create a new master table without an old one.\n')
     elif old_input is not None and new_master == True:
-        table = findtable('input_IB_updated.txt')
+        table = findtable('input_IB_todo-updated.txt', delimiter=' ', guess=True)
+        Table.read('/Users/abelink/MEGA/PhD/tables/input_IB_todo-updated.txt', format='ascii')
         table['i'] = table['i'].astype(str)
         for row in table:
             if row['Ref_file'] in old_input['Ref_file']:
@@ -166,7 +167,8 @@ def ib_results(table, folder, check_best=False, format='fits'):
     Parameters
     ----------
     table : str
-        Name of the input table contaning the list of stars to search.
+        Name of the input table containing the list of stars to search, with the
+        column 'ID', 'Ref_file', 'line' and 'QIB' (see ib_input() function).
 
     folder : str
         Name of the sub-folder under the IACOB-Broad directory (ibdir) where to
@@ -186,7 +188,7 @@ def ib_results(table, folder, check_best=False, format='fits'):
     Nothing but the output table with the IACOB broad results is generated.
     '''
 
-    table = findtable(table)
+    table = findtable(table, delimiter=' ', guess=True)
 
     bar = pb.ProgressBar(maxval=len(table),
                          widgets=[pb.Bar('=','[',']'),' ',pb.Percentage()])
