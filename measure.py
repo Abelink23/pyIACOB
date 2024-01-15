@@ -303,10 +303,10 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='vrg_H', rv_to
     Parameters
     ----------
     table : str
-        Name of the input table contaning the list of stars to analyze.
+        Name of the input table containing the list of stars to analyze.
 
     output_table : str
-        Name of the output (new) table contaning the results.
+        Name of the output (new) table containing the results.
 
     rv_lines : str, list
         Enter the wavelength(s) of the line(s) to fit, either in a coma-separated
