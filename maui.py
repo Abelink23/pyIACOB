@@ -770,33 +770,32 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                     mask = (star.obswave > line_lwl) & (star.obswave < line_rwl)
                     ax_i.plot(star.obswave[mask], star.obsflux[mask], color='k', lw=.7)
 
-
                     if FR == False:
                         # Define the regions used for the weight (weight=1)
                         # If only a region within the window is used, then the rest of the window has weight 0.
                         # In this case, I add -0.1 and +0.1 to the window limits defined in '*_lines_for_chi2_*'
                         # Otherwise I specify the exact region with weight 1 within the window.
                         weight = [0 if (
-                            (i >= 6521.00 and i <= 6532.00) or # Halpha, exclude HeII line in the blue wing
-                            (i >  6575.75 and i <  6585.29) or #         exclude CII lines in the red wing
-                            (i >  4344.42 and i <  4355.83) or # Hgamma, exclude OII lines in the red wing
-                            #(i >= 4330.50 and i <= 4335.00) or # and the XXX in the blue wind | NEW! 2023 not implemented
-                            (i >= 4083.20 and i <= 4085.50) or # Hdelta, exclude metal lines
-                            (i >  4086.29 and i <  4090.53) or
-                            (i >  4092.27 and i <  4093.99) or
+                            (i >= 6521.00 and i <= 6532.00) or # Halpha, mask NII lines in the blue wing [??]
+                            (i >= 6575.75 and i <= 6585.29) or #         mask CII lines in the red wing
+                            (i >= 4330.50 and i <= 4335.00) or # Hgamma, mask NIII/SIII? lines in the blue wind
+                            (i >= 4344.42 and i <= 4355.83) or #         mask OII lines in the red wing
+                            (i >= 4083.20 and i <= 4085.50) or # Hdelta, mask metal lines
+                            (i >= 4086.29 and i <= 4090.53) or
+                            (i >= 4092.27 and i <= 4093.99) or
                             (i >= 4096.50 and i <= 4098.00) or
-                            (i >= 3953.09 and i <= 3955.05) or # Hepsil, exclude metal lines
-                            (i >  3960.70 and i <  3962.24) or
-                            (i >  3963.38 and i <  3965.76) or
+                            (i >= 3953.09 and i <= 3955.05) or # Hepsil, mask metal lines
+                            (i >= 3960.70 and i <= 3962.24) or
+                            (i >= 3963.38 and i <= 3965.76) or
                             (i >= 3967.00 and i <= 3969.00) or
                             (i >= 3972.53 and i <= 3974.10) or
-                            #(i >= 4465.00 and i <= 4468.50) or # HeI 4471 | NEW! 2023 not implemented
-                            (i >= 4923.50 and i <= 4926.00) or # HeI 4922
-                            #(i >= 5013.20 and i <= 5014.50) or # HeI 5015 | NEW! 2023 not implemented
-                            (i >= 5017.50 and i <= 5019.50) or 
-                            (i >= 4544.00 and i <= 4546.00) or # HeII 4541, exclude AlIII lines
-                            (i >  4478.87 and i <  4480.20) or # MgII 4481, exclude the AlIII blend
-                            (i >= 4128.71 and i <= 4130.10) or # SiIII 4130 (remove continuum)
+                            (i >= 4465.00 and i <= 4468.50) or # HeI 4471, mask OII lines in the blue wind
+                            (i >= 4923.50 and i <= 4926.00) or # HeI 4922, mask an OII line in the red wing
+                            (i >= 5013.20 and i <= 5014.50) or # HeI 5015, mask a SII line
+                            (i >= 5017.50 and i <= 5019.50) or #           mask some Ni I/II lines?
+                            (i >= 4544.00 and i <= 4546.00) or # HeII 4541, mask AlIII lines
+                            (i >= 4478.87 and i <= 4480.20) or # MgII 4481, mask the AlIII blend
+                            (i >= 4128.71 and i <= 4130.10) or # SiIII 4130
                             (i >= 4131.40 and i <= 4134.08) or
                             (i >= 4547.60 and i <= 4550.20) or # SiIII 4552 (remove continuum)
                             (i >= 4555.00 and i <= 4558.96) or
@@ -810,26 +809,26 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
                     elif FR == True:
                         weight = [0 if (
-                            (i >= 6521.00 and i <= 6532.00) or # Halpha, exclude HeII line in the blue wing
-                            (i >  6575.75 and i <  6585.29) or #         exclude CII lines in the red wing
-                            (i >  4344.42 and i <  4355.83) or # Hgamma, exclude OII lines in the red wing
-                            #(i >= 4330.50 and i <= 4335.00) or # and the XXX in the blue wind | NEW! 2023 not implemented
-                            (i >= 4083.20 and i <= 4085.50) or # Hdelta, exclude metal lines
-                            (i >  4086.29 and i <  4090.53) or
-                            (i >  4092.27 and i <  4093.99) or
+                            (i >= 6521.00 and i <= 6532.00) or # Halpha, mask NII line in the blue wing [??]
+                            (i >= 6575.75 and i <= 6585.29) or #         mask CII lines in the red wing
+                            (i >= 4330.50 and i <= 4335.00) or # Hgamma, mask NIII/SIII? lines in the blue wind
+                            (i >= 4344.42 and i <= 4355.83) or #         mask OII lines in the red wing
+                            (i >= 4083.20 and i <= 4085.50) or # Hdelta, mask metal lines
+                            (i >= 4086.29 and i <= 4090.53) or
+                            (i >= 4092.27 and i <= 4093.99) or
                             (i >= 4096.50 and i <= 4098.00) or
-                            (i >= 3953.09 and i <= 3955.05) or # Hepsil, exclude metal lines
-                            (i >  3960.70 and i <  3962.24) or
-                            (i >  3963.38 and i <  3965.76) or
+                            (i >= 3953.09 and i <= 3955.05) or # Hepsil, mask metal lines
+                            (i >= 3960.70 and i <= 3962.24) or
+                            (i >= 3963.38 and i <= 3965.76) or
                             (i >= 3967.00 and i <= 3969.00) or
                             (i >= 3972.53 and i <= 3974.10) or
-                            #(i >= 4465.00 and i <= 4468.50) or # HeI 4471 | NEW! 2023 not implemented
-                            (i >= 4923.50 and i <= 4926.00) or # HeI 4922
-                            #(i >= 5013.00 and i <= 5014.50) or # HeI 5015 | NEW! 2023 not implemented
-                            (i >= 5017.50 and i <= 5019.50) or
-                            (i >= 4544.00 and i <= 4546.00) or # HeII 4541, exclude AlIII lines
-                            (i >  4478.87 and i <  4480.20) or # MgII 4481, exclude the AlIII blend
-                            (i >= 4128.71 and i <= 4130.10) or # SiIII 4130 (remove continuum)
+                            (i >= 4465.00 and i <= 4468.50) or # HeI 4471, mask OII lines in the blue wind
+                            (i >= 4923.50 and i <= 4926.00) or # HeI 4922, mask an OII line in the red wing
+                            (i >= 5013.20 and i <= 5014.50) or # HeI 5015, mask a SII line
+                            (i >= 5017.50 and i <= 5019.50) or #           mask some Ni I/II lines?
+                            (i >= 4544.00 and i <= 4546.00) or # HeII 4541, mask AlIII lines
+                            (i >= 4478.87 and i <= 4480.20) or # MgII 4481, mask the AlIII blend
+                            (i >= 4128.71 and i <= 4130.10) or # SiIII 4130
                             (i >= 4131.40 and i <= 4134.08) or
                             (i >= 4547.40 and i <= 4549.00) or # SiIII 4552 (remove continuum)
                             (i >= 4556.00 and i <= 4558.90) or
