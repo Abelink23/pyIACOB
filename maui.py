@@ -832,8 +832,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                             (i >= 4131.40 and i <= 4134.08) or
                             (i >= 4547.40 and i <= 4549.00) or # SiIII 4552 (remove continuum)
                             (i >= 4556.00 and i <= 4558.90) or
-                            (i >= 4561.90 and i <= 4564.00) or # SiIII 4567 + 4575 (remove continuum)
-                            (i >= 4576.00 and i <= 4581.40) or
+                            (i >= 4576.00 and i <= 4581.40) or # SiIII 4567 + 4575 (remove continuum)
                             (i >= 4112.50 and i <= 4113.80) or # SiIV 4116 (first val should match lmin)
                             (i >= 4117.70 and i <= 4126.10)    # (last val should match lmax)
                             ) else 1 for i in star.obswave[mask]]
