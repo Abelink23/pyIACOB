@@ -279,7 +279,7 @@ def findlines(list):
     return lines, elements, loggf
 
 
-def findlist(list):
+def findlist(list, path=None):
 
     '''
     Function to extract items in a txt/lst file.
@@ -289,12 +289,16 @@ def findlist(list):
     list : str
         Enter the list of items in .txt/.lst.
 
+    path : str, optional
+        Path where to search for the file.
+
     Returns
     -------
     Items contained in the input list.
     '''
 
-    path = maindir + 'lists'
+    if path == None:
+        path = maindir + 'lists'
 
     # To catch wrong int/float inputs:
     if type(list) == float or type(list) == int:
