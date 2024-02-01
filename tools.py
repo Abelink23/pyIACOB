@@ -2,9 +2,6 @@ from db import *
 
 import scipy.constants as cte
 
-from astroquery.nist import Nist
-from astroquery.atomic import AtomicLineList
-
 from astropy.time import Time
 from astropy.stats import sigma_clip
 from astropy.coordinates import EarthLocation
@@ -65,7 +62,7 @@ def table_zp_edr3(table, ra, dec, search_radius=0.5):
 
     table = table[table['astrometric_params_solved']>3]
     zpvals = zpt.get_zpt(table['phot_g_mean_mag'],table['nu_eff_used_in_astrometry'],\
-           table['pseudocolour'],table['ecl_lat'],table['astrometric_params_solved'])
+                table['pseudocolour'],table['ecl_lat'],table['astrometric_params_solved'])
     table.add_column(zpvals,name='zp_offset')
 
     table.remove_column('designation')
@@ -76,62 +73,8 @@ def table_zp_edr3(table, ra, dec, search_radius=0.5):
 
 
 #===============================================================================
-# Atomic lines and wavelenghts conversions.
+# Wavelength conversions.
 #===============================================================================
-
-def atline(lwl, rwl, elements=None, unit='angstrom', source='ALL'):
-
-    '''
-    Function to retrieve spectral lines from the Atomic Line databases.
-    Input and output is given in Air confitions.
-
-    Parameters
-    ----------
-    lwl : float/int
-        Sets the start wavelenght.
-
-    rwl : float/int
-        Sets the end wavelenght.
-
-    unit : str
-        Units of the input wavelengths in lwl and rwl (nm/angstrom). Default is angstrom.
-
-    elements : str, optional
-        Enter a string with the elements associated to the lines.
-        If 'OB' it will pick the most characteristic lines of OB stars.
-
-    source : str, optional
-        Choose between 'ALL' and 'NIST' databases. Default is 'ALL'
-
-    Returns
-    -------
-    List with the spectral lines.
-    '''
-
-    if unit == 'angstrom':
-        wavelength_range = (lwl*u.Angstrom,rwl*u.Angstrom)
-    elif unit == 'nanometer' or unit == 'nm':
-        wavelength_range = (lwl*u.nm,rwl*u.nm)
-    else:
-        print('ERROR: wrong input units for the wavelength range. Exitting...')
-        return None
-
-    if elements == 'OB':
-        elements = 'H I, He I-II, O I-IV, C I-IV, Ne I-III, Fe I-III, N I-IV, \
-        Si I-IV, Mg I-IV, S I-IV, V I-II, Cr I-II, Ni I-II, Sc I-II, Ti I-II, \
-        Ca I-II, Na I-II'
-
-    if source == 'ALL':
-        columns = ['spec', 'type', 'conf', 'term', 'angm', 'prob']
-        list = AtomicLineList.query_object(wavelength_range, wavelength_type='Air',
-            wavelength_accuracy=20, element_spectrum=elements, output_columns=columns,
-            cache=False)
-
-    elif source == 'NIST':
-        list = Nist.query(lwl*u.Angstrom,rwl*u.Angstrom,wavelength_type='vac+air',
-            linename=elements)
-
-    return list
 
 
 def atokms(dlamb, lamb0):
