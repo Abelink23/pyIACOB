@@ -1133,6 +1133,9 @@ class spec():
             elif lines in ['35-10K','35K','30K','25K','20K','15K','10K']:
                 table = findtable('%s.fits' % lines, path=maindir+'lists/lines/atlas_lines/')
                 # www.lsw.uni-heidelberg.de/projects/hot-stars/websynspec.php
+            elif '.txt' in lines or '.lst' in lines:
+                table = Table(findlines(lines))
+                table.rename_columns(['col0','col1','col2'], ['wl_air','spc','loggf'])
 
             table = table[(table['wl_air'] >= lwl) & (table['wl_air'] <= rwl)]
 
@@ -1142,6 +1145,8 @@ class spec():
             elif 'strength' in table.columns:
                 table['strength'] = [i if i<800 else 800 for i in table['strength']]
                 table['width'] = table['strength']/np.max(table['strength']) * 3
+            else:
+                table['width'] = 3
 
             at_color = {'HI':'gray', 'HeI':'turquoise', 'OI':'r', 'NI':'b', 'CI':'k', 'SI':'gold',
                 'Si':'tan', 'Mg':'g', 'Fe':'chocolate', 'Ne':'teal', 'Al':'rosybrown'}
@@ -1156,7 +1161,7 @@ class spec():
                 # depth line mask = depth deepest line
                 plt.text(line['wl_air'],1.004-depth, line['spc'], c=c, size=6, rotation=-90, clip_on=True)
 
-        plt.plot(self.wave[mask], self.flux[mask], lw=.3, label=self.id_star+' '+self.SpC)
+        plt.plot(self.wave[mask], self.flux[mask], lw=.5, label=self.id_star+' '+self.SpC)
         plt.tick_params(direction='in', top='on')
 
         if ylim is not None and (type(ylim) is list or type(ylim) is tuple):
