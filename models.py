@@ -168,7 +168,7 @@ def trackgene(mass=None, vr=0.4):
     Returns
     -------
     Geneva isochrone
-    
+
     Notes 'line' column
     -------------------
     1: ZAMS
@@ -186,30 +186,37 @@ def trackgene(mass=None, vr=0.4):
     400: last model
     '''
 
-    if not vr in [0.0, 0.2, 0.4]:
-        print('WARNING: Geneva tracks are only available for v/vcrit = 0.0 or 0.4')
-        print('Setting v/vcrit = 0.4')
-        vr = 0.4
+    if mass == None:
+        print('ERROR: No mass given. Please enter a mass in M/M_sun.')
+        return
 
-    if vr in [0.0, 0.4]: 
+    if not vr in [0.0, 0.2, 0.4]:
+        print('WARNING: Geneva tracks are only available for v/vcrit = 0.0, 0.2, and 0.4')
+        vr = min([0.0, 0.2, 0.4], key=lambda x:abs(x-vr))
+        print('Choosing %s as the closest value.' % vr)
+
+    if vr in [0.0, 0.4]:
         mass_list = [0.8, 0.9, 1.0, 1.1, 1.25, 1.35, 1.5, 1.7, 2.0, 2.5, 3, 4, 5, 7, 9, 12, 15, 20, 25, 32, 40, 60, 85, 120]
     elif vr == 0.2:
         mass_list = [20, 25, 32, 40, 60, 85, 120]
 
     vr = str(vr).replace('0.','')
 
+    if type(mass) is not str and not mass in mass_list:
+        print('WARNING: Mass not in list %s' % mass_list)
+        mass = min(mass_list, key=lambda x:abs(x-mass))
+        print('Choosing %s as the closest value.' % mass)
 
-    if mass != None and mass in mass_list:
+    # if mass is a round number, turn it into an integer
+    if type(mass) is float and mass.is_integer():
+        mass = str(int(mass))
+    elif type(mass) is not str and mass in mass_list:
+        mass = str(mass).replace('.','p')
 
-        if type(mass) is float:
-            mass = str(mass).replace('.','p')
+    digit = 3-len(mass)
+    mass = '0'*digit+mass
 
-        else:
-            mass = str(mass)
-            digit = 3-len(mass)
-            mass = '0'*digit+mass
-
-        t_geneva = Table.read(modeldir + 'GENEVA/M%sZ14V%s.dat' % (mass,vr), format='ascii', data_start=2, delimiter=' ')
+    t_geneva = Table.read(modeldir + 'GENEVA/M%sZ14V%s.dat' % (mass,vr), format='ascii', data_start=2, delimiter=' ')
 
     # FROM Gonzalo
     t_geneva.rename_columns(['lg(Teff)','lg(L)'],['log_Teff','log_L'])
@@ -250,8 +257,8 @@ def trackbonn(mass=None, vr=np.nan):
     mass_list = [5, 7, 9, 10, 12, 15, 20, 25, 30, 35, 40, 50, 60]
     
     while mass not in mass_list:
-        print('Mass not in list %s' % mass_list)
-        mass = int(input('Pick a new mass from %s: ' % mass_list))
+        print('Mass %s not in list %s' % (str(mass),mass_list))
+        mass = int(input('Pick a new mass: '))
     
     # find all models starting with f+mass
     path = modeldir + 'BONN/'
