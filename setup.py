@@ -58,12 +58,11 @@ shutil.copytree('atlas_lines', os.path.join(main_dir, 'list', 'lines', 'atlas_li
 # List of packages to check/install
 packages = [
     'numpy=1.21.5',
-    'matplotlib=3.5.2',
+    'matplotlib=3.7.1',
     'scipy=1.7.3',
     'astropy=5.1',
     'astroquery=0.4.6',
     'progressbar=2.5',
-    'lightkurve=2.2.1'
     ]
 
 # Loop through packages and check if they are installed
