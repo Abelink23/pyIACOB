@@ -204,7 +204,7 @@ class spec():
                 self.snr = header0['I-SNR']
             else:
                 self.snr = np.nan
-            
+
             # Assign SpC
             if 'I-SPC' in header0:
                 self.SpC = header0['I-SPC']
@@ -648,8 +648,8 @@ class spec():
         #=======================================================================
         #================= Packing the results in a dictionary =================
         fitsol = {'sol':1, 'line':line_f, 'RV_A':RV_A, 'RV_kms':RV_kms,
-                   'EW':EW, 'FWHM':FWHM, 'FW34_14':FW34_14, 'depth':depth,
-                   'q_fit':q_fit, 'snr':snr}
+                  'EW':EW, 'FWHM':FWHM, 'FW34_14':FW34_14, 'depth':depth,
+                  'q_fit':q_fit, 'snr':snr}
 
         for f_par,par in zip(fit_dic[func.split('_')[0]], popt):
             fitsol[f_par] = round(par, 3)
