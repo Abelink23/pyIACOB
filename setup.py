@@ -67,6 +67,7 @@ packages = [
 
 # Loop through packages and check if they are installed
 print("Checking if all packages are installed...")
+input_conda = ''
 for package in packages:
     try:
         # Attempt to import the package
@@ -75,9 +76,15 @@ for package in packages:
     except ImportError:
         print(f"{package} is not installed. Installing...")
         # Install package using conda
-        if package in ['astroquery', 'progressbar', 'lightkurve']:
-            subprocess.call(['conda', 'install', '-c', 'conda-forge', package, '-y'])
+        if input_conda == '':
+            input_conda = input("Would you like to install the packages using conda? (y/n): ")
+        if input_conda.lower() == 'y':
+            if package in ['astroquery', 'progressbar', 'lightkurve']:
+                subprocess.call(['conda', 'install', '-c', 'conda-forge', package, '-y'])
+            else:
+                subprocess.call(['conda', 'install', package, '-y'])
         else:
-            subprocess.call(['conda', 'install', package, '-y'])
+            print(f"Please install {package} manually.")
+
 
 print("\nAll packages are installed!")
