@@ -233,16 +233,23 @@ class spec():
             
             data = findtable(self.filename, path=self.fullpath.replace(self.filename,''), delimiter=delimiter, format='basic')
 
-            if data.colnames[0].lower() in ['wave','wavelength','lambda','lamb','ang','angstroms']:
-                wave = data[data.colnames[0]]
-            else:
-                print('Problem in spec(): No wavelength column found in the firs column of the ascii file.    ')
+            wl_keywords = ['wave','wavelength','lambda','lamb','ang','angstroms']
+            idx_wl = next((i for i, item in enumerate(data.colnames) if item.lower() in wl_keywords), None)
+
+            if idx_wl == None:
+                print('Problem in spec(): No wavelength column found in the first column of the ascii file.    ')
                 return None
-            if data.colnames[1].lower() in ['flux','fluxes','norm_flux','flux_norm']:
-                flux = data[data.colnames[1]]
             else:
+                wave = data[data.colnames[idx_wl]]
+            
+            fx_keywords = ['flux','fluxes','norm_flux','flux_norm']
+            idx_fx = next((i for i, item in enumerate(data.colnames) if item.lower() in fx_keywords), None)
+            
+            if idx_fx == None:
                 print('Problem in spec(): No flux column found in the second column of the ascii file.')
                 return None
+            else:
+                flux = data[data.colnames[idx_fx]]
 
             dlam = (wave[-1]-wave[0])/(len(wave)-1)
             self.vbar = 0
