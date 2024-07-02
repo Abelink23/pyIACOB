@@ -22,7 +22,7 @@ plt.rc('ytick', direction='in', right='on')
 
 
 class spec():
-    def __init__(self, spectrum, snr=None, rv0=0, offset=0, cut_edges=False, orig='IACOB', delimiter=','):
+    def __init__(self, spectrum, snr=0, rv0=0, offset=0, cut_edges=False, orig='IACOB', delimiter=','):
 
         '''
         Parameters
@@ -36,6 +36,7 @@ class spec():
         snr : str, optional
             If 'best' as input, it finds the best SNR spectrum for the given name.
             If 'bestHF' same as 'best' but prioritizing spectra from HERMES/FEROS.
+            If specified, and there are more than one spectra in the DB, it will fail.
 
         rv0 : float, optional
             Enter the radial velocity correction to apply to the spectrum in km/s.
@@ -612,7 +613,11 @@ class spec():
             snr = np.nan
         else:
             sigma_cont = np.std(flux_norm[mask])
-            snr = int(1/sigma_cont)
+            if sigma_cont <= 0.002:
+                print('SNR continuum for %.3fA is very high. Set to 1000' % line)
+                snr = 1000
+            else:
+                snr = int(1/sigma_cont)
             # If the SNR measured on the continuum of the line is too different from
             # the SNR measured on the wider region, the latter is used.
             if snr == None or abs(snr_spec-snr)/snr_spec > 0.30:
