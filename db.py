@@ -32,12 +32,12 @@ from edr3_zp import zpt
 zpt.load_tables()
 
 # Load the working paths:
-dir = ''
-while not os.path.isfile(dir + 'paths.txt'):
+dir_path_file = ''
+while not os.path.isfile(dir_path_file + 'paths.txt'):
     print('File paths.txt not found...')
-    dir = input('Please provide the full path to the file now: ')
+    dir_path_file = input('Please provide the full path to the file now: ')
 
-with open(dir + 'paths.txt', 'r') as paths:
+with open(dir_path_file + 'paths.txt', 'r') as paths:
     paths = [i.split('=') for i in paths.read().splitlines() if not i == '' and not i.startswith('#')]
     paths = [[i[0],i[1]] if i[1].endswith('/') == True else [i[0],i[1]+'/'] for i in paths]
 
@@ -87,7 +87,7 @@ def search(myfile, path):
     
         return f_dir[0]
 
-def findstar(spectra=None, snr=None):
+def findstar(spectra=None, snr=0):
 
     '''
     Function to get the paths of the searched spectra allowing to limitate the
@@ -104,6 +104,7 @@ def findstar(spectra=None, snr=None):
         If 'best' as input, it finds only the best SNR spectrum for each star.
         If 'bestHF' same as 'best' but prioritizing spectra from HERMES/FEROS.
         If specified, it returns all the spectra above the chosen SNR.
+        If not specified it will search for all the available spectra with SNR > 0.
 
     Returns
     -------
@@ -171,7 +172,7 @@ def findstar(spectra=None, snr=None):
         print('SNR for ascii files is not yet implemented, ignoring SNR keyword.')
 
     else:
-        if snr == 'best':
+        if snr == 'best' or snr is None:
             dir_spectra = spec_snr(dir_spectra)
 
         elif snr == 'bestHF':
@@ -179,6 +180,10 @@ def findstar(spectra=None, snr=None):
 
         elif type(snr) == int:
             dir_spectra = spec_snr(dir_spectra, snrcut=snr)
+
+        else:
+            print('SNR keyword not provided properly.\nExiting...')
+            return None
 
     # Order all spectra from a single target by date.
     if len(list_spectra) == 1:
