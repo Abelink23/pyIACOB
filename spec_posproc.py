@@ -84,12 +84,12 @@ def gen_ascii(id, orig='IACOB', db_table=None, spt='auto', lwl=None, rwl=None, r
                 spt = row_id['SpT'][0]
             elif 'SpT' in db_table.colnames:
                 print('Initial spectral type taken from SpT column.')
-                spt = spc_code(row_id['SpT'])[0]
+                spt = spc_code(row_id['SpT'][0])[0]
             elif 'SpC' in db_table.colnames:
                 print('Initial spectral type taken from SpC column.')
-                spt = spc_code(row_id['SpC'])[0]
+                spt = spc_code(row_id['SpC'][0])[0]
         elif spt in db_table.colnames:
-            spt = spc_code(row_id[spt])[0]
+            spt = spc_code(row_id[spt][0])[0]
 
     if spt == 'auto':
         if orig == 'IACOB':
