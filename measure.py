@@ -704,6 +704,164 @@ def auto_measure(lines, table, output_table='new_RVEWFW.fits',
     return 'DONE'
 
 
+
+def auto_RV(table, snrcut=20, n_max=50, n_min=0, info=False):
+    
+    '''
+    Function to automatically calculate the radial velocity of stars in a table.
+    The input table must contain a column 'ID' with the name of the stars.
+    It has to contain a column 'SpC' or 'SpT' with the spectral type of the star.
+    The SpT follows: O9 = 1.9, B1.5 = 2.15, A2 = 3.2, etc.
+    
+    Parameters
+    ----------
+    table : str
+        Name of the input table contaning the list of stars to analyze.
+    
+    snrcut : int, optional
+        SNR threshold to consider a spectrum for the RV calculation. Default is 20.
+    
+    n_max : int, optional
+        Maximum number of spectra above snrcut used in the RV analysis. Default is 50.
+    
+    n_min : int, optional
+        Minimum number of spectra above snrcut used in the RV analysis. Default is 0.
+    
+    info : bool, optional
+        If True, it will print the information of the individual fittings.
+    
+    Returns
+    -------
+    Nothing, but the output files from the rv.RV function are generated.
+    '''
+    
+    # Dictionary to convert spectral types to the list of lines to be fitted
+    rv0_dic = {'O' : 'rv_Os.lst', 'B' : 'rv_Bs.lst', 'A' : 'rv_As.lst'}
+    rv_dic = {
+        1 : 'Os.lst',
+        2.0 : 'B0.lst',
+        2.1 : 'B1.lst',
+        2.2 : 'B2.lst',
+        2.3 : 'B3.lst',
+        2.4 : 'B4.lst',
+        2.5 : 'B5.lst',
+        2.6 : 'B6.lst',
+        2.7 : 'B7.lst',
+        2.8 : 'B8.lst',
+        2.9 : 'B9.lst',
+        3.0 : 'A0.lst',
+        3.1 : 'A1.lst',
+        3.2 : 'A2.lst',
+        }
+    
+    # If input table is a string, it will try to find the table in the tables folder
+    # if input table is already a table, it will continue
+    # if input table is not a string or a table, it will exit
+    if type(table) is str:
+        table = findtable(table)
+    elif type(table) is Table:
+        pass
+    else:
+        print('Bad input for "table" parameter. Exiting...\n')
+        return None
+    
+    # Initialize the progress bar
+    bar = pb.ProgressBar(maxval=len(table),
+                         widgets=[pb.Bar('=','[',']'),' ',pb.Percentage()])
+    bar.start()
+    
+    
+    # Begin the loop over the table
+    for star,i in zip(table,range(len(table))):
+        
+        bar.update(i); print('\n')
+        
+        if 'SpT' in table.colnames and not np.ma.is_masked(star['SpT']):
+            spt = round(star['SpT'], 1)
+        else:
+            spt = round(spc_code(star['SpC'])[0], 1)
+        
+        if spt < 1.95:
+            linesRV0 = rv0_dic['O']
+            spt = 1.0
+        elif spt < 2.8:
+            linesRV0 = rv0_dic['B']
+        elif 2.8 <= spt < 4.0:
+            linesRV0 = rv0_dic['A']
+            if spt > 3.2:
+                spt = 3.2
+        else:
+            print('\n%s has SpT=%s, skipping...' % (star['ID'], spt))
+            continue
+        
+        print('Adopted spectral type: %.1f \n' % spt)
+        
+        spec_i = spec(star['ID'], snr='bestHF')
+        
+        repeat = 'yes'
+        while repeat in ['yes','y']:
+            
+            n = len(findstar(star['ID'], snr=snrcut))
+            if n > n_max:
+                print('\nWARNING: %s has %i spectra above SNR=%d (limit is %i)' % (star['ID'], n, snrcut, n_max))
+            elif n < n_min:
+                print('\nWARNING: %s has only %i spectra above SNR=%d (limit is %i)' % (star['ID'], n, snrcut, n_min))
+                repeat = 'no'
+                continue
+            
+            skip = input("%s (%d spec) - Hit return to continue, type 's' to skip, 'q' to quit: " % (star['ID'],n))
+            if skip == 's':
+                    repeat = 'no'
+                    continue
+            elif skip == 'q':
+                break
+            
+            next = 'n'; plt.close('all')
+            while next == 'n':
+                
+                print('\nShowing the Si III triplet...\n')
+                spec_i.cosmic(zs_cut=2, dmin=0.03)
+                spec_i.plotspec(4510,4600)
+                
+                fun = get_input('Choose function to fit between g,r,vr_Z,vrg_Z (default is g): ', 'g', str)
+                wid = get_input('Choose the initial width in angstroms (default is 7): ', 7, float)
+                rv_tol = get_input('Choose the tolerance in km/s (default is 150): ', 150, float)
+                
+                plt.close('all')
+                
+                spec_i.rv0, eRV0 = RV0(linesRV0, spec_i.filename, ewcut=50, width=wid, tol=rv_tol, func=fun)
+                
+                spec_i.waveflux()
+                spec_i.plotspec(4510,4600, lines='35-10K')
+                
+                next = input("\nContinue to the RV analysis / repeat it [''/'n']: ")
+                plt.close('all')
+            
+            RV(lines=rv_dic[spt], id_star=star['ID'], snr=snrcut, linesRV0=linesRV0, n_max=n_max,
+               linecut=1, ewcut=50, width=wid, tol=rv_tol/3, func=fun, info=info)
+            
+            repeat = input("\nHit return to continue, type 'y' to repeat [''/yes/y']: ")
+            plt.close('all')
+    
+    print('DONE\n')
+    bar.finish()
+
+
+
+def get_input(prompt, default_value, type_):
+    while True:
+        value = input(prompt)
+        if value == '':
+            value = default_value
+        else:
+            try:
+                value = type_(value)
+            except ValueError:
+                continue
+        return value
+
+
+
 def even_plot(n):
     '''
     Function to determine the number of rows, columns needed to have a square plot.
