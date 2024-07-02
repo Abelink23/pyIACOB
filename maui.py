@@ -265,7 +265,10 @@ def maui_input(table, table_IB='IB_results.fits', output_name='MAUI_input',
             plt.close('all')
 
         # MAUI input last modifications:
-        match_IB['evsini'] = abs(match_IB['vsini_GF_eDW'] + match_IB['vsini_GF_eUP'])/2
+        if 'vsini_GF_eDW' in match_IB.columns and 'vsini_GF_eUP' in match_IB.columns:
+            match_IB['evsini'] = abs(match_IB['vsini_GF_eDW'] + match_IB['vsini_GF_eUP'])/2
+        else:
+            match_IB['evsini'] = 0.10*match_IB['vsini_GF']
 
         try:
             if match_IB['vsini_GF'] < 5:
@@ -274,7 +277,10 @@ def maui_input(table, table_IB='IB_results.fits', output_name='MAUI_input',
         except:
             print(star.filename, match_IB)
 
-        match_IB['evmac'] = abs(match_IB['vmac_GF_eDW'] + match_IB['vmac_GF_eUP'])/2
+        if 'vmac_GF_eDW' in match_IB.columns and 'vmac_GF_eUP' in match_IB.columns:
+            match_IB['evmac'] = abs(match_IB['vmac_GF_eDW'] + match_IB['vmac_GF_eUP'])/2
+        else:
+            match_IB['evmac'] = 0.10*match_IB['vmac_GF']
 
         # Based on comments from Simon-Diaz 
         if (match_IB['vmac_GF'][0] < 15) or (match_IB['vsini_GF'] > 130):
@@ -512,7 +518,7 @@ class solution_maui():
 
 
 def maui_results(input_list, output_dir, check_best=False, last_only=False, solution='max', FR=False,
-    do_pdf=False, pdflines='diag', grid_only=[], output_table=True, format_table='fits'):
+    do_logg=False, do_pdf=False, pdflines='diag', grid_only=[], output_table=True, format_table='fits'):
 
     '''
     Function to generate a table with the results from MAUI given an input table
@@ -542,6 +548,10 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
     FR : boolean, optional
         True if the analyses correspond to Fast Rotator stars for which whe MAUI windows
         are different. Default is False.
+
+    do_logg : boolean, optional
+        If True, the logg is calculated from the Teff and lgf values replacing 'lgf' in the
+        output plots. Default is False.
 
     do_pdf : boolean, optional
         If True, a pdf comparing the synthetic diagnostic lines with the original is made.
@@ -888,11 +898,11 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                         chain -= 10
                     
                     # Replace lgf by logg
-                    #if 'lgf' in parameters and parameters.index('lgf') == i:
-                    #    idx = parameters.index('Teff')
-                    #    teff = mcmcdata.chain_final.T[idx]*(mcmcdata.xmax[idx] - mcmcdata.xmin[idx]) + mcmcdata.xmin[idx]
-                    #    chain = chain + 4*np.log10(teff)
-                    #    parameters[i] = 'logg'
+                    if do_logg == True and 'lgf' in parameters and parameters.index('lgf') == j:
+                        idx = parameters.index('Teff')
+                        teff = mcmcdata.chain_final.T[idx]*(mcmcdata.xmax[idx] - mcmcdata.xmin[idx]) + mcmcdata.xmin[idx]
+                        chain = chain + 4*np.log10(teff)
+                        parameters[j] = 'logg'
 
                     iqr = np.quantile(chain, q=[.25, .75])
                     fd_bin = 2*np.diff(iqr)/(len(chain)**(0.3))
