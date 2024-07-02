@@ -4,7 +4,10 @@ lists of individual lines or via cross correlation using synthetic spectra.
 ============================================================================='''
 
 from spec import *
+
 from scipy.signal import correlate,correlation_lags
+
+import random
 
 
 def RV_cc(id_star, windows=[(3950,4160),(4310,4360),(4370,4490),(4540,4690),(4840,4950)]):
@@ -158,7 +161,7 @@ def RV0(lines, spectrum, orig='IACOB', ewcut=50, width=20, tol=150, func='g', ch
         Enter the filename of the spectrum.
 
     orig : str, optional
-        See spec() for more informatio. Default is 'IACOB'.
+        See spec() for more information. Default is 'IACOB'.
 
     ewcut : float, optional
         Enter the EW threshold value for a line to be used for RV. Default is 30.
@@ -169,7 +172,7 @@ def RV0(lines, spectrum, orig='IACOB', ewcut=50, width=20, tol=150, func='g', ch
         Default is False.
 
     plot : boolean, optional
-        True if you want to see a plot with the invidivual line fittings. Default is False.
+        True if you want to see a plot with the individual line fittings. Default is False.
 
     Other parameters : optional
         See help for spec and spec.fitline
@@ -181,10 +184,12 @@ def RV0(lines, spectrum, orig='IACOB', ewcut=50, width=20, tol=150, func='g', ch
 
     lines = findlines(lines)[0]
 
+    star = spec(spectrum, orig=orig)
+
     RVs = []; i = 0
     for line in lines:
 
-        fit = spec(spectrum, orig=orig).fitline(line, width=width, tol=tol, func=func, info=check_fit, outfit=True)
+        fit = star.fitline(line, width=width, tol=tol, func=func, info=check_fit, outfit=True)
 
         if np.isnan(fit['RV_kms']):
             continue
@@ -248,7 +253,7 @@ def RV0(lines, spectrum, orig='IACOB', ewcut=50, width=20, tol=150, func='g', ch
     return RV_0, e_RV_0
 
 
-def RV(lines, spectra, snr=None, linesRV0=None, linecut=1, ewcut=25, width=None, tol=50,\
+def RV(lines, id_star, snr=None, linesRV0=None, n_max=50, linecut=1, ewcut=25, width=None, tol=50,\
        func='g', info=False, plot=False):
 
     '''
@@ -259,8 +264,14 @@ def RV(lines, spectra, snr=None, linesRV0=None, linecut=1, ewcut=25, width=None,
     lines : str
         Enter the filename (either txt or lst), with the lines to calculate the RV.
 
+    id_star : str, list
+        Enter the name of the star, or list of fits-files to analyze.
+
     linesRV0 : str, optional
         Enter the filename (either txt or lst), with the lines to calculate the RV0.
+
+    n_max : int, optional
+        Enter the maximum number of spectra to be used. Default is 50.
 
     linecut : int, optional
         Enter the minimum number of lines to take the RV measurements into account.
@@ -268,6 +279,9 @@ def RV(lines, spectra, snr=None, linesRV0=None, linecut=1, ewcut=25, width=None,
 
     ewcut : float, optional
         Enter the EW threshold value for a line to be used for RV. Default is 25.
+
+    width : float, optional
+        Enter the width of the fitting window. If None, it will be set automatically.
 
     Other parameters : optional
         See help for see spec and spec.fitline and spec() class.
@@ -307,7 +321,16 @@ def RV(lines, spectra, snr=None, linesRV0=None, linecut=1, ewcut=25, width=None,
 
 
     '''=============================== SPECTRA =============================='''
-    spectra = findstar(spectra=spectra, snr=snr)
+    spectra = findstar(spectra=id_star, snr=snr)
+    
+    if len(spectra) > n_max:
+        n = input('Number of spectra is more then %i, do you want to take a random number of them? [#/no/n]: ' % n_max)
+        if n not in ['no','n','']:
+            spectra = random.sample(spectra, int(n))
+        elif n == '':
+            print('Plotting %i random spectra...' % n_max)
+            spectra = random.sample(spectra, n_max)
+
     lines,elements,_ = findlines(lines)
 
     fig, ax = plt.subplots()
@@ -428,6 +451,8 @@ def RV(lines, spectra, snr=None, linesRV0=None, linecut=1, ewcut=25, width=None,
     out_f0.write('%s, %.4f, %.4f, %.4f, %.4f, %.2f, %.1f, %d\n' %
         (spectrum.id_star, RVs_mean_all, std_RVs_mean_all, peak2peak, peak2peak_err,
         tspan, np.mean(num_lines), len(RVs_all_means)))
+
+    out_f0.close()
 
     '''================================ Plot ================================'''
     ax.set_title(spectrum.id_star)
