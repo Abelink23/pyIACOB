@@ -820,7 +820,7 @@ def auto_RV(table, snrcut=20, n_max=50, n_min=0, info=False):
             while next == 'n':
                 
                 print('\nShowing the Si III triplet...\n')
-                spec_i.cosmic(zs_cut=2, dmin=0.03)
+                spec_i.cosmic(zs_cut=1, dmin=0.03)
                 spec_i.plotspec(4510,4600)
                 
                 fun = get_input('Choose function to fit between g,r,vr_Z,vrg_Z (default is g): ', 'g', str)
@@ -832,6 +832,7 @@ def auto_RV(table, snrcut=20, n_max=50, n_min=0, info=False):
                 spec_i.rv0, eRV0 = RV0(linesRV0, spec_i.filename, ewcut=50, width=wid, tol=rv_tol, func=fun)
                 
                 spec_i.waveflux()
+                spec_i.cosmic(zs_cut=1, dmin=0.03)
                 spec_i.plotspec(4510,4600, lines='35-10K')
                 
                 next = input("\nContinue to the RV analysis / repeat it [''/'n']: ")
