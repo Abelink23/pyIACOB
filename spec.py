@@ -1151,14 +1151,23 @@ class spec():
 
             table = table[(table['wl_air'] >= lwl) & (table['wl_air'] <= rwl)]
 
+            if 'spectrum' in table.columns:
+                table.rename_column('spectrum', 'spc')
+
             if '-lg(gf)' in table.columns:
-                table['width'] = 10**table['-lg(gf)']/np.max(10**table['-lg(gf)']) * 3
+                table['width'] = 10**table['-lg(gf)']/np.nanmax(10**table['-lg(gf)']) * 3
                 # 10**gf/5 empiric way to draw thicker lines for instense lines
             elif 'strength' in table.columns:
                 table['strength'] = [i if i<800 else 800 for i in table['strength']]
-                table['width'] = table['strength']/np.max(table['strength']) * 3
+                table['width'] = table['strength']/np.nanmax(table['strength']) * 3
             else:
                 table['width'] = 3
+
+            # If the gf column is masked, rise a warning and assign width == 3 to the masked lines
+            if np.ma.is_masked(table['width']):
+                print('WARNING: Some lines have masked gf values, width set to an average value.')
+                avg_width = np.nanmean(table['width'])
+                table['width'] = [i if i is not np.ma.masked else avg_width for i in table['width']]
 
             at_color = {'HI':'gray', 'HeI':'turquoise', 'OI':'r', 'NI':'b', 'CI':'k', 'SI':'gold',
                 'Si':'tan', 'Mg':'g', 'Fe':'chocolate', 'Ne':'teal', 'Al':'rosybrown'}
