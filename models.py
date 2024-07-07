@@ -89,6 +89,8 @@ def trackmist(mass=None, av=0.0, vr=0.4):
     mass : int/float, optional
         Enter the mass in M/M_sun of the track you want to retrieve.
         If None as input, all the tracks will be selected.
+        Available masses are: 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.5, 1.7, 
+        2.0, 2.5, 3, 4, 5, 7, 9, 12, 15, 20, 25, 32, 40, 60, 85, 120.
 
     av : float, optional
         Enter the extinction (Av) of the isochrone to retrieve. Default is 1.0.
