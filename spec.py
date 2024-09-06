@@ -22,7 +22,7 @@ plt.rc('ytick', direction='in', right='on')
 
 
 class spec():
-    def __init__(self, spectrum, snr=0, rv0=0, offset=0, cut_edges=False, orig='IACOB', delimiter=','):
+    def __init__(self, spectrum, snr=0, rv0=0, offset=0, cut_edges=False, orig='IACOB', delimiter=' '):
 
         '''
         Parameters
@@ -57,7 +57,7 @@ class spec():
 
         delimiter : str, optional
             Delimiter used in the txt file to separate lambda/wavelength and flux.
-            This is valid only if orig='txt'. Default is ','.
+            This is valid only if orig='txt'. Default is ' '.
         '''
 
         if type(spectrum) == list:
@@ -129,7 +129,7 @@ class spec():
             self.SpC = ''
 
 
-    def waveflux(self, lwl=None, rwl=None, width=0, helcorr='hel', cut_edges=False, delimiter=','):
+    def waveflux(self, lwl=None, rwl=None, width=0, helcorr='hel', cut_edges=False, delimiter=' '):
 
         '''
         Function to load or update the wavelength and flux vectors and optionally apply
@@ -156,7 +156,7 @@ class spec():
 
         delimiter : str, optional
             Delimiter used in the txt file to separate lambda/wavelength and flux. 
-            Default is ',' (see ascii.read or db.findtable)
+            Default is ' ' (see ascii.read or db.findtable)
 
         Note: All ascii files should be placed inside datadir/ASCII subfolder.
 
@@ -1260,14 +1260,17 @@ def f_rotmac(x, lam0, vsini=None, vmac=None):
         delta_R = 1000*lam0*vsini/cte.c
         doppl = 1 - (x/delta_R)**2
 
+        #limit to positive values
+        doppl = np.where(doppl < 0, 0, doppl)
+
         eps = 0.6
         R = (2*(1 - eps)*np.sqrt(doppl) + np.pi*eps/2.*doppl)/(np.pi*delta_R*(1 - eps/3))
         R = np.nan_to_num(R)
 
-        if vmac is None:
+        if vmac is None or vmac == 0:
             return R
 
-    if vmac != None:
+    if vmac != None and vmac != 0:
         # Macroturbulence function:
         delta_M = 1000*lam0*vmac/cte.c
         A = 2/np.sqrt(np.pi)/delta_M
@@ -1284,5 +1287,5 @@ def f_rotmac(x, lam0, vsini=None, vmac=None):
         if vsini is None:
             return M
 
-    if vsini != None and vmac != None:
+    if vsini != None and (vmac != None and vmac != 0):
         return convolve(R, M, mode='same')
