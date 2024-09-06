@@ -708,7 +708,8 @@ def auto_measure(lines, table, output_table='new_RVEWFW.fits',
 def auto_RV(table, snrcut=20, n_max=50, n_min=0, info=False):
     
     '''
-    Function to automatically calculate the radial velocity of stars in a table.
+    Function to automatically calculate the radial velocity of stars in a table
+    using the lines from the rv_Os.lst, rv_Bs.lst and rv_As.lst files.
     The input table must contain a column 'ID' with the name of the stars.
     It has to contain a column 'SpC' or 'SpT' with the spectral type of the star.
     The SpT follows: O9 = 1.9, B1.5 = 2.15, A2 = 3.2, etc.
@@ -769,7 +770,6 @@ def auto_RV(table, snrcut=20, n_max=50, n_min=0, info=False):
     bar = pb.ProgressBar(maxval=len(table),
                          widgets=[pb.Bar('=','[',']'),' ',pb.Percentage()])
     bar.start()
-    
     
     # Begin the loop over the table
     for star,i in zip(table,range(len(table))):
