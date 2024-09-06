@@ -241,7 +241,7 @@ class spec():
                 print('Problem in spec(): No wavelength column found in the first column of the ascii file.    ')
                 return None
             else:
-                wave = data[data.colnames[idx_wl]]
+                wave = np.asarray(data[data.colnames[idx_wl]])
             
             fx_keywords = ['flux','fluxes','norm_flux','flux_norm']
             idx_fx = next((i for i, item in enumerate(data.colnames) if item.lower() in fx_keywords), None)
@@ -283,8 +283,8 @@ class spec():
         if lwl != None and rwl != None:
             if wave[0] > lwl+dlam or wave[-1] < rwl-dlam:
                 print('WARNING: Wavelenght limits outside spectrum wavelength range.')
-            flux = flux[(wave >= lwl-width/2.) & (wave <= rwl+width/2.)]
-            wave = wave[(wave >= lwl-width/2.) & (wave <= rwl+width/2.)]
+            flux = flux[(wave >= lwl-width/2) & (wave <= rwl+width/2)]
+            wave = wave[(wave >= lwl-width/2) & (wave <= rwl+width/2)]
 
         if '_log' in self.fullpath and self.orig in ['IACOB','ascii']:
             self.dlam = (wave[-1]-wave[0])/(len(wave)-1)
@@ -939,7 +939,7 @@ class spec():
             kernel = gauss/np.trapz(gauss)
             self.resolution = resol
 
-        elif profile == 'rotmac' and (vsini!=None and vmac!=None):
+        elif profile == 'rotmac' and vsini!=None and vmac!=None:
             x = np.arange(-9, 9+self.dlam, self.dlam)
             rotmac = f_rotmac(x, lambda0, vsini, vmac)
             kernel = rotmac/np.trapz(rotmac)
@@ -1255,7 +1255,11 @@ def f_vrg(x, A, lam0, sigma, gamma, vsini, A2, sigma2, y):
 
 def f_rotmac(x, lam0, vsini=None, vmac=None):
 
-    if vsini != None:
+    if (vsini is None and vmac is None) or (vsini == 0 and vmac == 0):
+        print('No vsini or vmac values are given or are zero.')
+        return np.ones(len(x))
+
+    if vsini != None and vsini != 0:
         # Rotational function:
         delta_R = 1000*lam0*vsini/cte.c
         doppl = 1 - (x/delta_R)**2
@@ -1284,8 +1288,8 @@ def f_rotmac(x, lam0, vsini=None, vmac=None):
 
         M = np.concatenate((M[::-1], M[1:]))
 
-        if vsini is None:
+        if vsini is None or vsini == 0:
             return M
 
-    if vsini != None and (vmac != None and vmac != 0):
+    if vsini != None and vsini != 0 and vmac != None and vmac != 0:
         return convolve(R, M, mode='same')
