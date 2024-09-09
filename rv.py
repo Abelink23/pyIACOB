@@ -120,6 +120,8 @@ def RV0_cc(spec1, spec2, orig1='IACOB', orig2='synthetic', method='windows',
     mask = mask & ((spec1.wave < 5885) | (spec1.wave > 5900))
     # mask out all the points between 6265 and 6330
     mask = mask & ((spec1.wave < 6275) | (spec1.wave > 6330))
+    # mask out all the points between 6532.8 and 6592.8 (Halpha)
+    mask = mask & ((spec1.wave < 6532.8) | (spec1.wave > 6592.8))
     # mask out all the points between 6850 and 7430 in all cases
     mask = mask & ((spec1.wave < 6850) | (spec1.wave > 7430))
     # mask out all the points between 7585 and 7720
@@ -314,6 +316,7 @@ def RV_cc(id_star, snr=0, n_max=50, orig='IACOB', method='windows', lwl=3800, rw
 
     if len(synthetic) == 0:
         print('No synthetic files found for %s.\n' % id_star)
+        return None
     elif len(synthetic) == 1:
         synthetic = synthetic[0]
     else:
