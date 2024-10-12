@@ -51,6 +51,7 @@ ibdir    = dirs['ib']
 mauidir  = dirs['maui']
 modeldir = dirs['models']
 tessdir  = dirs['tess']
+del dirs, paths, i
 
 
 def search(myfile, path):
