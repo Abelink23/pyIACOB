@@ -4,7 +4,7 @@ from binarity import *
 
 
 def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs.lst', rv_func='g', rv_tol=150,
-    ewcut=10, tol=100, orig='IACOB', redo='n', show_plot=False, do_pdf=True):
+    ewcut=50, tol=100, orig='IACOB', redo='n', show_plot=False, do_pdf=True):
 
     '''
     Function to interactively calculate and store radial velocity, equivalent
@@ -83,6 +83,7 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
 
     lines = findlines(lines)[0]
 
+    print('Input table: %s' % table)
     table = findtable(table)
 
     #===========================================================================
@@ -108,7 +109,7 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
                 ['ID','Ref_file','SNR_B','SNR_V','SNR_R','RV0','eRV0']
                 + [j+i for i in line_names for j in ['RV_','EW_','FW_','dep_','snr_']]),
             dtype = (
-                ['S16','S50','int64','int64','int64','float64','float64']
+                ['S20','S55','int64','int64','int64','float64','float64']
                 + ['float64','int64','float64','float64','int64']*len(line_names))
             )
 
@@ -136,6 +137,10 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
         if show_plot == True:
             print('Generating plots in pdf is enable. The show_plot parameter is set to False.')
             show_plot = False
+
+    print('Output table in: %s' % (maindir.replace("\\","/")+'tables/'+output_table))
+    print('Lines to fit: %s' % lines)
+    print('Minimum EW to consider a line as detected: %s mA' % ewcut)
 
     quit = ''
     for source in table:
@@ -189,7 +194,7 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
 
             plt.close('all')
 
-            star.rv0, eRV0 = RV0(rv_lines, star.filename, orig=orig, ewcut=30, width=wid, tol=rv_tol, func=rv_func)
+            star.rv0, eRV0 = RV0(rv_lines, star.filename, orig=orig, ewcut=ewcut, width=wid, tol=rv_tol, func=rv_func)
 
             star.waveflux(min(lines)-30, max(lines)+30) # PONER MIN MAX EN FUNCION DE LOS LIM DE LINES
             star.cosmic()
@@ -222,9 +227,10 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
 
                 if EW != None and EW < ewcut:
                     EW = FW = np.nan
+                    plt.close()
 
-                # Threshold in the SNR of a line window for the SNR to be replaced by 100. This is used
-                # to prevent the line properties to be exported if 3/snr(line) > depth(line)
+                # SNR threshold of a line window for the SNR to be replaced by 100. This is used
+                # to prevent the line properties to be exported if 3/SNR(line) > depth(line)
                 snrcut = 100 
                 if snr > snrcut:
                     snr_min = snrcut
@@ -281,6 +287,7 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
                 continue
             else:
                 output = vstack([output,T_source])
+                output.write(maindir+'tables/'+output_table.replace('.fits','_tmp.fits'), format='fits', overwrite=True)
 
                 if next == 'q':
                     quit = next
@@ -288,7 +295,11 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
     if do_pdf == True:
         pdf_fitting.close()
 
+    # Save the output table
     output.write(maindir+'tables/'+output_table, format='fits', overwrite=True)
+    # delete the temporary file
+    if os.path.exists(maindir+'tables/'+output_table+'_tmp'):
+        os.remove(maindir+'tables/'+output_table+'_tmp')
 
     return 'DONE'
 
@@ -379,6 +390,10 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='vrg_H', rv_to
                 + ['float64','int64','float64','float64','float64','float64','float64'])
             )
 
+    ewcut = 50  # Minimum EW to consider a line as detected
+    print('Output table in: %s' % (maindir.replace("\\","/")+'tables/'+output_table))
+    print('Minimum EW to consider a line as detected: %s mA' % ewcut)
+
     quit = ''
     for source in table:
         if quit == 'q': break
@@ -409,7 +424,7 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='vrg_H', rv_to
         snr_v = star.snrcalc(zone='V')
         snr_r = star.snrcalc(zone='R')
 
-        star.rv0, eRV0 = RV0(rv_lines, star.filename, func=rv_func, ewcut=30, tol=rv_tol, orig=orig)
+        star.rv0, eRV0 = RV0(rv_lines, star.filename, func=rv_func, ewcut=ewcut, tol=rv_tol, orig=orig)
 
         next = 'n'
         while next == 'n':
@@ -766,6 +781,11 @@ def auto_RV(table, snrcut=20, n_max=50, n_min=0, info=False):
         print('Bad input for "table" parameter. Exiting...\n')
         return None
     
+    print('Input table: %s' % table)
+    ewcut = 50  # Minimum EW to consider a line as detected
+    print('Minimum EW to consider a line as detected: %s mA' % ewcut)
+    print('SNR threshold for the spectra: %d' % snrcut)
+    
     # Initialize the progress bar
     bar = pb.ProgressBar(maxval=len(table),
                          widgets=[pb.Bar('=','[',']'),' ',pb.Percentage()])
@@ -829,7 +849,7 @@ def auto_RV(table, snrcut=20, n_max=50, n_min=0, info=False):
                 
                 plt.close('all')
                 
-                spec_i.rv0, eRV0 = RV0(linesRV0, spec_i.filename, ewcut=50, width=wid, tol=rv_tol, func=fun)
+                spec_i.rv0, eRV0 = RV0(linesRV0, spec_i.filename, ewcut=ewcut, width=wid, tol=rv_tol, func=fun)
                 
                 spec_i.waveflux()
                 spec_i.cosmic(zs_cut=1, dmin=0.03)
@@ -839,7 +859,7 @@ def auto_RV(table, snrcut=20, n_max=50, n_min=0, info=False):
                 plt.close('all')
             
             RV(lines=rv_dic[spt], id_star=star['ID'], snr=snrcut, linesRV0=linesRV0, n_max=n_max,
-               linecut=1, ewcut=50, width=wid, tol=rv_tol/3, func=fun, info=info)
+               linecut=1, ewcut=ewcut, width=wid, tol=rv_tol/3, func=fun, info=info)
             
             repeat = input("\nHit return to continue, type 'y' to repeat [''/yes/y']: ")
             plt.close('all')
