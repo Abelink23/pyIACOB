@@ -178,6 +178,7 @@ def maui_input(table, table_IB='IB_results.fits', output_name='MAUI_input',
 
     spectra_path : str, optional
         Enter the path to the spectra inside the maui folder defined in paths.txt.
+        Note: it only works if the keyword 'ascii' is True.
 
     orig : str, optional
         See spec() function for more information. Default is 'IACOB'.
@@ -418,7 +419,7 @@ class solution_maui():
         self.dx = (soldata.xx_mod[-1]-soldata.xx_mod[0])/len(soldata.xx_mod)
 
         # Photometric information
-        if soldata.phot_prim.dtype == 'int16':
+        if soldata.phot_prim.dtype in ['int16','int32','float32','float64']:
             self.BC = self.B_V0 = np.nan
         else:
             self.BC = round(soldata.phot_prim[0], 3)
