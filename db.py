@@ -19,9 +19,8 @@ from astroquery.vizier import Vizier
 
 # Simbad
 from astroquery.simbad import Simbad
-Simbad.remove_votable_fields('coordinates')
-Simbad.add_votable_fields('ra','dec')
-Simbad.add_votable_fields('flux(U)','flux(B)','flux(V)','sptype')
+Simbad.add_votable_fields('U','B','V','sp_type')
+Simbad.columns_in_output = [i for i in Simbad.columns_in_output if 'coo' not in i.name]
 
 # Gaia Query
 from astroquery.gaia import Gaia
@@ -800,7 +799,7 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
         #=======================================================================
         #===================== Get the photometric magnitudes ==================
         # U magnitude
-        umag_0 = simbad['FLUX_U'][0]
+        umag_0 = simbad['U'][0]
         if str(umag_0) == '--':
             umag_0 = np.nan
 
@@ -808,7 +807,7 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
         row['mag_U'].unit = u.mag
 
         # B magnitude
-        bmag_0 = simbad['FLUX_B'][0]
+        bmag_0 = simbad['B'][0]
         if str(bmag_0) == '--':
             bmag_0 = np.nan
 
@@ -821,7 +820,7 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
         row['mag_B'].unit = u.mag
 
         # V magnitude
-        vmag_0 = simbad['FLUX_V'][0]
+        vmag_0 = simbad['V'][0]
         if str(vmag_0) == '--':
             vmag_0 = np.nan
 
@@ -1132,10 +1131,11 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False):
     Queried object in Table format.
     '''
 
-    warnings.filterwarnings("ignore", message="Warning: The script line number")
+    #warnings.filterwarnings("ignore", message="Warning: The script line number")
 
     if otypes is True:
         Simbad.add_votable_fields('otypes')
+        Simbad.columns_in_output = [i for i in Simbad.columns_in_output if i.name not in ['origin', 'otype_txt']]
 
     if name is not None:
         # For some reason sometimes adding a whitespace fix some querying issues
@@ -1175,7 +1175,7 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False):
 
             if simbad is not None and len(simbad) > 1:
                 print('More than one Simbad result, choosing the brigtest source...')
-                simbad.sort('FLUX_V')
+                simbad.sort('V')
                 simbad = Table(simbad[0])
 
         if 'SCRIPT_NUMBER_ID' in simbad.colnames:
@@ -1191,7 +1191,7 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False):
 
         elif len(simbad) > 1:
             print('More than one Simbad result, choosing the brigtest source...')
-            simbad.sort('FLUX_V')
+            simbad.sort('V')
             simbad = Table(simbad[0])
 
         return simbad
