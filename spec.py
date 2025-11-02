@@ -95,7 +95,7 @@ class spec():
 
         if self.orig == 'IACOB' or \
             (self.orig in ['ascii','synthetic'] and any([i in self.filename for i in ['_V','_R']])):
-            self.resolution = int(re.split('(\d*\d+)',self.filename)[-2])
+            self.resolution = int(re.split(r'(\d*\d+)',self.filename)[-2])
         else:
             self.resolution = 5000
             print('Warning: Resolution not found in filename. Assuming R5000.')
@@ -121,8 +121,8 @@ class spec():
             if query is None and 'HD' in self.id_star:
                 new_id_star = self.id_star.replace('HD', 'HD ')
                 query = Simbad.query_object(new_id_star)
-            self.SpC = query['SP_TYPE'][0]
-            #self.otypes = query['OTYPES'][0]
+            self.SpC = query['sp_type'][0]
+            #self.otypes = query['otypes.otype'][0]
 
         except:
             print('Spectral classification could not be queried for: %s' % self.id_star)
@@ -650,7 +650,7 @@ class spec():
                 (self.id_star,line_f,RV_kms,EW,FWHM,FW34_14,snr), fontsize=8)
 
             ax.set_yticks([])
-            ax.set_xlabel('$\lambda$ $[\AA]$', size=13)
+            ax.set_xlabel(r'$\lambda$ $[\AA]$', size=13)
             ax.set_ylabel('Normalized flux', size=13)
             ax.tick_params(direction='in', top='on')
             ax.figure.subplots_adjust(top=.9, bottom=.12, right=.88, left=.08)
@@ -988,9 +988,9 @@ class spec():
 
         self.dlam = dlam
 
-        if dlam > np.mean(self.wave)/self.resolution/3:
-            # It is divided by 3 to at least have 3 pixels in a gaussian
+        if dlam > np.mean(self.wave)/self.resolution:
             print('WARNING: The new delta lambda implies lossing information...')
+            #print('dlam/(wavelength/resolution) = ',round(dlam/np.mean(self.wave)/self.resolution, 2))
 
         if lwl is None or lwl < self.wave[0]:
             lwl = self.wave[0]
@@ -1078,7 +1078,7 @@ class spec():
                 plt.ylim(ylim)
 
             if len(lines) == 1:
-                plt.xlabel('$\lambda$ $[\AA]$', size=13)
+                plt.xlabel(r'$\lambda$ $[\AA]$', size=13)
                 plt.ylabel('Normalized flux', size=13)
 
             plt.tight_layout()
@@ -1188,7 +1188,7 @@ class spec():
         if ylim is not None and (type(ylim) is list or type(ylim) is tuple):
             plt.ylim(ylim)
 
-        plt.xlabel('$\lambda$ $[\AA]$', size=13)
+        plt.xlabel(r'$\lambda$ $[\AA]$', size=13)
         plt.ylabel('Normalized flux', size=13)
 
         plt.legend()
