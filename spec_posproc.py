@@ -381,7 +381,10 @@ def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, cosmic_manual=Fals
     output = open(maindir + 'tmp/results_ML.txt', 'a')
     pp = PdfPages(maindir + 'tmp_plots/ML_results.pdf')
 
-    for row in table[:3]:
+    l_wl = 3950
+    r_wl = 6850
+
+    for row in table:
 
         # Skip all sources in the 'not_do' input list :
         if not_do is not None and row['ID'] in not_do: continue
@@ -410,7 +413,7 @@ def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, cosmic_manual=Fals
         fun = 'g'; wid = 15
         best_star = spec(row['ID'], snr='bestHF', orig=orig)
         best_star.rv0, erv0 = RV0(rv_list, best_star.filename, orig=orig, ewcut=50, func=fun, width=wid, tol=150)
-        best_star.waveflux(3950,6850, cut_edges=True) # Applies the rv0 correction
+        best_star.waveflux(l_wl-1, r_wl+1, cut_edges=True) # Applies the rv0 correction
 
         # If the line is >.1A from where should be, you determine new best function, width and line
         RV_A = abs(best_star.fitline(line, func=fun, width=wid, tol=20)['RV_A'])
@@ -456,16 +459,16 @@ def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, cosmic_manual=Fals
 
         for j,n in zip(goodspec, range(len(goodspec))):
             star = spec(j.split(os.sep)[-1], orig=orig)
-            star.waveflux(3950,6850, cut_edges=True)
+            star.waveflux(l_wl-1, r_wl+1, cut_edges=True)
 
             # Create the plot:
             fig,axs = plt.subplots(3, 1, figsize=(14,8))
             fig.suptitle(star.filename)
             axs[0].tick_params(direction='in', top='on')
-            axs[0].set_xlim(3950, 6850)
+            axs[0].set_xlim(l_wl-1, r_wl+1)
             axs[0].set_ylim(0.5, 1.1)
             axs[1].tick_params(direction='in', top='on')
-            axs[1].set_xlim(3950, 6850)
+            axs[1].set_xlim(l_wl-1, r_wl+1)
             axs[1].set_ylim(0.5, 1.1)
 
             axs[0].plot(star.wave, star.flux, c='orange', lw=.2, label='Original')
@@ -555,7 +558,7 @@ def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, cosmic_manual=Fals
             axs[2].set_ylim()
 
             # Resample the spectra
-            star.resamp(10*0.02564975, 3950, 6850)
+            star.resamp(10*0.02564975, l_wl, r_wl)
 
             star.export(tail='_RV_ML_%i' % n, extension='.ascii')
             if max(star.flux) > 1.5:
@@ -580,6 +583,9 @@ def remove_wave(path=maindir+'tmp/', only_list='to_correct.txt'):
     To remove the wavelenght columns from the ascii files containing the spectrum.
     '''
 
+    l_wl = 3950
+    r_wl = 6850
+
     if only_list != None:
         table = findtable(only_list, delimiter=' ')
 
@@ -593,7 +599,7 @@ def remove_wave(path=maindir+'tmp/', only_list='to_correct.txt'):
             try:
                 if max(data['col2']) > 1.5:
                     plt.plot(data['col1'], data['col2'], lw=.5)
-                    plt.plot([3950,6850], [2,2], c='k', lw=.5)
+                    plt.plot([l_wl,r_wl], [2,2], c='k', lw=.5)
                     plt.show(block=False)
                     inp = input('Do you want to print data for %s it? [y/ ]: ' % file)
                     if inp == 'y':
