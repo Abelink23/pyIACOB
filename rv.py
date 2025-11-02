@@ -133,7 +133,7 @@ def RV0_cc(spec1, spec2, orig1='IACOB', orig2='synthetic', method='windows',
         ax[0].plot(spec1.wave, spec1.flux, 'b', lw=.5)
         ax[0].plot(spec2.wave[~mask], spec2.flux[~mask], 'r', lw=2, alpha=.4)
         ax[0].plot(spec2.wave, spec2.flux, 'g', lw=.5)
-        ax[0].set_xlabel('Wavelength [$\AA$]', size=10)
+        ax[0].set_xlabel(r'Wavelength [$\AA$]', size=10)
 
     spec1.wave = spec1.wave[mask]
     spec1.flux = spec1.flux[mask]
@@ -257,9 +257,9 @@ def RV0_cc(spec1, spec2, orig1='IACOB', orig2='synthetic', method='windows',
         xlim = 10*RV_A if abs(RV_A) < 0.2 else 4
         ax[1].set_xlim(-xlim, xlim)
         ax[1].set_ylim(bottom=0.5)
-        ax[1].set_xlabel('RV [$\AA$]', size=10)
-        ax[1].text(0.05, 0.15, 'RV=%.3f [$\AA$]' % RV_A, transform=ax[1].transAxes, fontsize=8)
-        ax[1].text(0.05, 0.10, 'RV=%.2f [km/s]' % RV_kms, transform=ax[1].transAxes, fontsize=8)
+        ax[1].set_xlabel(r'RV [$\AA$]', size=10)
+        ax[1].text(0.05, 0.15, r'RV=%.3f [$\AA$]' % RV_A, transform=ax[1].transAxes, fontsize=8)
+        ax[1].text(0.05, 0.10, r'RV=%.2f [km/s]' % RV_kms, transform=ax[1].transAxes, fontsize=8)
 
         plt.show(block=False)
 
