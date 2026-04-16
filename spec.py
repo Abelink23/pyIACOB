@@ -15,10 +15,8 @@ from astropy.stats import sigma_clip
 # Plot packages
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator
-plt.rc('xtick', direction='in', top='on')
-#plt.rc('xtick.minor', visible=True)
-plt.rc('ytick', direction='in', right='on')
-#plt.rc('ytick.minor', visible=True)
+plt.rc('xtick', direction='in', top=True)
+plt.rc('ytick', direction='in', right=True)
 
 
 class spec():
@@ -51,7 +49,7 @@ class spec():
         orig : str, optional
             If 'IACOB', it assumes that the spectrum comes from the IACOB database.
             If 'txt', it assumes that the spectrum comes from a two-columns file with
-            wavelength and flux with no header in the file. 
+            wavelength and flux with no header in the file.
             If 'syn', it assumes that the spectrum comes from a synthetic spectrum.
             Default is IACOB.
 
@@ -155,7 +153,7 @@ class spec():
             Default is False.
 
         delimiter : str, optional
-            Delimiter used in the txt file to separate lambda/wavelength and flux. 
+            Delimiter used in the txt file to separate lambda/wavelength and flux.
             Default is ' ' (see ascii.read or db.findtable)
 
         Note: All ascii files should be placed inside datadir/ASCII subfolder.
@@ -175,6 +173,7 @@ class spec():
 
             instrum = header0['INSTRUME']   # Instrument
 
+            ctype = header0['CTYPE1']       # Type of wavelength calibration (linear, log, etc.)
             lam0 = header0['CRVAL1']        # Get the wavelength of the first pixel
             dlam = header0['CDELT1']        # Step of increase in wavelength
             pix0 = header0['CRPIX1']        # Reference pixel (generally 1, FEROS -49)
@@ -187,9 +186,7 @@ class spec():
 
             # Assign barycentric rv correction at midpoint [km/s]
             if 'I-VBAR' in header0:
-                self.vbar = header0['I-VBAR'] 
-                #self.vbar = header0['BVCOR'] # Specific keyword from MERCATOR
-                #self.vbar = header0['VHELIO'] # Specific keyword from NOT
+                self.vbar = header0['I-VBAR']
             else:
                 print('No helio/bary-centric correction applied to' + self.fullpath)
                 self.vbar = 0
@@ -213,7 +210,7 @@ class spec():
             # Make lists with wavelength and flux for each spectrum
             # Those with log or from FEROS are already corrected from heliocentric velocity
             wave = lam0 + dlam*(np.arange(spec_length) - pix0 + 1)
-            if '_log' in self.fullpath:
+            if '_log' in self.fullpath or 'log' in ctype:
                 wave = np.exp(wave)
             elif helcorr == 'hel' and not instrum == 'FEROS':
                 wave = wave*(1 + 1000*self.vbar/cte.c)
@@ -231,7 +228,7 @@ class spec():
             hdu.close()
 
         elif self.orig == 'ascii' or self.orig == 'synthetic':
-            
+
             data = findtable(self.filename, path=self.fullpath.replace(self.filename,''), delimiter=delimiter, format='basic')
 
             wl_keywords = ['wave','wavelength','lambda','lamb','ang','angstroms']
@@ -242,10 +239,10 @@ class spec():
                 return None
             else:
                 wave = np.asarray(data[data.colnames[idx_wl]])
-            
+
             fx_keywords = ['flux','fluxes','norm_flux','flux_norm']
             idx_fx = next((i for i, item in enumerate(data.colnames) if item.lower() in fx_keywords), None)
-            
+
             if idx_fx == None:
                 print('Problem in spec(): No flux column found in the second column of the ascii file.')
                 return None
@@ -489,11 +486,11 @@ class spec():
                 FWHM = round(wave[medpos[1]] - wave[medpos[0]], 2)
 
                 # Checking step results
-                
+
                 # The min FWHM will be defined by either 3 times the dlam, or 3/4 of the
                 # minimum theoretical FWHM given the input line and resolution
                 FWHM_min = np.max([3*dlam_mean, 3/4*dlamb])
-                
+
                 if FWHM_min < FWHM < FWHM_max:
                     continuum = continuum_i
                     flux_norm = flux_norm_i
@@ -577,7 +574,7 @@ class spec():
             r_val = wave[medpos[1]]
 
         FWHM = round(r_val - l_val, 3)
-        
+
         #======= Calculate width difference at 3/4-1/4 of the line depth =======
         if fw3414 is True:
             try:
@@ -589,10 +586,10 @@ class spec():
                     medpos_i = [np.where(flux_fit <= val)[0][value] for value in (0,-1)]
                     medpos.append(medpos_i)
                     try: l_val = np.interp(val,[flux_fit[medpos_i[0]],flux_fit[medpos_i[0]-1]],
-                                                   [wave[medpos_i[0]],wave[medpos_i[0]-1]])
+                                                [wave[medpos_i[0]],wave[medpos_i[0]-1]])
                     except: l_val = wave[medpos_i[0]]
                     try: r_val = np.interp(val,[flux_fit[medpos_i[1]],flux_fit[medpos_i[1]+1]],
-                                                  [wave[medpos_i[1]],wave[medpos_i[1]+1]])
+                                                [wave[medpos_i[1]],wave[medpos_i[1]+1]])
                     except: r_val = wave[medpos_i[1]]
 
                     FW34_14.append(round(r_val-l_val, 3))
@@ -981,7 +978,7 @@ class spec():
         Nothing, but the spectrum (wavelength,flux) is resampled.
         '''
 
-        # Check that the input dlam is either a float or an integrer 
+        # Check that the input dlam is either a float or an integrer
         if not isinstance(dlam, float) and not isinstance(dlam, int):
             print('ERROR: The input delta lambda is not a float or an integrer.')
             return None
