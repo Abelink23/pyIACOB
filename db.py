@@ -2,7 +2,6 @@
 import re
 import os
 import time
-import warnings
 
 # Other main packages
 import numpy as np
@@ -11,7 +10,7 @@ import progressbar as pb
 # Astro-packages
 import astropy.units as u
 from astropy.io import fits, ascii
-from astropy.table import Table, join, setdiff, vstack, hstack
+from astropy.table import Table, join, vstack, hstack
 from astropy.coordinates import SkyCoord
 
 # Vizier - Only used to query in Gaia
@@ -54,38 +53,39 @@ del dirs, paths, i
 
 
 def search(myfile, path):
-    
+
         '''
         Function to search a file within a directory.
-    
+
         Parameters
         ----------
         myfile : str
             Name of the file to search.
-    
+
         path : str
             Path where to search for the file.
-    
+
         Returns
         -------
         Path to the searched file.
         '''
-    
+
         f_dir = []
         for root, dirs, files in os.walk(path):
             for file in files:
                 if file == myfile:
                     f_dir.append(os.path.join(root, file))
-    
+
         if f_dir == []:
             print('File %s not found.\n' % myfile)
             return None
-    
+
         elif len(f_dir) > 1:
             print('Problem in db.search():')
             print('More than one file found, selecting the first one: %s' % f_dir[0])
-    
+
         return f_dir[0]
+
 
 def findstar(spectra=None, snr=0):
 
@@ -1065,7 +1065,7 @@ def spc_code(spc,sub_class_I=False):
 
     #spc = spc.split('+')[0].split('/')[0].replace(':', '')
     spc = spc.split('+')[0].replace('/','-').replace(':', '')
-    
+
     if spc in ['~'] or spc.startswith(('WC','WN','WR','C')):
         spt_c = lc_c = np.nan
 
@@ -1130,8 +1130,6 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False):
     -------
     Queried object in Table format.
     '''
-
-    #warnings.filterwarnings("ignore", message="Warning: The script line number")
 
     if otypes is True:
         Simbad.add_votable_fields('otypes')
@@ -1294,17 +1292,17 @@ def query_Gaia(name=None, gaia='dr3', ra=None, dec=None, radec=None, radius=2, g
 
     if len(query.results) > 1:
         print('WARNING: More than one Gaia result')
-        
+
         # To make use of the Gaia DRX ######, if used as name
         if name in query.results['DESIGNATION']:
             query = query.results[query.results['DESIGNATION'] == name]
             print('Choosing the same Gaia source ID as the input...')
         else:
             print('WARNING: Input name not in Gaia source ID, choosing the brigtest source...')
-        
+
             query.results.sort('phot_g_mean_mag')
             query = Table(query.results[0])
-        
+
     else:
         query = query.results
 
@@ -1335,7 +1333,7 @@ def query_Gaia(name=None, gaia='dr3', ra=None, dec=None, radec=None, radius=2, g
 
 
 def show_header(fitsfile):
-    
+
     '''
     Function to show the header of a fits file separated in rows.
 
@@ -1371,7 +1369,7 @@ def check_fits(list, max_dist=90):
         or a .txt/.lst file containing the source names or files.
 
     max_dist : int/float
-        Enter the threshold distance in arcseconds to consider the spectra to point 
+        Enter the threshold distance in arcseconds to consider the spectra to point
         to a different source, and not caused by telescope pointing offset.
         Default is 90 arcseconds.
 
