@@ -9,7 +9,8 @@ def gen_ascii(id, orig='IACOB', db_table=None, spt='auto', lwl=None, rwl=None, r
     export_rv=False, cosmetic=False, cosmic=False, lines_cosmic=None, degrade=None, show_plot=False):
 
     '''
-    Function to remove cosmic rays in the spectra by different approaches.
+    Function to generate ascii spectra from the FITS files of the IACOB database, with 
+    the possibility to apply different corrections to the spectra.
 
     Parameters
     ----------
