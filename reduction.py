@@ -96,7 +96,7 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, plot=False):
         # Calculate the wavelength and flux arrays
         flux = hdu0.data
         wave = lam0 + dlam*(np.arange(spec_length) - pix0 + 1)
-        if '_log' in spectrum or 'log' in ctype:
+        if 'log' in ctype:
             wave = np.exp(wave)
 
         # Normalize the spectrum
@@ -142,7 +142,9 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, plot=False):
         header['COMMENT'] = ' --- Be aware of the reference for the I-SPC keyword'
         header.add_blank('', before='COMMENT')
 
-        new_name = object + '_' + date + '_' + time + telcode + RESOL + '.fits'
+        end = '.fits' if not '_log' in ctype else '_log.fits'
+        new_name = object + '_' + date + '_' + time + telcode + RESOL + end
+
         # save the fits file with the new name in the same folder
         print('Renaming',spectrum,'to',new_name)
         hdu.writeto(os.path.join(path_to_spectra, new_name), overwrite=True)
