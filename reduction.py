@@ -315,6 +315,7 @@ def normalize_slice(w, f, w0, w1, wlim1=None, wlim2=None, lam1=None, iter=None):
     tt = np.argsort(lam0)
     lam0 = lam0[tt]
     dlam0 = dlam0[tt]
+    snr = np.nan
 
     # Cut region
     mask = (w > w0) & (w <= w1) & (f > 0)
@@ -323,7 +324,7 @@ def normalize_slice(w, f, w0, w1, wlim1=None, wlim2=None, lam1=None, iter=None):
         # Return neutral arrays
         ws0 = w[mask] if mask.any() else np.array([])
         fs0 = f[mask] if mask.any() else np.array([])
-        return ws0, fs0, np.ones_like(ws0), np.zeros_like(ws0), np.zeros_like(ws0), wlim1, wlim2, lam1
+        return ws0, fs0, np.ones_like(ws0), np.zeros_like(ws0), np.zeros_like(ws0), snr, wlim1, wlim2, lam1
 
     ws0 = w[mask]
     fs0 = f[mask]
@@ -367,7 +368,7 @@ def normalize_slice(w, f, w0, w1, wlim1=None, wlim2=None, lam1=None, iter=None):
         if np.shape(fn)!=np.shape(yn):
             print('fn return de normaliza region sin puntos: ', np.shape(fn))
             print('yn return de normaliza region sin puntos: ', np.shape(yn))
-        return ws00, fs00, fn, yn, fk, wlim1, wlim2, np.array(lam1)
+        return ws00, fs00, fn, yn, fk, snr, wlim1, wlim2, np.array(lam1)
 
     # Note: Simón-Díaz used to add an extra smoothing here (not implemented)
     dat = np.polyfit(ws, fs, ord)
