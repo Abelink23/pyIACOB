@@ -27,7 +27,7 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
     col_line_names : str, optional
         Use 'lambda' if the table has the wavelengths from the list of lines.
         Use 'label' if the table has the line labels from the list of lines.
-        
+
     rv_lines : str, list
         Enter the wavelength(s) of the line(s) to fit, either in a coma-separated
         string, or in a .txt/.lst file containing the lines.
