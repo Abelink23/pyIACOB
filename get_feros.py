@@ -10,15 +10,12 @@ eso = Eso()
 eso.login(input('Provide the username of your ESO account: '), store_password=True)
 eso.ROW_LIMIT = -1
 
-def get_feros(fname, colname=None, radius=2, program=None, limit=9999):
+def get_feros(fname, radius=2, program=None, limit=9999):
     '''
     Parameters
     ----------
     fname : str
         Enter the filename containing the source names [.lst/.txt/.fits].
-
-    colname : str, optional
-        Column name for the sources if .fits file used as input for table.
 
     radius : int/float, optional
         Max distance in arcmin to the queried result sources. Default is 2 arcmin.
@@ -31,18 +28,16 @@ def get_feros(fname, colname=None, radius=2, program=None, limit=9999):
     Returns: None (but it downloads the fits files).
     '''
 
-    file = search(fname, maindir)
-
     if fname.endswith('.lst') or fname.endswith('.txt'):
         sources = findlist(fname)
     elif fname.endswith('.fits'):
-        if colname == None:
-            while colname == '':
-                colname = input('Enter the column name with target names: ')
+        colname = input('Enter the column name with target names: ')
+        if colname not in findtable(fname).colnames:
+            return print('Column name not found in the table. Check the column names and try again.')
         sources = findtable(fname)[colname]
 
     bar = pb.ProgressBar(maxval=len(sources),
-                         widgets=[pb.Bar('=','[',']'),' ',pb.Percentage()])
+            widgets=[pb.Bar('=','[',']'),' ',pb.Percentage()])
     bar.start()
 
     db = open(datadir+'FEROS/raw/downloaded_sources.txt','a')
@@ -57,7 +52,7 @@ def get_feros(fname, colname=None, radius=2, program=None, limit=9999):
             name = str(source)
 
         name = source.strip()
-        
+
         print('\nSearching data for %s...\n' % name)
 
         query = eso.query_surveys('FEROS', cache=False, target=name)
