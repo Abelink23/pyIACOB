@@ -41,6 +41,10 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False)
     spectra = [os.path.join(path_to_spectra, i) for i in os.listdir(path_to_spectra)
                 if i.endswith('.fits') and not i.startswith('.')]
 
+    save_path = os.path.join(path_to_spectra, 'reduced')
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+
     for spectrum in spectra:
 
         # Retrieve the key values from the fits header
@@ -167,10 +171,10 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False)
 
         # save the fits file with the new name in the same folder
         print(spectrum.split(os.sep)[-1],'->',new_name,'| SNR(4500A)=',snr4500)
-        if os.path.exists(os.path.join(path_to_spectra, new_name)):
+        if os.path.exists(os.path.join(save_path, new_name)):
             print(f"Warning: File '{new_name}' already exists. Skipping...")
             continue
-        hdu.writeto(os.path.join(path_to_spectra, new_name))
+        hdu.writeto(os.path.join(save_path, new_name))
         hdu.close()
 
     return None
@@ -529,12 +533,12 @@ def retrieve_spc(star_id, spc_table):
         print(f"Spectral classification not found for star ID '{star_id}'")
         print(f"Querying SIMBAD to retrieve it...")
         simbad = query_Simbad(star_id)
-        print(simbad)
-        if simbad is not None:
+        if len(simbad) == 1:
+            print(f"Success ({simbad['sp_type'][0].strip()})!")
             spc = simbad['sp_type'][0].strip()
             spc_ref = 'SIMBAD'
         else:
-            print(f"Failed to retrieve spectral classification for star ID '{star_id}'")
+            print(f"Failed...")
             spc = spc_ref = '???'
         return spc, spc_ref
     else:
