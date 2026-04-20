@@ -17,7 +17,7 @@ from scipy.signal import convolve
 from scipy.interpolate import interp1d
 
 
-def raw_to_IACOB(path_to_spectra, table_with_spc=None, plot=False):
+def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False):
 
     '''
     Function to turn raw files from the telescope to the IACOB format.
@@ -26,6 +26,12 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, plot=False):
     ----------
     path_to_spectra : str
         Enter the path of the folder containing the files to convert.
+    table_with_spc : str, optional
+        [See retrieve_spc function]
+    norm_order : int, optional
+        [See normalize_slice function]
+    plot : bool, optional
+        [See normalize function]
 
     Returns
     -------
@@ -42,10 +48,6 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, plot=False):
         header = hdu0.header    # Read the values of the headers
 
         object = header['OBJECT'].replace(' ','').upper()
-        DATE = header['DATE-AVG']
-        date, time = DATE.split('T')
-        date = date.replace('-','')
-        time = time.replace(':','').split('.')[0]
 
         if header['INSTRUME'].strip() == 'FIES':
             telcode = '_N_'
@@ -73,7 +75,17 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, plot=False):
             #loc = EarthLocation.of_site('LaSilla')
             loc = EarthLocation.from_geodetic(lat=-29.2567*u.deg, lon=-70.7366*u.deg, height=2350*u.m)
 
-        sc = SkyCoord(ra=header['RA']*u.deg, dec=header['DEC']*u.deg)
+        # Get the date when the spectrum was taken. Note: for FEROS it is the start ti,e/
+        if INSTR == 'FEROS' and not 'DATE-AVG' in header:
+            DATE = header['ARCFILE'].replace('.fits','').replace('FEROS.','')
+        else:
+            DATE = header['DATE-AVG']
+        date, time = DATE.split('T')
+        date = date.replace('-','')
+        time = time.replace(':','').split('.')[0]
+
+
+        sc = SkyCoord(ra=float(header['RA'])*u.deg, dec=float(header['DEC'])*u.deg)
         VBAR = sc.radial_velocity_correction(obstime=Time(DATE), location=loc)
 
         # Add some keywords with comments to the header
@@ -83,9 +95,9 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, plot=False):
         header['I-DATE'] = (DATE[:21], '[YYYY-MM-DDTHH:MM:SS.S] Adq.date at midpoint')
         header['I-VBAR'] = (round(VBAR.to(u.km/u.s).value, 3), 'Barycentric velocity correction (km/s)')
         header['I-HJD'] = (round(Time(DATE, scale='utc').jd, 5), 'Heliocentric JD at midpoint')
-        header['I-RA'] = (round(header['RA'], 5), 'RA [deg]')
-        header['I-DEC'] = (round(header['DEC'], 5), 'DEC [deg]')
-        header['I-TEXP'] = (round(header['EXPTIME'], 1), '[s]')
+        header['I-RA'] = (round(float(header['RA']), 5), 'RA [deg]')
+        header['I-DEC'] = (round(float(header['DEC']), 5), 'DEC [deg]')
+        header['I-TEXP'] = (round(float(header['EXPTIME']), 1), '[s]')
 
         # Get the wavelength of the spectrum
         ctype = header['CTYPE1']       # Type of wavelength calibration (linear, log, etc.)
@@ -100,7 +112,7 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, plot=False):
             wave = np.exp(wave)
 
         # Normalize the spectrum
-        ft, ynt, fkt, lam, snr, snr4500 = normalize(TELES, wave, flux)
+        ft, ynt, fkt, lam, snr, snr4500 = normalize(TELES, wave, flux, order=norm_order)
         # Add the normalize flux to the fits data
         hdu0.data = [ft, hdu0.data]
 
@@ -110,7 +122,7 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, plot=False):
             ax.plot(wave, ft, label='Normalized', lw=0.5, alpha=0.5)
             ax.plot(wave, ynt/np.nanmean(ynt), label='Continuum fit', lw=0.5, alpha=0.5)
             ax.plot(wave, fkt, label='Mask', lw=0.5, alpha=0.5, drawstyle='steps-mid')
-            ax.set_title(f"{object}_{DATE}_{telcode}_{RESOL}")
+            ax.set_title(f"{object}_{DATE}{telcode}{RESOL}")
             ax.legend()
             fig.tight_layout()
             plt.show(block=False)
@@ -121,9 +133,8 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, plot=False):
         # Add the spectral classification to the header
         if table_with_spc is not None:
             spc, spc_ref = retrieve_spc(object, table_with_spc)
-
-        header['I-SPC'] = (spc, 'Spectral classification')
-        header['I-SPCREF'] = (spc_ref, 'Spectral classification reference')
+            header['I-SPC'] = (spc, 'Spectral classification')
+            header['I-SPCREF'] = (spc_ref, 'Spectral classification reference')
 
         # Add the data release version
         header['I-VERS'] = ('DR3.0', 'Data release version')
@@ -142,7 +153,7 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, plot=False):
         header['COMMENT'] = ' --- Be aware of the reference for the I-SPC keyword'
         header.add_blank('', before='COMMENT')
 
-        end = '.fits' if not '_log' in ctype else '_log.fits'
+        end = '.fits' if not 'log' in ctype else '_log.fits'
         new_name = object + '_' + date + '_' + time + telcode + RESOL + end
 
         # save the fits file with the new name in the same folder
@@ -169,7 +180,7 @@ def calculate_snr(flux):
     return int(snr0)
 
 
-def normalize(telescope, w, f):
+def normalize(telescope, w, f, order=2):
     '''
     Normalize a complete spectrum by regions.
     Parameters
@@ -196,16 +207,14 @@ def normalize(telescope, w, f):
 
     # Selection of the individual regions for normalization
     if telescope == 'MERCATOR':
-        #! TO BE DEFINED
         lam = np.array([3815,3920,4060,4150,4290,4605,4830,4950,5070,5320,5500,5620,5750,5840,
-                        5980,6200,6460,6700,7100,7620,8000,8400,8710,8930,9020,9300,9400], float)
+                        5980,6200,6460,6700,7100,7620,7825], float)
     elif telescope == 'NOT':
         lam = np.array([3815,3920,4060,4150,4290,4605,4830,4950,5070,5320,5500,5620,5750,5840,
                         5980,6200,6460,6700,7100,7620,8000,8400,8710,8930], float)
     elif telescope == 'MPI-2.2':
-        #! TO BE DEFINED
-        lam = np.array([3815,3920,4060,4150,4290,4605,4830,4950,5070,5320,5500,5620,5750,5840,
-                        5980,6200,6460,6700,7100,7620,8000,8400,8710,8930,9020,9300,9400], float)
+        lam = np.array([3700,3815,3920,4060,4150,4290,4605,4830,4950,5070,5320,5500,5620,
+                        5750,5840,5980,6200,6460,6700,7195,7620,8000,8400,8710,8930,9020,9100], float)
     else:
         print(f"Warning: Telescope '{telescope}' not recognized. Returning original spectrum.")
         return f, np.zeros_like(w), np.ones_like(w, float), lam, np.array([np.nan]), np.nan
@@ -218,7 +227,7 @@ def normalize(telescope, w, f):
     # First region
     ws0, fs0, fn0, yn0, fk0, snr0, wlim1, wlim2, lam1 = normalize_slice(w, f, lam0, lam[0])
     ws0, fs0, fn0, yn0, fk0, snr0, wlim1, wlim2, lam1 = normalize_slice(
-        w, f, lam0, lam[0], wlim1=wlim1, wlim2=wlim2, lam1=lam1, iter=1)
+        w, f, lam0, lam[0], wlim1=wlim1, wlim2=wlim2, lam1=lam1, iter=1, order=order)
     ws_list.append(ws0); fs_list.append(fs0); fn_list.append(fn0); yn_list.append(yn0); fk_list.append(fk0)
     snr_list.append(snr0)
 
@@ -227,7 +236,7 @@ def normalize(telescope, w, f):
         ws0, fs0, fn0, yn0, fk0, snr0, wlim1, wlim2, lam1 = normalize_slice(
             w, f, lam[i-1], lam[i], wlim1=wlim1, wlim2=wlim2, lam1=lam1)
         ws0, fs0, fn0, yn0, fk0, snr0, wlim1, wlim2, lam1 = normalize_slice(
-            w, f, lam[i-1], lam[i], wlim1=wlim1, wlim2=wlim2, lam1=lam1, iter=1)
+            w, f, lam[i-1], lam[i], wlim1=wlim1, wlim2=wlim2, lam1=lam1, iter=1, order=order)
         ws_list.append(ws0); fs_list.append(fs0); fn_list.append(fn0); yn_list.append(yn0); fk_list.append(fk0)
         snr_list.append(snr0)
 
@@ -256,7 +265,7 @@ def normalize(telescope, w, f):
     return ft, ynt, fkt, lam, snr, snr4500
 
 
-def normalize_slice(w, f, w0, w1, wlim1=None, wlim2=None, lam1=None, iter=None):
+def normalize_slice(w, f, w0, w1, wlim1=None, wlim2=None, lam1=None, iter=None, order=2):
 
     '''
     Function to normalize the spectrum by fitting a polynomial to the continuum
@@ -281,7 +290,11 @@ def normalize_slice(w, f, w0, w1, wlim1=None, wlim2=None, lam1=None, iter=None):
     lam1 : array-like, optional
         Wavelengths of the strong lines to be removed.
     iter : int, optional
-        If not None, it indicates that this is an iterative call to the function, and the strong lines should not be added to lam1 again.
+        If not None, it indicates that this is an iterative call to the function,
+        and the strong lines should not be added to lam1 again.
+    order : int, optional
+        Order of the polynomial to fit to the continuum. Default is 2.
+        Note: for wavelengths above 8300 A, the order is forced to be 1.
 
     Returns
     -------
@@ -294,7 +307,7 @@ def normalize_slice(w, f, w0, w1, wlim1=None, wlim2=None, lam1=None, iter=None):
     yn : array-like
         Continuum fit of the spectrum in the given region.
     fk : array-like
-        Mask of the points used for the normalization (1 for good points, 0 for bad points) in the given region.
+        Mask of the points used for the normalization (1/0 good/bad points).
     wlim1 : array-like
         Updated lower limits of the wavelength regions to be normalized.
     wlim2 : array-like
@@ -359,7 +372,7 @@ def normalize_slice(w, f, w0, w1, wlim1=None, wlim2=None, lam1=None, iter=None):
 
     # Initial adjustment of the continuum. If there are not enough points, return the original spectrum.
     ord = 1
-    if len(ws) < ord+1:
+    if len(ws) < ord + 1:
         # Not enough points to fit a polynomial of the given order.
         print(f"Warning: not enough points to fit a polynomial of order {ord}")
         fn = np.ones_like(ws00)
@@ -393,7 +406,7 @@ def normalize_slice(w, f, w0, w1, wlim1=None, wlim2=None, lam1=None, iter=None):
         error0 = error
         if len(nn) < 2:
             break
-        dat2 = np.polyfit(ws[nn], fn[nn], 2)
+        dat2 = np.polyfit(ws[nn], fn[nn], order)
         ys2  = np.polyval(dat2, ws)
         error2 = np.std(fn - ys2)
 
@@ -423,7 +436,8 @@ def normalize_slice(w, f, w0, w1, wlim1=None, wlim2=None, lam1=None, iter=None):
     wp = ws[nn] if nn.size > 0 else np.array([])
     fp = fs[nn] if nn.size > 0 else np.array([])
 
-    ord = 2 if w0 < 8300 else 1
+    # Here we perform a final fit to the continuum
+    ord = order if w0 < 8300 else 1
     for _ in range(3):
         if wp.size < ord+1:
             break
@@ -443,7 +457,7 @@ def normalize_slice(w, f, w0, w1, wlim1=None, wlim2=None, lam1=None, iter=None):
     fnoise = fs0 / ynoise
     snr = calculate_snr(fnoise) if ws0.size > 0 else 0
 
-    # Save the limits of the§ strong lines for the next iteration.
+    # Save the limits of the strong lines for the next iteration.
     if iter is None and len(lam1) > 0:
         lam1 = np.array(lam1)
         for line in lam1:
