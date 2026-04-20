@@ -829,7 +829,7 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
 
             SpC_0 = header['I-SPC']
             if (not type(SpC_0) == str or SpC_0.strip() == '-'):
-                row['SpC'] = SpC_0 = simbad['SP_TYPE'][0].replace(' ','')
+                row['SpC'] = SpC_0 = simbad['sp_type'][0].replace(' ','')
                 row['SpC_ref'] = 'SIMBAD'
 
             else:
@@ -840,7 +840,7 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
                     row['SpC_ref'] = '???'
 
         else:
-            row['SpC'] = SpC_0 = simbad['SP_TYPE'][0].replace(' ','')
+            row['SpC'] = SpC_0 = simbad['sp_type'][0].replace(' ','')
             row['SpC_ref'] = 'SIMBAD'
 
         #=======================================================================
@@ -1566,7 +1566,7 @@ def fix_fits(list, coords_Simbad=True, radius=60, savepath=''):
             print(RADEC_SB.dec,'/',RADEC_SC.dec,'\n')
 
             print('SpC (header) / SpC (Simbad)\n%s (%s) / %s\n' %
-                (header['I-SPC'],header['I-SPCREF'],simbad['SP_TYPE'][0]))
+                (header['I-SPC'],header['I-SPCREF'],simbad['sp_type'][0]))
 
         if coords_Simbad == True:
 
@@ -1576,7 +1576,7 @@ def fix_fits(list, coords_Simbad=True, radius=60, savepath=''):
                 print('From Simbad (querying header RA,DEC):\n-------------------------------------')
 
                 print('Sources found:')
-                [print(i['MAIN_ID']+' ('+i['SP_TYPE']+')') for i in region]
+                [print(i['MAIN_ID']+' ('+i['sp_type']+')') for i in region]
                 print('\n')
 
         user = '-'; change = False
