@@ -147,7 +147,7 @@ def gen_gridlimits(models_dir=mauidir+'MODELS/'):
     return 'DONE'
 
 
-def maui_input(table, table_IB='IB_results.fits', output_name='MAUI_input', 
+def maui_input(table, table_IB='IB_results.fits', output_name='MAUI_input',
     RV0tol=200, ascii=False, spectra_path=mauidir+'/SPECTRA/', orig='IACOB'):
 
     '''
@@ -226,7 +226,7 @@ def maui_input(table, table_IB='IB_results.fits', output_name='MAUI_input',
 
         if inpt_id != '':
             snr = None
-        else: 
+        else:
             snr = 'bestHF'
 
         star = spec(source, snr=snr, orig=orig)
@@ -283,7 +283,7 @@ def maui_input(table, table_IB='IB_results.fits', output_name='MAUI_input',
         else:
             match_IB['evmac'] = 0.10*match_IB['vmac_GF']
 
-        # Based on comments from Simon-Diaz 
+        # Based on comments from Simon-Diaz
         if (match_IB['vmac_GF'][0] < 15) or (match_IB['vsini_GF'] > 130):
             match_IB['vmac_GF'] = 0
             match_IB['evmac'] = 0
@@ -316,41 +316,41 @@ def maui_input(table, table_IB='IB_results.fits', output_name='MAUI_input',
 
 
 def split_MAUI_input(path_to_file, number_per_file=10):
-    
+
     '''
     Function to split the MAUI input file into several files with a maximum number
     of entries per file.
-    
+
     Parameters
     ----------
     path_to_file : str
         Enter the full path to the MAUI input file.
-    
+
     number_per_file : int, optional
         Enter the maximum number of entries per file. Default is 10.
-    
+
     Returns
     -------
     Nothing but the MAUI input files are generated.
     '''
-    
+
     filename = path_to_file.split('/')[-1][:-4]
     path = path_to_file.split(filename)[0]
-    
+
     with open(path_to_file, 'r') as file:
         file = file.read().splitlines()
         file = [i for i in file if not i.startswith('fullname')]
-    
+
     n = 0; m = 1; new_file = []
     for line in file:
-        
+
         new_file.append(line)
         n = n + 1
-        
+
         # if the last file has less than number_per_file entries, the last lines will be added to the last new file
         if len(file) % number_per_file != 0 and m == len(file) // number_per_file:
             number_per_file = number_per_file + len(file) % number_per_file
-        
+
         if n == number_per_file:
             with open(path+filename+'_%i.txt' % m, 'w') as f:
                 f.write('%s\n' % str(n))
@@ -372,7 +372,7 @@ class solution_maui():
 
         mcmcfile : str
             Enter the input spectrum full path to the mcmc*.idl file.
-            
+
         solution : str, optional
             Choose between 'max'/'smooth' for taking the solution values from the maximum
             value of the distribution or from the maximum value after gaussian smoothing.
@@ -543,7 +543,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
         True if only the last analysed .idl results want to be kept.
 
     solution : str, optional
-        Choose between 'max'/'smooth' to select either the maximum of the probability distribution, 
+        Choose between 'max'/'smooth' to select either the maximum of the probability distribution,
         or the maximum of a smoothed distribution, for the solution provided in the output table.
 
     FR : boolean, optional
@@ -558,7 +558,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
         If True, a pdf comparing the synthetic diagnostic lines with the original is made.
 
     pdflines : str/float, optional
-        Choose between 'diag'/'all'/'def'/'<line>,<line>',float to select the lines to 
+        Choose between 'diag'/'all'/'def'/'<line>,<line>',float to select the lines to
         be used in the pdf plots. If <line> option is used, the line wavelengths must
         be a string with lines separated by commas or a single float.
         Default is 'diag'.
@@ -578,7 +578,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
     '''
 
     timenow = time.strftime('%Y%m%d_%H%M%S')
-    
+
     if output_dir[-1] != '/':
         output_dir += '/'
 
@@ -848,7 +848,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                             (i >= 4117.70 and i <= 4126.10)    # (last val should match lmax)
                             ) else 1 for i in star.obswave[mask]]
 
-                    # This is a visual trick to place the synthetic spectra where it really is ifthe 
+                    # This is a visual trick to place the synthetic spectra where it really is ifthe
                     # normalization option is used, as this is not stored in the solution*.idl file
                     scale = np.sum(star.obsflux[mask]*star.synconv[mask]*weight)\
                                 /np.sum(star.synconv[mask]*star.synconv[mask]*weight)
@@ -897,7 +897,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
                     if parameters[j] == 'logQs':
                         chain -= 10
-                    
+
                     # Replace lgf by logg
                     if do_logg == True and 'lgf' in parameters and parameters.index('lgf') == j:
                         idx = parameters.index('Teff')
@@ -907,7 +907,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
                     iqr = np.quantile(chain, q=[.25, .75])
                     fd_bin = 2*np.diff(iqr)/(len(chain)**(0.3))
-                    
+
                     # Change the original fd_bin value to the nearest one to fit within the range of the data evenly
                     fd_bin = (max(chain) - min(chain))/np.round((max(chain) - min(chain))/fd_bin[0])
 
@@ -916,10 +916,10 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                         weights=weights, histtype='stepfilled', fc='gray', ec='g', lw=1, alpha=0.6)
 
                     ylim = axs[j].get_ylim()[1]
- 
+
                     # plot the values of sol_max and the hdp intervals
                     axs[j].plot([getattr(star, parameters[j])]*2, [0,ylim], '--', c='r', label='sol_%s + HDP' % solution)
-                    
+
                     if not 'd' in getattr(star, 'l_'+parameters[j]):
                         axs[j].plot([getattr(star, parameters[j])-getattr(star, parameters[j]+'_eDW')]*2, [0,ylim*.8], ':', lw=2, c='r')
                         axs[j].plot([getattr(star, parameters[j])+getattr(star, parameters[j]+'_eUP')]*2, [0,ylim*.8], ':', lw=2, c='r')
@@ -1088,19 +1088,19 @@ def gen_synthetic(output_dir, convolve=True, lwl=3900, rwl=5080):
 
     for file in os.listdir(output_dir + 'SOLUTION/'):
         if not file.startswith('._') and file.endswith('.idl'):
-            star = solution_maui(output_dir + 'SOLUTION/' + file, 
+            star = solution_maui(output_dir + 'SOLUTION/' + file,
                                  output_dir + 'MARKOV_CHAIN/' + file.replace('emulated_solution_',''))
 
             #star.filename = star.filename.replace(str(star.resolution),'85000')
             new_star = '%s_red%i.dat' % (star.filename[:-5],grids_dic[star.gridname][2])
-            
+
             # Check if the file already exists and ask if it should be overwritten
             if os.path.exists(save_dir + new_star):
                 print('File %s already exists. Overwrite? (y/n)' % new_star)
                 answer = input()
                 if answer == 'n':
                     continue
-            
+
             # Save the non-convolved synthetic spectrum in the ASCII folder
             np.savetxt(save_dir + new_star, np.c_[star.synwave,star.synflux],
                        fmt=('%.4f','%.6f'), header='lambda    flux', comments='')
@@ -1109,7 +1109,7 @@ def gen_synthetic(output_dir, convolve=True, lwl=3900, rwl=5080):
             star_idl.waveflux(lwl, rwl, delimiter=' ')
             #plt.plot(star_idl.wave, star_idl.flux, 'r', lw=.3) # plot to check
             if convolve == True:
-                star_idl.degrade(resol=star_idl.resolution, profile='rotmac', 
+                star_idl.degrade(resol=star_idl.resolution, profile='rotmac',
                                  vsini=star.vsini, vmac=star.vmac)
                 #plt.plot(star_idl.wave, star_idl.flux, 'g', lw=.3) # plot to check
 
