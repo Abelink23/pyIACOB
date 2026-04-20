@@ -16,6 +16,9 @@ import scipy.constants as cte
 from scipy.signal import convolve
 from scipy.interpolate import interp1d
 
+# Print a message to indicate that the reduction version is being loaded
+reduction_version = '1.0.0'
+print('Loading pyIACOB reduction module: ' + '\033[92mv' + reduction_version + '\033[0m')
 
 def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False):
 
@@ -42,10 +45,15 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False)
                 if i.endswith('.fits') and not i.startswith('.')]
 
     for spectrum in spectra:
+
         # Retrieve the key values from the fits header
         hdu = fits.open(spectrum) # Open the fits image file
         hdu0 = hdu[0]           # Load the header list of primary header
         header = hdu0.header    # Read the values of the headers
+
+        if 'I-pyIB' in header and len(hdu0.data) == 2:
+            print('File ' + spectrum.split(os.sep)[-1] + ' already in IACOB format. Skipping.')
+            continue
 
         object = header['OBJECT'].replace(' ','').upper()
 
@@ -120,9 +128,9 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False)
             fig, ax = plt.subplots(figsize=(10, 5))
             ax.plot(wave, flux/np.nanmean(flux), label='Original', lw=0.5, alpha=0.5)
             ax.plot(wave, ft, label='Normalized', lw=0.5, alpha=0.5)
-            ax.plot(wave, ynt/np.nanmean(ynt), label='Continuum fit', lw=0.5, alpha=0.5)
+            ax.plot(wave, ynt/np.nanmedian(ynt), label='Continuum fit', lw=1, alpha=0.5)
             ax.plot(wave, fkt, label='Mask', lw=0.5, alpha=0.5, drawstyle='steps-mid')
-            ax.set_title(f"{object}_{DATE}{telcode}{RESOL}")
+            ax.set_title(f"{object}_{DATE.replace('-', '').replace(':', '')}{telcode}{RESOL}")
             ax.legend()
             fig.tight_layout()
             plt.show(block=False)
@@ -138,6 +146,7 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False)
 
         # Add the data release version
         header['I-VERS'] = ('DR3.0', 'Data release version')
+        header['I-pyIB'] = (reduction_version, 'Version of the pyIACOB reduction module')
 
         # Add the comments
         header['COMMENT'] = ' --- The IACOB spectroscopic database of Galactic OB stars'
@@ -158,7 +167,7 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False)
 
         # save the fits file with the new name in the same folder
         print('Renaming',spectrum,'to',new_name)
-        hdu.writeto(os.path.join(path_to_spectra, new_name), overwrite=True)
+        hdu.writeto(os.path.join(path_to_spectra, new_name))
         hdu.close()
 
     return None
