@@ -13,35 +13,24 @@ from astropy.io import fits, ascii
 from astropy.table import Table, join, vstack, hstack
 from astropy.coordinates import SkyCoord
 
-# Vizier - Only used to query in Gaia
-from astroquery.vizier import Vizier
-
 # Simbad
 from astroquery.simbad import Simbad
 Simbad.add_votable_fields('U','B','V','sp_type')
 Simbad.columns_in_output = [i for i in Simbad.columns_in_output if 'coo' not in i.name]
 
-# Gaia Query
-from astroquery.gaia import Gaia
-Gaia.MAIN_GAIA_TABLE = "gaiadr3.gaia_source" # Select Data Release 3
-Gaia.ROW_LIMIT = -1 # Set the number of output raw limit to infinite
-#   Gaia Zero point offset
-from edr3_zp import zpt
-zpt.load_tables()
-
 # Load the working paths:
-dir_path_file = ''
-while not os.path.isfile(dir_path_file + 'paths.txt'):
-    print('File paths.txt not found...')
-    dir_path_file = input('Please provide the full path to the file now: ')
+dir_path_file = 'paths.txt'
+while not os.path.isfile(dir_path_file):
+    print(f"File '{dir_path_file}' not found...")
+    dir_path_file = input("Please provide the full path to the file: ")
 
-with open(dir_path_file + 'paths.txt', 'r') as paths:
-    paths = [i.split('=') for i in paths.read().splitlines() if not i == '' and not i.startswith('#')]
-    paths = [[i[0],i[1]] if i[1].endswith('/') == True else [i[0],i[1]+'/'] for i in paths]
-
-dirs = {}
-for i in paths:
-    dirs[i[0]] = i[1]
+with open(dir_path_file, 'r') as f:
+    dirs = {
+        key.strip(): (val.strip() if val.strip().endswith('/') else val.strip() + '/')
+        for line in f
+        if line.strip() and not line.startswith('#') and '=' in line
+        for key, val in [line.split('=', 1)]
+        }
 
 maindir  = dirs['main']
 datadir  = dirs['data']
@@ -49,7 +38,6 @@ ibdir    = dirs['ib']
 mauidir  = dirs['maui']
 modeldir = dirs['models']
 tessdir  = dirs['tess']
-del dirs, paths, i
 
 
 def search(myfile, path):
@@ -133,7 +121,7 @@ def findstar(spectra=None, snr=0):
             return None
 
         list_spectra = [spectrum.split()[0] for spectrum in list_spectra \
-                       if not spectrum.startswith('#') and not spectrum == '']
+                        if not spectrum.startswith('#') and not spectrum == '']
 
     elif 'fits' in spectra:
         list_spectra = spectra.split(',')
@@ -665,10 +653,13 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
     #=============================== Query Gaia ================================
     if gaia == 'DR2':
         gaia_columns = ['BPmag','e_BPmag','+Gmag','e_Gmag','RPmag','e_RPmag',\
-                   'pmRA','e_pmRA','pmDE','e_pmDE','Plx','e_Plx']
+                        'pmRA','e_pmRA','pmDE','e_pmDE','Plx','e_Plx']
         gaia_columns.extend(['astrometric_n_good_obs_al','astrometric_chi2_al'])
         table_u0 = findtable('table_u0_g_col.txt', delimiter=',')
         offset = input('Apply +0.03 mas offset to parallax? [y/n]: ')
+
+        # Vizier - Only used to query in Gaia
+        from astroquery.vizier import Vizier
 
         v = Vizier(columns=gaia_columns)
         v.ROW_LIMIT = 1
@@ -1202,7 +1193,7 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False):
 def query_Gaia(name=None, gaia='dr3', ra=None, dec=None, radec=None, radius=2, get_zp=False):
 
     '''
-    Function to query an object in Gaia DR3 database.
+    Function to query an object in Gaia database.
 
     Parameters
     ----------
@@ -1231,6 +1222,15 @@ def query_Gaia(name=None, gaia='dr3', ra=None, dec=None, radec=None, radius=2, g
     -------
     Queried object in Table format.
     '''
+
+    # Gaia Query
+    from astroquery.gaia import Gaia
+    Gaia.MAIN_GAIA_TABLE = "gaiadr3.gaia_source" # Select Data Release 3
+    Gaia.ROW_LIMIT = -1 # Set the number of output raw limit to infinite
+
+    #   Gaia Zero point offset
+    from edr3_zp import zpt
+    zpt.load_tables()
 
     if gaia not in ['dr2','DR2','dr3','DR3']:
         print('Input Gaia catalog not selected bewteen dr2 and dr3. Exiting...\n')
