@@ -213,8 +213,8 @@ def normalize(telescope, w, f, order=2):
         lam = np.array([3815,3920,4060,4150,4290,4605,4830,4950,5070,5320,5500,5620,5750,5840,
                         5980,6200,6460,6700,7100,7620,8000,8400,8710,8930], float)
     elif telescope == 'MPI-2.2':
-        lam = np.array([3700,3815,3920,4060,4150,4290,4605,4830,4950,5070,5320,5500,5620,
-                        5750,5840,5980,6200,6460,6700,7195,7620,8000,8400,8710,8930,9020,9100], float)
+        lam = np.array([3700,3815,3920,4060,4150,4290,4530,4650,4830,4950,5070,5320,5500,5620,5750,
+                        5840,5980,6200,6460,6700,7150,7220,7620,8000,8400,8710,8930,9020,9100], float)
     else:
         print(f"Warning: Telescope '{telescope}' not recognized. Returning original spectrum.")
         return f, np.zeros_like(w), np.ones_like(w, float), lam, np.array([np.nan]), np.nan
