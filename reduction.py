@@ -1,23 +1,20 @@
-# Python Standard Library packages
-import os
+# Load pyIACOB packages
+from db import *
 
-# Main packages
-import numpy as np
+# Load main packages
 import matplotlib.pyplot as plt
 
-# Astro-packages
-import astropy.units as u
-from astropy.io import fits
+# Load astro-packages
 from astropy.time import Time
-from astropy.coordinates import SkyCoord, EarthLocation
+from astropy.coordinates import EarthLocation
 
-# Scientific packages:
+# Load scientific packages:
 import scipy.constants as cte
 from scipy.signal import convolve
 from scipy.interpolate import interp1d
 
 # Print a message to indicate that the reduction version is being loaded
-reduction_version = '1.0.0'
+reduction_version = '1.0.1'
 print('Loading pyIACOB reduction module: ' + '\033[92mv' + reduction_version + '\033[0m')
 
 def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False):
@@ -52,7 +49,7 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False)
         header = hdu0.header    # Read the values of the headers
 
         if 'I-pyIB' in header and len(hdu0.data) == 2:
-            print('File ' + spectrum.split(os.sep)[-1] + ' already in IACOB format. Skipping.')
+            print('File ' + spectrum.split(os.sep)[-1] + ' already in IACOB format. Skipping...')
             continue
 
         object = header['OBJECT'].replace(' ','').upper()
@@ -92,7 +89,6 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False)
         date = date.replace('-','')
         time = time.replace(':','').split('.')[0]
 
-
         sc = SkyCoord(ra=float(header['RA'])*u.deg, dec=float(header['DEC'])*u.deg)
         VBAR = sc.radial_velocity_correction(obstime=Time(DATE), location=loc)
 
@@ -119,17 +115,21 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False)
         if 'log' in ctype:
             wave = np.exp(wave)
 
+        # replace any flux values that are below wavelength 3715 with nan
+        flux[wave < 3715] = np.nan
+
         # Normalize the spectrum
         ft, ynt, fkt, lam, snr, snr4500 = normalize(TELES, wave, flux, order=norm_order)
         # Add the normalize flux to the fits data
         hdu0.data = [ft, hdu0.data]
 
         if plot:
-            fig, ax = plt.subplots(figsize=(10, 5))
+            fig, ax = plt.subplots(figsize=(14, 7))
             ax.plot(wave, flux/np.nanmean(flux), label='Original', lw=0.5, alpha=0.5)
             ax.plot(wave, ft, label='Normalized', lw=0.5, alpha=0.5)
-            ax.plot(wave, ynt/np.nanmedian(ynt), label='Continuum fit', lw=1, alpha=0.5)
-            ax.plot(wave, fkt, label='Mask', lw=0.5, alpha=0.5, drawstyle='steps-mid')
+            ax.plot(wave, ynt/np.nanmean(ynt), label='Continuum fit', lw=1, alpha=0.5)
+            fkt_plot = np.where(fkt == 0, np.nan, fkt)
+            ax.plot(wave, fkt_plot, label='Mask', lw=3, alpha=0.3, drawstyle='steps-mid')
             ax.set_title(f"{object}_{DATE.replace('-', '').replace(':', '')}{telcode}{RESOL}")
             ax.legend()
             fig.tight_layout()
@@ -166,7 +166,10 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False)
         new_name = object + '_' + date + '_' + time + telcode + RESOL + end
 
         # save the fits file with the new name in the same folder
-        print('Renaming',spectrum,'to',new_name)
+        print(spectrum.split(os.sep)[-1],'->',new_name,'| SNR(4500A)=',snr4500)
+        if os.path.exists(os.path.join(path_to_spectra, new_name)):
+            print(f"Warning: File '{new_name}' already exists. Skipping...")
+            continue
         hdu.writeto(os.path.join(path_to_spectra, new_name))
         hdu.close()
 
@@ -523,8 +526,17 @@ def retrieve_spc(star_id, spc_table):
         table[id.upper()] = (spc, spc_ref)
 
     if star_id.upper() not in table:
-        print(f"Warning: Spectral classification not found for star ID '{star_id}'")
-        return 'Unknown', 'Unknown'
+        print(f"Spectral classification not found for star ID '{star_id}'")
+        print(f"Querying SIMBAD to retrieve it...")
+        simbad = query_Simbad(star_id)
+        print(simbad)
+        if simbad is not None:
+            spc = simbad['sp_type'][0].strip()
+            spc_ref = 'SIMBAD'
+        else:
+            print(f"Failed to retrieve spectral classification for star ID '{star_id}'")
+            spc = spc_ref = '???'
+        return spc, spc_ref
     else:
         spc = table[star_id.upper()][0].strip()
         spc_ref = table[star_id.upper()][1].strip()
