@@ -721,15 +721,18 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
 
         #=======================================================================
         #=========================== Skip bad sources ==========================
-        if db == 'IACOB' and any(bad in source[:3] for bad in ['DO2']): continue
+        if db == 'IACOB' and any(bad in source[:3] for bad in ['DO2']):
+            continue
 
-        if skip != None and any(bad in source for bad in skip.split(',')): continue
+        if skip != None and any(bad in source for bad in skip.split(',')):
+            continue
 
         #=======================================================================
         #=============== Simbad query by object name/coordinates ===============
         if type_list == 'names':
             simbad = query_Simbad(source, OBJRA, OBJDEC)
-            if   simbad is None: continue
+            if len(simbad) == 0:
+                continue
 
         elif type_list == 'coords':
             if ':' in source:
@@ -1136,7 +1139,7 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False):
             except:
                 simbad = None
 
-        while simbad is None: # type(simbad) == type(None)
+        while len(simbad) == 0:
 
             print('Provide alternative name for %s in Simbad.' % name)
             print('In some cases try replacing "HD" by "HD " or vice versa.')
@@ -1153,7 +1156,7 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False):
 
             elif check == 'sky' and ra != None and dec != None:
                 simbad = Simbad.query_region(SkyCoord(ra, dec, unit='deg'), radius=radius)
-                if simbad is None: # type(simbad) == type(None)
+                if len(simbad) == 0:
                     print('No objects found.')
 
             else:
@@ -1162,7 +1165,7 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False):
                 except:
                     simbad = None
 
-            if simbad is not None and len(simbad) > 1:
+            if len(simbad) > 1:
                 print('More than one Simbad result, choosing the brigtest source...')
                 simbad.sort('V')
                 simbad = Table(simbad[0])
@@ -1175,7 +1178,7 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False):
     elif ra != None and dec != None:
         simbad = Simbad.query_region(SkyCoord(ra, dec, unit='deg'), radius=radius)
 
-        if simbad is None: # type(simbad) == type(None)
+        if len(simbad) == 0:
             print('No objects found.')
 
         elif len(simbad) > 1:
@@ -1400,7 +1403,7 @@ def check_fits(list, max_dist=90):
         # Problems quering in Simbad
         if not id_star in type_errors['Simbad']:
             simbad = query_Simbad(id_star)
-            if   simbad is None:
+            if len(simbad) == 0:
                 type_errors['Simbad'].append(id_star)
 
         # Retrieve the key values fron the fits header
@@ -1442,20 +1445,15 @@ def check_fits(list, max_dist=90):
         # Get the coordinates from the header
         RA_0 = header['RA']
         DEC_0 = header['DEC']
-        RADEC_0 = str(RA_0) + ' ' + str(DEC_0)
 
         # Catch missing RA/DEC:
         if '0.0000' in str(RA_0) or '0.0000' in str(DEC_0):
             type_errors['radec0'].append(filename)
 
         # Catch spectra of different object than the object queried in Simbad
-        if simbad is not None and (not '0.0000' in str(RA_0) or not '0.0000' in str(DEC_0)):
-            RADEC = str(simbad['RA'][0]).replace(' ', ':') \
-                + ' ' + str(simbad['DEC'][0]).replace(' ', ':')
-
-            c1 = SkyCoord(RADEC_0, unit=u.deg)
-            c2 = SkyCoord(RADEC, unit=(u.hour,u.deg))
-
+        if len(simbad) > 0 and (not '0.0000' in str(RA_0) or not '0.0000' in str(DEC_0)):
+            c1 = SkyCoord(RA_0, DEC_0, unit=u.deg)
+            c2 = SkyCoord(simbad['ra'][0], simbad['dec'][0], unit=u.deg)
             difcoord = round(c1.separation(c2).arcsec, 3)
 
             if difcoord > max_dist:
@@ -1472,6 +1470,7 @@ def check_fits(list, max_dist=90):
     '# Spectra with no RA or DEC values in the header. Correct the header and re-run to check object coordinates.\n',
     '# Distance from Simbad query is above the threshold for these spectra.\n']
 
+    print('Possible errors (if any) are written in lists/Errors_DB.txt')
     errorsDB = open(maindir+'lists/Errors_DB.txt', 'w')
     for description,error in zip(error_descriptions,type_errors):
         if len(type_errors[error]) == 0:
@@ -1481,7 +1480,8 @@ def check_fits(list, max_dist=90):
     errorsDB.close()
 
     # Writing the file unique identificators to a file
-    IDs_spectra = open(maindir+'lists/IDs_spectra.txt', 'w') # TEMPORAL
+    print('Unique IDs of the spectra are written in lists/IDs_spectra.txt')
+    IDs_spectra = open(maindir+'lists/IDs_spectra.txt', 'w')
     for description,tel in zip(['# FEROS files\n','# HERMES files\n','# FIES files\n'],IDs):
         if len(IDs[tel]) == 0:
             continue
@@ -1552,10 +1552,10 @@ def fix_fits(list, coords_Simbad=True, radius=60, savepath=''):
 
         simbad = query_Simbad(id_star)
 
-        if simbad is not None:
+        if len(simbad) > 0:
             print('From Simbad (querying ID):\n--------------------------')
 
-            RADEC_SB = SkyCoord(simbad['RA'],simbad['DEC'], unit=(u.hour,u.deg))[0]
+            RADEC_SB = SkyCoord(simbad['ra'],simbad['dec'], unit=(u.hour,u.deg))[0]
 
             try: # Additional coordinates from SkyCoord package
                 RADEC_SC = SkyCoord.from_name(id_star)
