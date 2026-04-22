@@ -153,7 +153,7 @@ def findstar(spectra=None, snr=0):
             print('File/source %s not found.\n' % spectrum)
 
     if len(dir_spectra) == 0:
-        return None
+        return dir_spectra
 
     # Spectra selection based on selected SNR.
     if any(['ascii' in spectrum for spectrum in list_spectra]) and snr != None:
@@ -1132,12 +1132,9 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False):
     if name is not None:
         # For some reason sometimes adding a whitespace fix some querying issues
         for name_i in [name, name+' ', ' '+name]:
-            try:
-                simbad = Simbad.query_object(name_i)
-                time.sleep(0.15)
+            simbad = Simbad.query_object(name_i)
+            if len(simbad) > 0:
                 break
-            except:
-                simbad = None
 
         while len(simbad) == 0:
 
@@ -1165,10 +1162,24 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False):
                 except:
                     simbad = None
 
-            if len(simbad) > 1:
-                print('More than one Simbad result, choosing the brigtest source...')
-                simbad.sort('V')
-                simbad = Table(simbad[0])
+        if otypes is True and len(simbad) > 0:
+            # list all rows with different main_id
+            main_ids = list(set(simbad['main_id']))
+            for main_id in main_ids:
+                simbad_i = simbad[simbad['main_id'] == main_id]
+                # merge all the otypes in one string
+                all_otypes = [simbad_i['otypes.otype'][i] for i in range(len(simbad_i))]
+                # remove all rows with the same main_id and add one with all the otypes
+                simbad = simbad[simbad['main_id'] != main_id]
+                new_row = simbad_i[0]
+                new_row['otypes.otype'] = '|'.join(all_otypes)
+                simbad.add_row(new_row)
+
+        if len(simbad) > 1:
+            print('More than one Simbad result, choosing the brigtest source...')
+            simbad.sort('V')
+
+            simbad = Table(simbad[0])
 
         if 'SCRIPT_NUMBER_ID' in simbad.colnames:
             simbad.remove_column('SCRIPT_NUMBER_ID')
