@@ -14,7 +14,7 @@ from scipy.signal import convolve
 from scipy.interpolate import interp1d
 
 # Print a message to indicate that the reduction version is being loaded
-reduction_version = '1.0.1'
+reduction_version = '1.0.2'
 print('Loading pyIACOB reduction module: ' + '\033[92mv' + reduction_version + '\033[0m')
 
 def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False):
@@ -222,15 +222,17 @@ def normalize(telescope, w, f, order=2):
     lam0 = np.min(w.astype(float))
 
     # Selection of the individual regions for normalization
-    if telescope == 'MERCATOR':
-        lam = np.array([3815,3920,4060,4150,4290,4605,4830,4950,5070,5320,5500,5620,5750,5840,
-                        5980,6200,6460,6700,7100,7620,7825], float)
-    elif telescope == 'NOT':
-        lam = np.array([3815,3920,4060,4150,4290,4605,4830,4950,5070,5320,5500,5620,5750,5840,
-                        5980,6200,6460,6700,7100,7620,8000,8400,8710,8930], float)
+    if telescope in ['MERCATOR','NOT']:
+        #lam = np.array([3815,3920,4060,4150,4290,4605,4830,4950,5070,5320,5500,5620,5750,5840,
+        #                5980,6200,6460,6700,7100,7620,8000,8400,8710,8930], float) # MINE
+        #lam = np.array([3815,3920,4060,4135,4290,4495,4605,4725,4800,4970,5200,5320,5440,5500,5620,5690,5750,5840,5980,6100,6220,6460,6630,6900,7250,7520,7750,8400,8710,8790,8930,9020], float) # iacobsweg
+        lam = np.array([3815,3920,4060,4150,4290,4495,4605,4725,4800,4970,5200,5320,5420,5500,
+                        5620,5690,5750,5840,5980,6100,6220,6460,6630,6900,7250,7520,7750,8400,
+                        8710,8850,9000,9200], float)
     elif telescope == 'MPI-2.2':
-        lam = np.array([3700,3815,3920,4060,4150,4290,4530,4650,4830,4950,5070,5320,5500,5620,5750,
-                        5840,5980,6200,6460,6700,7150,7220,7620,8000,8400,8710,8930,9020,9100], float)
+        lam = np.array([3690,3760,3815,3870,3920,4040,4155,4260,4520,4605,4705,4780,4970,5140,
+                        5320,5420,5500,5620,5690,5750,5860,5980,6100,6220,6320,6440,6700,6850,
+                        7150,7350,7550,7820,8400,8710,8790,8930,9000,9250], float)
     else:
         print(f"Warning: Telescope '{telescope}' not recognized. Returning original spectrum.")
         return f, np.zeros_like(w), np.ones_like(w, float), lam, np.array([np.nan]), np.nan
@@ -333,9 +335,9 @@ def normalize_slice(w, f, w0, w1, wlim1=None, wlim2=None, lam1=None, iter=None, 
     '''
 
     # Strong lines
-    lamH = np.array([3712,3722,3735,3750,3771,3797,3835,3890,3970,
-                     4102,4340,4860,6563,8438,8465,8500,8545,8600,8665,8748,8860], dtype=float)
-    lamHeI  = np.array([3820,3926,4009.,4026.,4143.,4387.,4471.5,4713,4922,5875,6678])
+    lamH = np.array([3712,3722,3735,3750,3771,3797,3835,3890,3970,4102,4340,4860,6563,
+                     8438,8465,8500,8545,8600,8665,8748,8860], dtype=float)
+    lamHeI  = np.array([3820,3926,4009,4026,4143.,4387.,4471.5,4713,4922,5875,6678])
     lamHeII = np.array([4200,4542,4686,5411])
     lamISM  = np.array([4430])
 
