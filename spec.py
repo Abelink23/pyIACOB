@@ -1188,6 +1188,8 @@ class spec():
         plt.xlabel(r'$\lambda$ $[\AA]$', size=13)
         plt.ylabel('Normalized flux', size=13)
 
+        plt.gcf().set_size_inches(14, 7)
+
         plt.legend()
         plt.tight_layout()
         plt.show(block=False)
