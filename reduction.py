@@ -139,7 +139,7 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False)
             fig.tight_layout()
             plt.show(block=False)
 
-        header['I-SNR'] = (int(np.median(snr)), 'Median SNR of the normalized regions')
+        header['I-SNR'] = (int(np.nanmedian(snr)), 'Median SNR of the normalized regions')
         header['I-SN450'] = (int(snr4500), 'SNR (4500 A)')
 
         # Add the spectral classification to the header
