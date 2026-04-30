@@ -7,7 +7,8 @@ from astroquery.eso import Eso
 # https://astroquery.readthedocs.io/en/latest/eso/eso.html
 
 eso = Eso()
-eso.login(input('Provide the username of your ESO account: '), store_password=True)
+eso_user = input('Provide the username of your ESO account: ')
+eso.login(username=eso_user, store_password=True)
 eso.ROW_LIMIT = -1
 
 def get_feros(fname, radius=2, program=None, limit=9999):
@@ -15,7 +16,7 @@ def get_feros(fname, radius=2, program=None, limit=9999):
     Parameters
     ----------
     fname : str
-        Enter the filename containing the source names [.lst/.txt/.fits].
+        Enter the filename containing the source names [.lst/.txt/.fits(table)].
 
     radius : int/float, optional
         Max distance in arcmin to the queried result sources. Default is 2 arcmin.
@@ -55,7 +56,7 @@ def get_feros(fname, radius=2, program=None, limit=9999):
 
         print('\nSearching data for %s...\n' % name)
 
-        query = eso.query_surveys('FEROS', cache=False, target=name)
+        query = eso.query_surveys(surveys='FEROS', cache=False, target=name)
         if query is None:
             db.write(name+', 0, 0, Query returned no results.\n')
             continue
@@ -68,18 +69,16 @@ def get_feros(fname, radius=2, program=None, limit=9999):
             db.write(name+', 0, 0, Simbad return no results.\n')
             continue
 
-        coords_S = SkyCoord(simbad['RA'], simbad['DEC'], unit=(u.hourangle,u.deg), frame='icrs')
+        coords_S = SkyCoord(simbad['ra'], simbad['dec'], unit=(u.hourangle,u.deg), frame='icrs')
 
         datasets = []
+        print(query)
         for entry in query:
-
             try:
                 if re.sub('[ /_/]','',str(entry['Object'])).replace('HD-','HD') == name:
                     datasets.append(entry['ARCFILE'])
-
                 else:
                     coords_F = SkyCoord(entry['RA'], entry['DEC'], unit=(u.deg,u.deg), frame='icrs')
-
                     if coords_S.separation(coords_F).arcmin[0] < radius:
                         datasets.append(entry['ARCFILE'])
             except:
