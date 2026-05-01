@@ -1207,7 +1207,7 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False):
         return None
 
 
-def query_Gaia(name=None, gaia='dr3', ra=None, dec=None, radec=None, radius=2, get_zp=False):
+def query_Gaia(name=None, gaia='dr3', ra=None, dec=None, radec=None, radius=2, limit_one_source=True, get_zp=False):
 
     '''
     Function to query an object in Gaia database.
@@ -1232,6 +1232,9 @@ def query_Gaia(name=None, gaia='dr3', ra=None, dec=None, radec=None, radius=2, g
     radius : int, optional
         Enter an integer with the radius for the sky search in arcseconds. Default is 2.
 
+    limit_one_source : boolean, optional
+        If True, only one source will be returned. Default is True.
+
     get_zp : boolean, optional
         If True, the zero point will be also calculated. Default is False.
 
@@ -1245,7 +1248,7 @@ def query_Gaia(name=None, gaia='dr3', ra=None, dec=None, radec=None, radius=2, g
     Gaia.MAIN_GAIA_TABLE = "gaiadr3.gaia_source" # Select Data Release 3
     Gaia.ROW_LIMIT = -1 # Set the number of output raw limit to infinite
 
-    #   Gaia Zero point offset
+    # Gaia Zero point offset
     from edr3_zp import zpt
     zpt.load_tables()
 
@@ -1307,12 +1310,11 @@ def query_Gaia(name=None, gaia='dr3', ra=None, dec=None, radec=None, radius=2, g
             print('Gaia query failed for object with RA DEC =',RADEC.ra,RADEC.dec)
         return None
 
-    if len(query.results) > 1:
+    if limit_one_source and len(query.results) > 1:
         print('WARNING: More than one Gaia result')
-
         # To make use of the Gaia DRX ######, if used as name
-        if name in query.results['DESIGNATION']:
-            query = query.results[query.results['DESIGNATION'] == name]
+        if name in query.results['designation']:
+            query = query.results[query.results['designation'] == name]
             print('Choosing the same Gaia source ID as the input...')
         else:
             print('WARNING: Input name not in Gaia source ID, choosing the brigtest source...')
@@ -1339,8 +1341,8 @@ def query_Gaia(name=None, gaia='dr3', ra=None, dec=None, radec=None, radius=2, g
     query['ID'] = name
 
     query = query[['ID'] + [i for i in query.colnames][:-1]]
-    if 'DESIGNATION' in query.colnames:
-        query.remove_column('DESIGNATION')
+    if 'designation' in query.colnames:
+        query.remove_column('designation')
     if 'phot_variable_flag' in query.colnames:
         query.remove_column('phot_variable_flag')
     if 'libname_gspphot' in query.colnames:
