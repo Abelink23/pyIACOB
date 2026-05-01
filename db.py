@@ -665,6 +665,9 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
         v.ROW_LIMIT = 1
 
     elif gaia == 'DR3':
+        # Vizier - Only used to query in Gaia
+        from astroquery.vizier import Vizier
+
         v = Vizier()
         v.ROW_LIMIT = 1
 
@@ -762,7 +765,7 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
         if coords == 'header':
             RADEC_0 = SkyCoord(ra=header['RA'], dec=header['DEC'], unit=(u.deg)) # Why no [0] here?
         else:
-            RADEC_0 = SkyCoord(ra=simbad['RA'], dec=simbad['DEC'], unit=(u.hour,u.deg))[0]
+            RADEC_0 = SkyCoord(ra=simbad['ra'], dec=simbad['dec'], unit=(u.hour,u.deg))[0]
 
         row['RA_J2000']  = RADEC_0.ra.to_string(unit=u.hour, sep=':', pad=True, alwayssign=True)
         row['DEC_J2000'] = RADEC_0.dec.to_string(unit=u.deg, sep=':', pad=True, alwayssign=True)
@@ -1026,7 +1029,7 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
     return None
 
 
-def spc_code(spc,sub_class_I=False):
+def spc_code(spc, sub_class_I=False):
 
     '''
     Function to translate input SpC (Spectral Class) into SpT and LC codes.
@@ -1363,7 +1366,11 @@ def show_header(fitsfile):
 
     fitsfile = findstar(fitsfile)
 
-    hdul = fits.open(fitsfile)
+    if len(fitsfile) > 1:
+        print('\033[93mERROR: Only one file can be shown at a time.\033[0m')
+        return None
+
+    hdul = fits.open(fitsfile[0])
     hdul.info()
     print(hdul[0].header.items)
 
