@@ -14,10 +14,8 @@ from astropy.stats import sigma_clip
 
 # Plot packages
 import matplotlib.pyplot as plt
-from matplotlib.ticker import AutoMinorLocator
 plt.rc('xtick', direction='in', top=True)
 plt.rc('ytick', direction='in', right=True)
-
 
 class spec():
     def __init__(self, spectrum, snr=0, rv0=0, offset=0, cut_edges=False, orig='IACOB', delimiter=' '):
@@ -173,7 +171,10 @@ class spec():
 
             instrum = header0['INSTRUME']   # Instrument
 
-            ctype = header0['CTYPE1']       # Type of wavelength calibration (linear, log, etc.)
+            if 'CTYPE1' in header0:
+                ctype = header0['CTYPE1']   # Type of wavelength calibration (linear, log, etc.)
+            else:
+                ctype = 'WAVELENGTH'
             lam0 = header0['CRVAL1']        # Get the wavelength of the first pixel
             dlam = header0['CDELT1']        # Step of increase in wavelength
             pix0 = header0['CRPIX1']        # Reference pixel (generally 1, FEROS -49)
@@ -722,7 +723,7 @@ class spec():
         sigma = lambda0/(2.35482*float(resol))
 
         gauss = f_gaussian(np.arange(-5*sigma, 5*sigma, self.dlam), sigma)
-        kernel = gauss/np.trapz(gauss)
+        kernel = gauss/np.trapezoid(gauss)
 
         convoluted = 1 + convolve(self.flux[mask] - 1, kernel, mode='same')
 
@@ -749,9 +750,8 @@ class spec():
             return int(round(np.nanmean(snr_all)))
 
 
-    def cosmic(self, method='zscore',
-        dmin=0.05, zs_cut=5,
-        wl_split=100, ker_sig=2, ker_iter=3, sig_g=None,
+    def cosmic(self, method='zscore', dmin=0.05, zs_cut=5,
+        ker_splitwave=100, ker_sig=2, ker_iter=3, ker_sig_g=None,
         protect_em_lines=True):
 
         '''
@@ -770,7 +770,7 @@ class spec():
             Threshold value used in the zscore method for finding rays. Default is 4.
             Tip: For noisy spectra, rise this value up to 7-9.
 
-        wl_split : int/float, optional
+        ker_splitwave : int/float, optional
             In the 'kernel' method, wavelength size used to split the spectrum before
             applying the cosmic removal. Default is 100.
 
@@ -781,7 +781,7 @@ class spec():
             Number of iterations of the sigma clipping to remove cosmic rays in the kernel method.
             Default is 3.
 
-        sig_g : float, optional
+        ker_sig_g : float, optional
             Sigma of the gaussian function used to construct the kernel.
             Default is the theoretical sigma based on wavelength and resolution.
 
@@ -814,38 +814,38 @@ class spec():
 
         elif method == 'kernel':
 
-            wl_split = 100 # Range in angstroms in which the spectrum will be initially splitted
+            ker_splitwave = 100 # Range in angstroms in which the spectrum will be initially splitted
 
             wl_range = self.wave[-1]-self.wave[0]
-            if wl_range < wl_split:
-                wl_split = wl_range
+            if wl_range < ker_splitwave:
+                ker_splitwave = wl_range
 
-            if 1 < wl_range/wl_split <= 2:
-                wl_split = wl_range/2 + 1
-            elif wl_range/wl_split > 2:
-                wl_split += (wl_range % wl_split) / int(wl_range/wl_split)
+            if 1 < wl_range/ker_splitwave <= 2:
+                ker_splitwave = wl_range/2 + 1
+            elif wl_range/ker_splitwave > 2:
+                ker_splitwave += (wl_range % ker_splitwave) / int(wl_range/ker_splitwave)
 
-            n = int(wl_range/wl_split)
+            n = int(wl_range/ker_splitwave)
 
             flux_clean = []
             for i in range(n):
 
-                mask = (self.wave >= self.wave[0]+i*wl_split) & (self.wave < self.wave[0]+(i+1)*wl_split)
+                mask = (self.wave >= self.wave[0]+i*ker_splitwave) & (self.wave < self.wave[0]+(i+1)*ker_splitwave)
                 if i == range(n)[-1]:
                     mask[-1] = True # To catch the last flux value from not using <= above
 
                 resolution = float(self.resolution) # resolution = 5000 # Empirical optimal value
                 dlam = self.dlam # dlam = 0.2564975 # Empirical optimal value
 
-                if sig_g is None:
+                if ker_sig_g is None:
                     lambda0 = np.mean(self.wave[mask])
-                    sig_g = lambda0/(2.35482*resolution)
+                    ker_sig_g = lambda0/(2.35482*resolution)
                 else:
-                    sig_g = float(sig_g)
+                    ker_sig_g = float(ker_sig_g)
 
-                x = np.arange(-5*sig_g, 5*sig_g+dlam, dlam)
-                gauss = f_gaussian(x,sig_g)
-                kernel = gauss/np.trapz(gauss)
+                x = np.arange(-5*ker_sig_g, 5*ker_sig_g+dlam, dlam)
+                gauss = f_gaussian(x,ker_sig_g)
+                kernel = gauss/np.trapezoid(gauss)
 
                 convoluted = 1 + convolve(self.flux[mask] - 1, kernel, mode='same')
 
@@ -915,10 +915,10 @@ class spec():
             Use 'g' for gaussian profile convolution (Default).
             Use 'rotmac' for rotational+macroturbulence profile convolution.
 
-        vsini : int/float, optiomal
+        vsini : int/float, optional
             Value of vsini. Only valid for rotational+macroturbulence profile.
 
-        vmac : int/float, optiomal
+        vmac : int/float, optional
             Value of vmac. Only valid for rotational+macroturbulence profile.
 
         Returns
@@ -933,13 +933,17 @@ class spec():
 
             x = np.arange(-10*sigma, 10*sigma+self.dlam, self.dlam)
             gauss = f_gaussian(x, sigma)
-            kernel = gauss/np.trapz(gauss)
+            kernel = gauss/np.trapezoid(gauss)
             self.resolution = resol
 
         elif profile == 'rotmac' and vsini!=None and vmac!=None:
             x = np.arange(-9, 9+self.dlam, self.dlam)
             rotmac = f_rotmac(x, lambda0, vsini, vmac)
-            kernel = rotmac/np.trapz(rotmac)
+            kernel = rotmac/np.trapezoid(rotmac)
+
+        else:
+            print('Error in degrade(): Wrong input parameters. Exiting...')
+            return None
 
         # Remove the nans from the flux
         mask = np.where(np.isnan(self.flux) == False)[0]
