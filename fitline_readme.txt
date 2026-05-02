@@ -35,7 +35,7 @@ Voigt profile (g x l) ----------------------------------------------------------
           For metallic lines better use the 'r' profile.
 
 Rotational profile (g x r) -----------------------------------------------------
-  - Name  -> f_rot(x,A,x0,sigma,vsini)
+  - Name  -> f_gaussrot(x,A,x0,sigma,vsini)
   - Alias -> 'r'
   - Lines -> +++ Z lines | - H/He lines
   - Range vsini/FWHM -> ~<410kms/10A for any R
