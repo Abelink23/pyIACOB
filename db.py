@@ -15,6 +15,10 @@ from astropy.coordinates import SkyCoord
 
 from print_colors import color
 
+print(color.c+color.bold+color._+'\nWelcome to the pyIACOB package! - v1.20'+color.end)
+print(color.c+'developed by Abel de Burgos (2026/05/05)'+color.end+'\n')
+
+
 # Simbad
 from astroquery.simbad import Simbad
 Simbad.add_votable_fields('U','B','V','sp_type')
