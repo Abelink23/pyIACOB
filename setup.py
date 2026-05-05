@@ -4,7 +4,7 @@ import re
 import shutil
 import subprocess
 
-print('Welcome to the pyIACOB package!\n')
+print('\033[96m\033[1m\033[4mWelcome to the pyIACOB package!\033[0m\n')
 
 # Obtain the paths to the main and the data mandatoy directories.
 while True:
