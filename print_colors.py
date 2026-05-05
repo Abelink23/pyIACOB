@@ -12,7 +12,7 @@ class color:
     y = '\033[93m'
     r = '\033[91m'
     bold = '\033[1m'
-    under = '\033[4m'
     end = '\033[0m'
+    _ = '\033[4m'
     error = r + 'ERROR: '
     warn = y + 'WARNING: '
