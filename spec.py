@@ -94,7 +94,7 @@ class spec():
             self.resolution = int(re.split(r'(\d*\d+)',self.filename)[-2])
         else:
             self.resolution = 5000
-            print('Warning: Resolution not found in filename. Assuming R5000.')
+            print(color.warn+'Resolution not found in filename. Assuming R5000.'+color.end)
 
         self.offset = offset # Note, run self.waveflux to apply offset.
 
@@ -280,7 +280,7 @@ class spec():
         # Cut the spectrum to the desired wavelength range given by lwl and rwl
         if lwl != None and rwl != None:
             if wave[0] > lwl+dlam or wave[-1] < rwl-dlam:
-                print('WARNING: Wavelenght limits outside spectrum wavelength range.')
+                print(color.warn+'Wavelenght limits outside spectrum wavelength range.'+color.end)
             flux = flux[(wave >= lwl-width/2) & (wave <= rwl+width/2)]
             wave = wave[(wave >= lwl-width/2) & (wave <= rwl+width/2)]
 
@@ -503,10 +503,10 @@ class spec():
                     i = i + 1
 
                 elif FWHM < FWHM_min:
-                    print('WARNING: FWHM(%.1f) < minimum FWHM for %.3fA' % (FWHM,line))
+                    print(color.warn+'FWHM(%.1f) < minimum FWHM for %.3fA' % (FWHM,line)+color.end)
                     break
                 elif FWHM > FWHM_max:
-                    print('WARNING: FWHM(%.1f) > maximum FWHM for %.3fA ' % (FWHM,line))
+                    print(color.warn+'FWHM(%.1f) > maximum FWHM for %.3fA ' % (FWHM,line)+color.end)
                     break
 
             except: break
@@ -975,40 +975,40 @@ class spec():
 
         # Raise warning if difference in wavelengh is >100 A
         if not hasattr(convolve, 'warning_len') and max(self.wave) - min(self.wave) > 100:
-            print('\033[93mWARNING: The wavelength range is >100 ang. As the broadening functions are\033[0m')
-            print('\033[93mdependent of the central wavelength considered, the spectrum will be split\033[0m')
-            print('\033[93min smaller parts and the convolution will be applied separately to each.\033[0m')
+            print(color.warn+'WARNING: The wavelength range is >100 ang. As the broadening functions are'+color.end)
+            print(color.y+'dependent of the central wavelength considered, the spectrum will be split'+color.end)
+            print(color.y+'in smaller parts and the convolution will be applied separately to each.'+color.end)
             setattr(convolve, 'warning_len', True)
 
         if np.isnan(self.flux[0]) or np.isnan(self.flux[-1]):
-            print('\033[93mWARNING: The flux at the edges of the spectrum a nan value.\033[0m')
-            print('\033[93mConsider using cut_edges=True when loading the spectrum.\033[0m')
+            print(color.warn+'The flux at the edges of the spectrum a nan value.'+color.end)
+            print(color.y+'Consider using cut_edges=True when loading the spectrum.'+color.end)
 
         # Check whether the current wavelength array is evenly spaced
         dlam = self.wave[1::] - self.wave[0:-1]
         if not hasattr(convolve, 'warning_dlam1') and abs(max(dlam) - min(dlam)) > 1e-6:
-            print('Input wavelength array is not evenly spaced. Please, use evenly spaced input array.')
+            print(color.warn+'Input wavelength array is not evenly spaced. Please, use evenly spaced input array.'+color.end)
             setattr(convolve, 'warning_dlam1', True)
         # Compare the current dlam with the original value in the class
         if not hasattr(convolve, 'warning_dlam2') and abs(np.mean(dlam) - self.dlam) > 1e-6:
-            print('Input wavelength array has an average dlam different from the dlam in the class.')
+            print(color.warn+'Input wavelength array has an average dlam different from the dlam in the class.'+color.end)
             setattr(convolve, 'warning_dlam2', True)
 
         # Check if beta is within the correct range
         if beta is not None and (beta < 0 or beta > 1.5):
-            print('\033[93mLinear limb-darkening coefficient, beta, should be \'0 < beta < 1.5\'\033[0m')
+            print(color.error+'Linear limb-darkening coefficient, beta, should be \'0 < beta < 1.5\''+color.end)
             return None
         # Check if vsini is positive
         if vsini is not None and vsini <= 0:
-            print('\033[93mRotational velocity, vsini, should be positive\033[0m')
+            print(color.error+'Rotational velocity, vsini, should be positive'+color.end)
             return None
         # Check if vmac is positive
         if vmac is not None and vmac <= 0:
-            print('\033[93mMacroturbulence velocity, vmac, should be positive\033[0m')
+            print(color.error+'Macroturbulence velocity, vmac, should be positive'+color.end)
             return None
         # Check if the resolution is positive
         if self.resolution is not None and self.resolution <= 0:
-            print('\033[93mResolution should be positive\033[0m')
+            print(color.error+'Resolution should be positive'+color.end)
             return None
 
         # smallest wavelength value in the spectrum where flux is not nan
@@ -1030,7 +1030,7 @@ class spec():
 
             # Check that the last slice reaches the end of the spectrum, otherwise raise warning
             if min_wave + n_slices*l_slices < max_wave:
-                print('\033[93mWARNING: The last slice does not reach the end of the spectrum.\033[0m')
+                print(color.warn+'The last slice does not reach the end of the spectrum.'+color.end)
 
             # Create the vectors with the information of the individual slices for the convolution
             # Mask for the wavelength and non nan flux values.
@@ -1111,8 +1111,8 @@ class spec():
                     flux_ori[mask] = flux_ext[len(front) : len(front) + len(flux_ori[mask])]
 
                 if mode not in ['rotation', 'macro', 'instrumental', 'any', 'all']:
-                    print('\033[91mERROR: The input mode for convolution is not correct!\033[0m')
-                    print('\033[91mUse any of: \'any\', \'all\', \'rotation\', \'macro\', \'instrumental\'.\033[0m')
+                    print(color.error+'ERROR: The input mode for convolution is not correct!'+color.end)
+                    print(color.r+"Use any of: any, all, rotation, macro, instrumental"+color.end)
                     return None
 
             # Enable the following line to check the convolution in each slice
@@ -1156,13 +1156,13 @@ class spec():
 
         # Check that the input dlam is either a float or an integrer
         if not isinstance(dlam, float) and not isinstance(dlam, int):
-            print('ERROR: The input delta lambda is not a float or an integrer.')
+            print(color.error+'The input delta lambda is not a float or an integrer.'+color.end)
             return None
 
         self.dlam = dlam
 
         if dlam > np.mean(self.wave)/self.resolution:
-            print('WARNING: The new delta lambda implies lossing information...')
+            print(color.warn+'The new delta lambda implies lossing information...'+color.end)
             #print('dlam/(wavelength/resolution) = ',round(dlam/np.mean(self.wave)/self.resolution, 2))
 
         if lwl is None or lwl < self.wave[0]:
@@ -1338,7 +1338,7 @@ class spec():
 
             # If the gf column is masked, rise a warning and assign width == 3 to the masked lines
             if np.ma.is_masked(table['width']):
-                print('WARNING: Some lines have masked gf values, width set to an average value.')
+                print(color.warn+'Some lines have masked gf values, width set to an average value.'+color.end)
                 avg_width = np.nanmean(table['width'])
                 table['width'] = [i if i is not np.ma.masked else avg_width for i in table['width']]
 
