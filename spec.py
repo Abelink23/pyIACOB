@@ -3,9 +3,9 @@ from db import *
 # Core packages
 from math import fsum
 import scipy.constants as cte
+from scipy.signal import convolve
 from scipy.special import wofz,erf
 from scipy.optimize import curve_fit
-from scipy.signal import convolve
 from scipy.interpolate import interp1d
 
 # Astro-packages
@@ -176,7 +176,7 @@ class spec():
             else:
                 ctype = 'WAVELENGTH'
             lam0 = header0['CRVAL1']        # Get the wavelength of the first pixel
-            dlam = header0['CDELT1']        # Step of increase in wavelength
+            dlam = header0['CDELT1']        # Get the wavelength step in angstroms
             pix0 = header0['CRPIX1']        # Reference pixel (generally 1, FEROS -49)
             spec_length = header0['NAXIS1'] # Length of the spectrum
             # Alternatively use len(hdu[0].data[0]) (NOT/MERCATOR) or len(hdu[0].data)
@@ -419,7 +419,7 @@ class spec():
 
         # Fitting function: Rotational profile | A,lam0,sigma,vsini
         elif func == 'r':
-            fitfunc = f_rot
+            fitfunc = f_gaussrot
             bounds  = ([.0,line-tol_aa,0. ,  1],
                        [.3,line+tol_aa,2.5,410])
 
@@ -717,13 +717,13 @@ class spec():
         if len(self.wave[mask]) == 0:
             return np.nan
 
-        lambda0 = np.mean(self.wave[mask])
+        lam0 = np.mean(self.wave[mask])
         resol = 10000
 
-        sigma = lambda0/(2.35482*float(resol))
+        sigma = lam0/(2.35482*float(resol))
 
         gauss = f_gaussian(np.arange(-5*sigma, 5*sigma, self.dlam), sigma)
-        kernel = gauss/np.trapezoid(gauss)
+        kernel = gauss/np.sum(gauss)
 
         convoluted = 1 + convolve(self.flux[mask] - 1, kernel, mode='same')
 
@@ -838,14 +838,14 @@ class spec():
                 dlam = self.dlam # dlam = 0.2564975 # Empirical optimal value
 
                 if ker_sig_g is None:
-                    lambda0 = np.mean(self.wave[mask])
-                    ker_sig_g = lambda0/(2.35482*resolution)
+                    lam0 = np.mean(self.wave[mask])
+                    ker_sig_g = lam0/(2.35482*resolution)
                 else:
                     ker_sig_g = float(ker_sig_g)
 
                 x = np.arange(-5*ker_sig_g, 5*ker_sig_g+dlam, dlam)
                 gauss = f_gaussian(x,ker_sig_g)
-                kernel = gauss/np.trapezoid(gauss)
+                kernel = gauss/np.sum(gauss)
 
                 convoluted = 1 + convolve(self.flux[mask] - 1, kernel, mode='same')
 
@@ -899,60 +899,232 @@ class spec():
         return None
 
 
-    def degrade(self, resol, profile='g', vsini=None, vmac=None):
+    def degrade(self, resol):
 
         '''
+        #! [DEPRECATED - to be removed in future versions as it is in convolution()]
         Function to degrade a spectrum to a certain resolution by convolving it to a
-        gaussian (pure degradation) or to account for rotational+macroturbulence effect
-        for example if a synthetic spectrum is loaded.
+        gaussian (pure degradation) for example if a synthetic spectrum is loaded.
 
         Parameters
         ----------
         resol : int/float, optional
             Resolution of the gaussian profile used to degrade the spectrum.
 
-        profile : str
-            Use 'g' for gaussian profile convolution (Default).
-            Use 'rotmac' for rotational+macroturbulence profile convolution.
-
-        vsini : int/float, optional
-            Value of vsini. Only valid for rotational+macroturbulence profile.
-
-        vmac : int/float, optional
-            Value of vmac. Only valid for rotational+macroturbulence profile.
-
         Returns
         -------
         Nothing, but the flux is replaced by the degraded one.
         '''
 
-        lambda0 = np.nanmean(self.wave)
+        lam0 = np.nanmean(self.wave)
 
-        if profile == 'g' and (vsini==None and vmac==None):
-            sigma = lambda0/(2.35482*float(resol))
+        sigma = lam0/(2.35482*float(resol))
 
-            x = np.arange(-10*sigma, 10*sigma+self.dlam, self.dlam)
-            gauss = f_gaussian(x, sigma)
-            kernel = gauss/np.trapezoid(gauss)
-            self.resolution = resol
-
-        elif profile == 'rotmac' and vsini!=None and vmac!=None:
-            x = np.arange(-9, 9+self.dlam, self.dlam)
-            rotmac = f_rotmac(x, lambda0, vsini, vmac)
-            kernel = rotmac/np.trapezoid(rotmac)
-
-        else:
-            print('Error in degrade(): Wrong input parameters. Exiting...')
-            return None
+        x = np.arange(-10*sigma, 10*sigma+self.dlam, self.dlam)
+        gauss = f_gaussian(x, sigma)
+        kernel = gauss/np.sum(gauss)
+        self.resolution = resol
 
         # Remove the nans from the flux
-        mask = np.where(np.isnan(self.flux) == False)[0]
+        mask = ~np.isnan(self.flux)
 
         # Convolve the flux with the kernel
         convoluted = 1 + convolve(self.flux[mask] - 1, kernel, mode='same')
 
         # Replace the flux by the convoluted one recovering the original flux with the nans
         self.flux[mask] = convoluted
+
+
+    def convolution(self, mode='any', vsini=None, beta=1.5, vmac=None, resol=None):
+        '''
+        Function to apply convolution to a spectrum.
+
+        Note: This function could be optimize by first convolve the three kernels
+        separately and then convolve the flux with the resulting kernel,
+        instead of convolving the flux with each kernel separately.
+
+        #? It is still to be consolidated the way the additional bins are added to the
+        #? edges of the flux array. If the sides of the input flux are nor close to
+        #? the continuum, then weird effect may appear. Alternatively, one could apply
+        #? the trick of using 1 + (flux - 1) to convolve the flux without needing to
+        #? add bins, but this was removed in the current version of convolution and
+        #? instead replaced with the option to add bins with flux value of 1.
+        #? See, however, the snrcalc() and cosmic(kernel) functions for an example.
+
+        Parameters
+        ----------
+        mode : str
+            Type of convolution to apply. Options are 'any', 'all', 'rotation', 'macro', 'instrumental'.
+            Default is 'any', applying all the convolutions for which the parameters are provided.
+            If 'all' is selected, all kernels are convolved before convolving with the flux.
+        vsini : int/float, optional
+            Rotational velocity in km/s to apply in the 'rotation' mode. Default is None.
+        beta : float, optional
+            Linear limb-darkening coefficient to apply in the 'rotation' mode. Default is 1.5.
+        vmac : int/float, optional
+            Macroturbulence velocity in km/s to apply in the 'macro' mode. Default is None.
+        resol : int/float, optional
+            Resolution of the spectrum to apply in the 'instrumental' mode. Default is None. d
+
+        Returns
+        -------
+        Nothing, but the flux is replaced by the convoluted one.
+        '''
+
+        t = Time.now()
+
+        # Raise warning if difference in wavelengh is >100 A
+        if not hasattr(convolve, 'warning_len') and max(self.wave) - min(self.wave) > 100:
+            print('\033[93mWARNING: The wavelength range is >100 ang. As the broadening functions are\033[0m')
+            print('\033[93mdependent of the central wavelength considered, the spectrum will be split\033[0m')
+            print('\033[93min smaller parts and the convolution will be applied separately to each.\033[0m')
+            setattr(convolve, 'warning_len', True)
+
+        if np.isnan(self.flux[0]) or np.isnan(self.flux[-1]):
+            print('\033[93mWARNING: The flux at the edges of the spectrum a nan value.\033[0m')
+            print('\033[93mConsider using cut_edges=True when loading the spectrum.\033[0m')
+
+        # Check whether the current wavelength array is evenly spaced
+        dlam = self.wave[1::] - self.wave[0:-1]
+        if not hasattr(convolve, 'warning_dlam1') and abs(max(dlam) - min(dlam)) > 1e-6:
+            print('Input wavelength array is not evenly spaced. Please, use evenly spaced input array.')
+            setattr(convolve, 'warning_dlam1', True)
+        # Compare the current dlam with the original value in the class
+        if not hasattr(convolve, 'warning_dlam2') and abs(np.mean(dlam) - self.dlam) > 1e-6:
+            print('Input wavelength array has an average dlam different from the dlam in the class.')
+            setattr(convolve, 'warning_dlam2', True)
+
+        # Check if beta is within the correct range
+        if beta is not None and (beta < 0 or beta > 1.5):
+            print('\033[93mLinear limb-darkening coefficient, beta, should be \'0 < beta < 1.5\'\033[0m')
+            return None
+        # Check if vsini is positive
+        if vsini is not None and vsini <= 0:
+            print('\033[93mRotational velocity, vsini, should be positive\033[0m')
+            return None
+        # Check if vmac is positive
+        if vmac is not None and vmac <= 0:
+            print('\033[93mMacroturbulence velocity, vmac, should be positive\033[0m')
+            return None
+        # Check if the resolution is positive
+        if self.resolution is not None and self.resolution <= 0:
+            print('\033[93mResolution should be positive\033[0m')
+            return None
+
+        # smallest wavelength value in the spectrum where flux is not nan
+        min_wave = np.nanmin(self.wave[~np.isnan(self.flux)])
+        max_wave = np.nanmax(self.wave[~np.isnan(self.flux)])
+
+        if max_wave - min_wave < 100:
+            slices = [100]
+        else:
+            # This gives good results for then the nanmedian is computed at the end
+            slices = [25, 50, 100, 150, 200, 250, 300]
+
+        master_flux = []
+        for slice in slices:
+            flux_ori = self.flux.copy()
+            # Divide the spectrum in slices of "slice" size
+            n_slices = int((max_wave - min_wave)/slice) + 1
+            l_slices = (max_wave - min_wave)/n_slices + self.dlam # To be sure
+
+            # Check that the last slice reaches the end of the spectrum, otherwise raise warning
+            if min_wave + n_slices*l_slices < max_wave:
+                print('\033[93mWARNING: The last slice does not reach the end of the spectrum.\033[0m')
+
+            # Create the vectors with the information of the individual slices for the convolution
+            # Mask for the wavelength and non nan flux values.
+            masks = [((self.wave >= min_wave + i*l_slices) & (self.wave < min_wave + (i+1)*l_slices)) & \
+                    ~np.isnan(flux_ori) for i in range(n_slices)]
+            # The mean wavelength of each slice of the spectrum, used as reference for the convolution.
+            lam0s = [np.nanmean(self.wave[mask]) for mask in masks]
+            # The distances to the mean wavelength in wavelength space for each slice.
+            dls = [self.wave[mask] - lam0 for mask, lam0 in zip(masks, lam0s)]
+
+            # Number of points additionally needed at the edges (purely empirical - 10A)
+            n_extension = int(10/self.dlam)
+
+            for mask, lam0, dl in zip(masks, lam0s, dls):
+                # Extend the flux array
+                start_idx, end_idx = np.where(mask)[0][0], np.where(mask)[0][-1]
+                front = flux_ori[max(0, start_idx - n_extension) : start_idx]
+                end = flux_ori[end_idx + 1 : end_idx + n_extension + 1]
+                if np.isnan(front).all():
+                    # take the average of the first 10 non nan flux values in the mask
+                    front = np.ones(n_extension) * np.nanmedian(flux_ori[mask][:10]) \
+                        if not np.isnan(flux_ori[mask][:10]).all() else np.ones(n_extension)
+                if np.isnan(end).all():
+                    # take the average of the last 10 non nan flux values in the mask
+                    end = np.ones(n_extension) * np.nanmedian(flux_ori[mask][-10:]) \
+                        if not np.isnan(flux_ori[mask][-10:]).all() else np.ones(n_extension)
+
+                flux_ext = np.concatenate((front, flux_ori[mask], end))
+
+                if mode == 'all' and vsini is not None and vmac is not None and resol is not None:
+                    # Convolve the flux with the three kernels already convolved together.
+                    # This is the optimal way to apply the convolution if all the parameters are provided.
+                    rot = f_rot(dl, lam0, vsini, beta)
+                    macro = f_macro(dl, lam0, vmac)
+                    sigma = lam0/(2.35482*float(resol))
+                    x = np.arange(-10*sigma, 10*sigma+self.dlam, self.dlam)
+                    gauss = f_gaussian(x, sigma)
+                    rot_macro = convolve(rot/np.sum(rot), macro/np.sum(macro), mode='same')
+                    rot_macro_gauss = convolve(rot_macro, gauss/np.sum(gauss), mode='same')
+
+                    flux_ext = convolve(flux_ext, rot_macro_gauss/np.sum(rot_macro_gauss), mode='same')
+                    flux_ori[mask] = flux_ext[len(front) : len(front) + len(flux_ori[mask])]
+                    continue
+
+                if mode in ['rotation', 'any'] and vsini is not None:
+                    # Applies the rotational broadening to a spectrum.
+                    # This function applies rotational broadening to a given spectrum using the
+                    # formula in Gray's "The Observation and Analysis of Stellar Photospheres".
+
+                    # Create the rotational kernel
+                    rot = f_rot(dl, lam0, vsini, beta)
+                    # Convolve the flux with the kernel
+                    flux_ext = convolve(flux_ext, rot/np.sum(rot), mode='same')
+                    flux_ori[mask] = flux_ext[len(front) : len(front) + len(flux_ori[mask])]
+
+                if mode in ['macro', 'any'] and vmac is not None:
+                    # Applies the macroturbulence broadening to a spectrum.
+                    # This function applies macroturbulence broadening to a given spectrum using the
+                    # formula given in Gray's "The Observation and Analysis of Stellar Photospheres".
+                    # It is implemented following Simon-Diaz's thesis.
+
+                    # Create the macroturbulence kernel
+                    macro = f_macro(dl, lam0, vmac)
+                    # Convolve the flux with the kernel
+                    flux_ext = convolve(flux_ext, macro/np.sum(macro), mode='same')
+                    flux_ori[mask] = flux_ext[len(front) : len(front) + len(flux_ori[mask])]
+
+                if mode in ['instrumental', 'inst', 'any'] and resol is not None:
+                    # Applies the instrumental broadening to a spectrum by convolving it with a
+                    # gaussian function with the sigma given by the resolution of the spectrum.
+
+                    # Create the gaussian kernel
+                    sigma = lam0/(2.35482*float(resol)) # 2.35482 = (2 * np.sqrt(2 * np.log(2)))
+                    x = np.arange(-10*sigma, 10*sigma+self.dlam, self.dlam)
+                    gauss = f_gaussian(x, sigma)
+                    # Convolve the flux with the kernel
+                    flux_ext = convolve(flux_ext, gauss/np.sum(gauss), mode='same')
+                    flux_ori[mask] = flux_ext[len(front) : len(front) + len(flux_ori[mask])]
+
+                if mode not in ['rotation', 'macro', 'instrumental', 'any', 'all']:
+                    print('\033[91mERROR: The input mode for convolution is not correct!\033[0m')
+                    print('\033[91mUse any of: \'any\', \'all\', \'rotation\', \'macro\', \'instrumental\'.\033[0m')
+                    return None
+
+            # Enable the following line to check the convolution in each slice
+            #plt.plot(self.wave, flux_ori, c='k', lw=.5)
+            master_flux.append(flux_ori)
+
+        self.flux = np.nanmedian(master_flux, axis=0)
+
+        self.vsini = vsini
+        self.vmac = vmac
+        self.resolution = resol
+        print('Convolution applied in %.3f seconds.' % (Time.now() - t).sec)
 
 
     def resamp(self, dlam, lwl=None, rwl=None, method='linear'):
@@ -1072,7 +1244,7 @@ class spec():
                 plt.xticks([round(line - width/3, 1),round(line, 1),round(line + width/3, 1)])
                 plt.title(element, fontsize=6, pad=1)
 
-            plt.plot(self.wave[mask], self.flux[mask], lw=.3, label=self.id_star+' '+self.SpC)
+            plt.plot(self.wave[mask], self.flux[mask], lw=.5, label=self.id_star+' '+self.SpC)
             plt.tick_params(direction='in', top='on')
 
             if ylim is not None and (type(ylim) is list or type(ylim) is tuple):
@@ -1090,7 +1262,7 @@ class spec():
         return None
 
 
-    def plotspec(self, lwl=3800, rwl=8000, lines=None, ylim=None):
+    def plotspec(self, lwl=3700, rwl=8000, lines=None, ylim=None):
 
         '''
         Function to create a plot of a portion of the spectra and optionally overplot
@@ -1202,40 +1374,264 @@ class spec():
 
 
 # It now follows the functions describing the different fitting profiles:
-
 def f_gaussian(x, sigma):
-    return np.exp(-(x/sigma)**2/2)
+
+    '''
+    Function to generate a gaussian profile.
+
+    Parameters
+    ----------
+    x : array
+        Wavelength array.
+    sigma : float
+        Standard deviation of the gaussian profile.
+
+    Returns
+    -------
+    array
+        The gaussian profile.
+    '''
+
+    G = 1/(np.sqrt(2*np.pi)*sigma)*np.exp(-(x/sigma)**2/2)
+    #G = np.exp(-(x/sigma)**2/2)
+
+    return G
+
 
 def f_gaussian1(x, A, lam0, sigma):
-    # A -> Amplitude;  lam0 -> center
-    return A*np.exp(-(x - lam0)**2/(2*sigma**2)) + 1
+
+    '''
+    Function to generate a gaussian profile with free parameters.
+
+    Parameters
+    ----------
+    x : array
+        Wavelength array.
+    A : float
+        Amplitude of the gaussian profile.
+    lam0 : float
+        Center wavelength of the gaussian profile.
+    sigma : float
+        Standard deviation of the gaussian profile.
+
+    Returns
+    -------
+    array
+        The gaussian profile.
+    '''
+
+    G = A*np.exp(-(x - lam0)**2/(2*sigma**2)) + 1
+
+    return G
+
 
 def f_lorentzian(x, A, lam0, gamma, y):
-    return A*gamma**2/((x - lam0)**2 + gamma**2) + y
+
+    '''
+    Function to generate a lorentzian profile.
+
+    Parameters
+    ----------
+    x : array
+        Wavelength array.
+    A : float
+        Amplitude of the lorentzian profile.
+    lam0 : float
+        Center wavelength of the lorentzian profile.
+    gamma : float
+        Half-width at half-maximum of the lorentzian profile.
+    y : float
+        Background level of the lorentzian profile.
+
+    Returns
+    -------
+    array
+        The lorentzian profile.
+    '''
+
+    L = A*gamma**2/((x - lam0)**2 + gamma**2) + y
+
+    return L
+
 
 def f_voigt(x, A, lam0, sigma, gamma, y):
-    # sigma -> gaussian width; gamma -> lorentzian width
-    # sigma = alpha / sqrt(2 * np.log(2))
-    return A*np.real(wofz((x - lam0 + 1j*gamma)/sigma/np.sqrt(2)))/sigma/np.sqrt(2*np.pi) + y
 
-def f_rot(x, A, lam0, sigma, vsini):
+    '''
+    Function to generate a voigt profile.
+
+    Parameters
+    ----------
+    x : array
+        Wavelength array.
+    A : float
+        Amplitude of the voigt profile.
+    lam0 : float
+        Center wavelength of the voigt profile.
+    sigma : float
+        Width of the gaussian component.
+        alpha / sqrt(2 * np.log(2))
+    gamma : float
+        Width of the lorentzian component.
+    y : float
+        Background level of the voigt profile.
+
+    Returns
+    -------
+    array
+        The voigt profile.
+    '''
+
+    V = A*np.real(wofz((x - lam0 + 1j*gamma)/sigma/np.sqrt(2)))/sigma/np.sqrt(2*np.pi) + y
+
+    return V
+
+
+def f_gaussrot(x, A, lam0, sigma, vsini):
+
+    '''
+    Function to generate a rotational profile.
+
+    Parameters
+    ----------
+    x : array
+        Wavelength array.
+    A : float
+        Amplitude of the rotational profile.
+    lam0 : float
+        Center wavelength of the rotational profile.
+    sigma : float
+        Width of the gaussian component.
+    vsini : float
+        Projected rotation speed of the star in km/s.
+
+    Note: beta=1.5 (epsilon=0.6) beta=epsilon/(1 - epsilon)
+
+    Returns
+    -------
+    array
+        The gaussian + rotational profile.
+    '''
+
     G = A*np.exp(-(x - lam0)**2/(2*sigma**2))
 
-    # Default value: beta=1.5 (epsilon=0.6) beta=epsilon/(1 - epsilon)
     eps = 0.6
-    delta = 1000*lam0*vsini/cte.c
+    delta = lam0*vsini/(cte.c/1000)
     doppl = 1 - ((x - lam0)/delta)**2
 
     R = A*(2*(1 - eps)*np.sqrt(doppl) + np.pi*eps/2.*doppl)/(np.pi*delta*(1 - eps/3))
     R = np.nan_to_num(R)
 
-    return 1-convolve(G, R, mode='same')
+    GR = 1-convolve(G, R, mode='same')
+
+    return GR
+
+
+def f_rot(x, lam0, vsini, beta):
+
+    '''
+    Calculate the broadening profile due to rotation according to Gray.
+
+    Parameters
+    ----------
+    x : array
+        Wavelength array.
+    lam0 : float
+        Reference central wavelength in angstroms.
+    vsini : float
+        Projected rotation speed of the star in km/s.
+    beta : float
+        Limb-darkening coefficient.
+
+    Returns
+    -------
+    array
+        The rotational profile.
+    '''
+
+    delta = lam0*vsini/(cte.c/1000)
+
+    c_b = 1 / (1 + 2 * beta / 3)
+    c_a = 1 / delta
+    c1 = 2 / np.sqrt(np.pi)
+    c2 = beta / 2
+    x_r = x / delta
+    mask = abs(x_r) <= 1
+    R = c_b *  (c1 * np.sqrt(1 - x_r[mask]**2) + c2 * (1 - x_r[mask]**2)) * c_a
+
+    # Correct the normalization for numeric accuracy
+    # The integral of the function is normalized, however, especially in the case
+    # of mild broadening (compared to the wavelength resolution), the discrete
+    # broadening profile may no longer be normalized, which leads to a shift of
+    # the output spectrum, if not accounted for.
+
+    return R
+
+
+def f_macro(x, lam0, vmac):
+
+    '''
+    Calculate the broadening profile due to macroturbulence from Gray.
+
+    Parameters
+    ----------
+    x : array
+        Wavelength array.
+    lam0 : float
+        Reference central wavelength in angstroms.
+    vmac : float
+        Macroturbulence velocity of the star in km/s.
+
+    Returns
+    -------
+    array
+        The macroturbulence profile.
+    '''
+
+    delta = lam0*vmac/(cte.c/1000)
+
+    A = 2/np.sqrt(np.pi)/delta
+
+    x_d = x / delta
+    x_d = x_d[x_d > 0]
+
+    M = A*x_d*(-np.sqrt(np.pi) + np.exp(-x_d**2) / x_d + np.sqrt(np.pi)*erf(x_d))
+    M = np.concatenate((M[::-1], M))
+
+    return M
+
 
 def f_voigtrot(x, A, lam0, sigma, gamma, vsini, y):
+
+    '''
+    Function to generate a Voigt profile with rotational broadening.
+
+    Parameters
+    ----------
+    x : array
+        Wavelength array.
+    A : float
+        Amplitude of the voigt profile.
+    lam0 : float
+        Center wavelength of the voigt profile.
+    sigma : float
+        Width of the gaussian component.
+    gamma : float
+        Width of the lorentzian component.
+    vsini : float
+        Projected rotation speed of the star in km/s.
+    y : float
+        Background level of the voigt profile.
+
+    Returns
+    -------
+    array
+        The voigt + rotational profile.
+    '''
+
     V = A*np.real(wofz((x-lam0+1j*gamma)/sigma/np.sqrt(2)))/sigma/np.sqrt(2*np.pi) + y
 
     eps = 0.6
-    delta = 1000*lam0*vsini/cte.c
+    delta = lam0*vsini/(cte.c/1000)
     doppl = 1 - ((x - lam0)/delta)**2
 
     R = A*(2*(1 - eps)*np.sqrt(doppl) + np.pi*eps/2.*doppl)/(np.pi*delta*(1 - eps/3))
@@ -1243,56 +1639,47 @@ def f_voigtrot(x, A, lam0, sigma, gamma, vsini, y):
 
     return 1-convolve(V, R, mode='same')
 
+
 def f_vrg(x, A, lam0, sigma, gamma, vsini, A2, sigma2, y):
+
+    '''
+    Function to generate a Voigt profile with rotational broadening and an additional gaussian component.
+
+    Parameters
+    ----------
+    x : array
+        Wavelength array.
+    A : float
+        Amplitude of the voigt profile.
+    lam0 : float
+        Center wavelength of the voigt profile.
+    sigma : float
+        Width of the gaussian component.
+    gamma : float
+        Width of the lorentzian component.
+    vsini : float
+        Projected rotation speed of the star in km/s.
+    A2 : float
+        Amplitude of the additional gaussian component.
+    sigma2 : float
+        Width of the additional gaussian component.
+    y : float
+        Background level of the voigt profile.
+
+    Returns
+    -------
+    array
+        The voigt + rotational + gaussian profile.
+    '''
+
     VG = A*np.real(wofz((x - lam0 + 1j*gamma)/sigma/np.sqrt(2)))/sigma/np.sqrt(2*np.pi) + y \
         + A2*np.exp(-(x - lam0)**2/(2*sigma2**2))
 
     eps = 0.6
-    delta = 1000*lam0*vsini/cte.c
+    delta = lam0*vsini/(cte.c/1000)
     doppl = 1 - ((x - lam0)/delta)**2
 
     R = A*(2*(1 - eps)*np.sqrt(doppl)+np.pi*eps/2.*doppl)/(np.pi*delta*(1 - eps/3))
     R = np.nan_to_num(R)
 
     return 1-convolve(VG, R, mode='same')
-
-def f_rotmac(x, lam0, vsini=None, vmac=None):
-
-    if (vsini is None and vmac is None) or (vsini == 0 and vmac == 0):
-        print('No vsini or vmac values are given or are zero.')
-        return np.ones(len(x))
-
-    if vsini != None and vsini != 0:
-        # Rotational function:
-        delta_R = 1000*lam0*vsini/cte.c
-        doppl = 1 - (x/delta_R)**2
-
-        #limit to positive values
-        doppl = np.where(doppl < 0, 0, doppl)
-
-        eps = 0.6
-        R = (2*(1 - eps)*np.sqrt(doppl) + np.pi*eps/2.*doppl)/(np.pi*delta_R*(1 - eps/3))
-        R = np.nan_to_num(R)
-
-        if vmac is None or vmac == 0:
-            return R
-
-    if vmac != None and vmac != 0:
-        # Macroturbulence function:
-        delta_M = 1000*lam0*vmac/cte.c
-        A = 2/np.sqrt(np.pi)/delta_M
-
-        x_2 = x[len(x)//2:]
-        x_d = x_2/delta_M
-
-        M_T = A*x_d*(-np.sqrt(np.pi)+np.exp(-x_d**2)/x_d+np.sqrt(np.pi)*erf(x_d))
-
-        M = M_T # + M_R
-
-        M = np.concatenate((M[::-1], M[1:]))
-
-        if vsini is None or vsini == 0:
-            return M
-
-    if vsini != None and vsini != 0 and vmac != None and vmac != 0:
-        return convolve(R, M, mode='same')

@@ -656,7 +656,7 @@ def degrade_spec(path_to_spectra, output_dir, resol=5000, lwl=None, rwl=None, st
 
         x = np.arange(-10*sigma, 10*sigma+dlam, dlam)
         gauss = f_gaussian(x, sigma)
-        kernel = gauss/np.trapz(gauss)
+        kernel = gauss/np.sum(gauss)
 
         # Remove the nans from the flux
         mask = np.where(np.isnan(flux) == False)[0]
