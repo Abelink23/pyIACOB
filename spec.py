@@ -1060,10 +1060,9 @@ class spec():
                 flux_ext = np.concatenate((front, flux_ori[mask], end))
 
                 if mode in ['rotation', 'any'] and vsini is not None:
-                    # Apply rotational broadening to a spectrum.
+                    # Applies the rotational broadening to a spectrum.
                     # This function applies rotational broadening to a given spectrum using the
                     # formula in Gray's "The Observation and Analysis of Stellar Photospheres".
-                    # It allows for limb darkening parameterized by the linear limb-darkening law.
 
                     # Create the rotational kernel
                     rot = f_rot(dl, lam0, vsini, beta)
@@ -1072,10 +1071,10 @@ class spec():
                     flux_ori[mask] = flux_ext[len(front) : len(front) + len(flux_ori[mask])]
 
                 if mode in ['macro', 'any'] and vmac is not None:
-                    # Apply macroturbulence broadening to a spectrum.
+                    # Applies the macroturbulence broadening to a spectrum.
                     # This function applies macroturbulence broadening to a given spectrum using the
                     # formula given in Gray's "The Observation and Analysis of Stellar Photospheres".
-                    # It has been implemented in the form of Simon-Diaz's thesis.
+                    # It is implemented following Simon-Diaz's thesis.
 
                     # Create the macroturbulence kernel
                     macro = f_macro(dl, lam0, vmac)
@@ -1084,18 +1083,18 @@ class spec():
                     flux_ori[mask] = flux_ext[len(front) : len(front) + len(flux_ori[mask])]
 
                 if mode in ['instrumental', 'any'] and resol is not None:
-                    # Apply instrumental broadening to a spectrum by convolving it with a gaussian
-                    # function with the sigma given by the resolution of the spectrum at the
-                    # wavelength of interest.
+                    # Applies the instrumental broadening to a spectrum by convolving it with a
+                    # gaussian function with the sigma given by the resolution of the spectrum.
 
                     # Create the gaussian kernel
                     sigma = lam0/(2.35482*float(resol)) # 2.35482 = (2 * np.sqrt(2 * np.log(2)))
-                    x = np.arange(-10*sigma, 10*sigma+self.dlam, self.dlam) #CMS uses +/-3.5*
+                    x = np.arange(-10*sigma, 10*sigma+self.dlam, self.dlam)
                     gauss = f_gaussian(x, sigma)
                     # Convolve the flux with the kernel
                     flux_ext = convolve(flux_ext, gauss/np.sum(gauss), mode='same')
                     flux_ori[mask] = flux_ext[len(front) : len(front) + len(flux_ori[mask])]
 
+            # Enable the following line to check the convolution in each slice
             #plt.plot(self.wave, flux_ori, c='k', lw=.5)
             master_flux.append(flux_ori)
 
@@ -1105,6 +1104,7 @@ class spec():
         self.vmac = vmac
         self.resolution = resol
         print('Convolution applied in %.3f seconds.' % (Time.now() - t).sec)
+
 
     def resamp(self, dlam, lwl=None, rwl=None, method='linear'):
 
