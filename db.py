@@ -13,6 +13,8 @@ from astropy.io import fits, ascii
 from astropy.table import Table, join, vstack, hstack
 from astropy.coordinates import SkyCoord
 
+from print_colors import color
+
 # Simbad
 from astroquery.simbad import Simbad
 Simbad.add_votable_fields('U','B','V','sp_type')
@@ -21,7 +23,7 @@ Simbad.columns_in_output = [i for i in Simbad.columns_in_output if 'coo' not in 
 # Load the working paths:
 dir_path_file = 'paths.txt'
 while not os.path.isfile(dir_path_file):
-    print(f"File '{dir_path_file}' not found...")
+    print(color.error+f"File '{dir_path_file}' not found..."+color.end)
     dir_path_file = input("Please provide the full path to the file: ")
 
 with open(dir_path_file, 'r') as f:
@@ -69,7 +71,7 @@ def search(myfile, path):
             return None
 
         elif len(f_dir) > 1:
-            print('Problem in db.search():')
+            print(color.error+'Problem in db.search():'+color.end)
             print('More than one file found, selecting the first one: %s' % f_dir[0])
 
         return f_dir[0]
@@ -117,7 +119,7 @@ def findstar(spectra=None, snr=0):
             list_spectra = spectra.read().splitlines()
 
         if len(list_spectra) == 0:
-            print('No spectra in list found.\nExiting...')
+            print(color.warn+'No spectra in list found.\nExiting...'+color.end)
             return None
 
         list_spectra = [spectrum.split()[0] for spectrum in list_spectra \
@@ -150,14 +152,14 @@ def findstar(spectra=None, snr=0):
                     match = 1
 
         if not match == 1:
-            print('File/source %s not found.\n' % spectrum)
+            print(color.error+'File/source %s not found.\n' % spectrum+color.end)
 
     if len(dir_spectra) == 0:
         return dir_spectra
 
     # Spectra selection based on selected SNR.
     if any(['ascii' in spectrum for spectrum in list_spectra]) and snr != None:
-        print('SNR for ascii files is not yet implemented, ignoring SNR keyword.')
+        print(color.warn+'SNR for ascii files not available, ignoring SNR keyword.'+color.end)
 
     else:
         if snr == 'best' or snr is None:
@@ -170,7 +172,7 @@ def findstar(spectra=None, snr=0):
             dir_spectra = spec_snr(dir_spectra, snrcut=snr)
 
         else:
-            print('SNR keyword not provided properly.\nExiting...')
+            print(color.error+'SNR keyword not provided properly.\nExiting...'+color.end)
             return None
 
     # Order all spectra from a single target by date.
@@ -295,7 +297,7 @@ def findlist(list, path=None):
 
     # To catch wrong int/float inputs:
     if type(list) == float or type(list) == int:
-        print('Input cannot be int or float format. \n Exiting...')
+        print(color.error+'Input cannot be int or float format. \n Exiting...'+color.end)
         return None
 
     # Lines in a lst/txt file with more information on each line:
@@ -450,7 +452,7 @@ def xmatch_table(table1, table2, match_col=None, output_cols=None,
 
     # Remove extra columns:
     if len(same_cols) > 1:
-        print('WARNING: More than one column has the same name.')
+        print(color.warn+'More than one column has the same name.'+color.end)
         print('Output table will contain *_1, *_2 for them.')
 
         rm = input('Remove repeated columns from second table? [y/n]: ')
@@ -633,11 +635,11 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
         lst_sources_f = findlist(list)
         type_list = input('The list contains names or coordinates? [names/coords]: ')
         if not type_list in ['names','coords']:
-             print('Input answer is not valid. Exiting... \n')
-             return None
+            print(color.error+'Input answer is not valid. Exiting... \n'+color.end)
+            return None
 
     else:
-        print('Database not recognised. Exiting... \n')
+        print(color.error+'Database not recognised. Exiting... \n'+color.end)
         return None
 
     # Tuning the format of the input variables
@@ -753,7 +755,7 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
             try: # For more than one result, takes the first one
                 if len(simbad) > 1: simbad = Table(simbad[0])
             except:
-                print('Source %s not found in Simbad' % source)
+                print(color.warn+'Source %s not found in Simbad' % source+color.end)
                 continue
 
             source = simbad['MAIN_ID'][0]
@@ -941,7 +943,7 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
                 catalog = "I/355/gaiadr3"
 
             if vmag_0 != '' and float(vmag_0) < 5:
-                print('\nWARNING: %s is too bright (Vmag = %r)' % (source, vmag_0))
+                print(color.warn+'\n%s is too bright (Vmag = %r)' % (source, vmag_0)+color.end)
 
             try:
                 gaiaq = v.query_object(source,catalog=catalog,radius=radius*u.arcsec)[0]
@@ -962,14 +964,14 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
                         if gaiaq['e_BPmag'] < 9e-3:
                             gaiaq['e_BPmag'] = 9e-3
                     else:
-                        print(str(source),'has missing Gaia B photometry.')
+                        print(color.warn+str(source)+' has missing Gaia B photometry.'+color.end)
                         gFlag = False
 
                     if str(gaiaq['e_RPmag'][0]) != '--':
                         if gaiaq['e_RPmag'] < 10e-3:
                             gaiaq['e_RPmag'] = 10e-3
                     else:
-                        print(str(source),'has missing Gaia R photometry.')
+                        print(color.warn+str(source)+' has missing Gaia R photometry.'+color.end)
                         gFlag = False
 
                     # Correct Gaia astrometry:
@@ -977,7 +979,7 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
                         if offset == 'y':
                             gaiaq['Plx'] = round(gaiaq['Plx'] + 0.03, 6)
                     except:
-                        print(str(source),'has missing Gaia parallax.')
+                        print(color.warn+str(source)+' has missing Gaia parallax.'+color.end)
 
                     # Add RUWE column
                     if gFlag == True:
@@ -1000,7 +1002,7 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
                 row = hstack([row,gaiaq])
 
             except:
-                print('\n%s could not be queried in Gaia.' % source)
+                print(color.warn+'\n%s could not be queried in Gaia.' % source+color.end)
 
         try:
             table = vstack([table,row])
@@ -1014,7 +1016,7 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
     try:
         print('Table has been successfully created with length %i' % len(table))
     except:
-        print('Table is empty, no sources were found.')
+        print(color.warn+'Table is empty, no sources were found.'+color.end)
 
     # Some final formatting:
     table['mag_U'] = table['mag_U'].astype('float32')
@@ -1082,7 +1084,8 @@ def spc_code(spc, sub_class_I=False):
             else:
                 spt_c = sum(spt_c_lst)/num
         except:
-            print('WARNING: SpC separation into SpT and LC code failed for: ', spc, spt_c_lst, num)
+            print(color.warn+'SpC separation into SpT and LC code failed for: ', \
+                spc, spt_c_lst, num+color.end)
             spt_c = np.nan
 
         # Luminosity class
@@ -1179,7 +1182,7 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False):
                 simbad.add_row(new_row)
 
         if len(simbad) > 1:
-            print('More than one Simbad result, choosing the brigtest source...')
+            print(color.warn+'More than one Simbad result, choosing the brigtest source...'+color.end)
             simbad.sort('V')
 
             simbad = Table(simbad[0])
@@ -1193,17 +1196,17 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False):
         simbad = Simbad.query_region(SkyCoord(ra, dec, unit='deg'), radius=radius)
 
         if len(simbad) == 0:
-            print('No objects found.')
+            print(color.warn+'No objects found.'+color.end)
 
         elif len(simbad) > 1:
-            print('More than one Simbad result, choosing the brigtest source...')
+            print(color.warn+'More than one Simbad result, choosing the brigtest source...'+color.end)
             simbad.sort('V')
             simbad = Table(simbad[0])
 
         return simbad
 
     else:
-        print('\nERROR: Name or RA+DEC is required for the query...')
+        print(color.error+'Name or RA+DEC is required for the query...'+color.end)
         return None
 
 
@@ -1253,7 +1256,7 @@ def query_Gaia(name=None, gaia='dr3', ra=None, dec=None, radec=None, radius=2, l
     zpt.load_tables()
 
     if gaia not in ['dr2','DR2','dr3','DR3']:
-        print('Input Gaia catalog not selected bewteen dr2 and dr3. Exiting...\n')
+        print(color.error+'Input Gaia catalog is not dr2 / dr3. Exiting...\n'+color.end)
         return None
     elif gaia in ['dr2','DR2']:
         Gaia.MAIN_GAIA_TABLE = "gaiadr2.gaia_source"
@@ -1286,14 +1289,14 @@ def query_Gaia(name=None, gaia='dr3', ra=None, dec=None, radec=None, radius=2, l
         RADEC = SkyCoord(ra=ra, dec=dec, unit=(u.deg,u.deg), frame='icrs')
 
         if RADEC is None: # type(simbad) == type(None)
-            print('No objects found.')
+            print(color.warn+'No objects found.'+color.end)
 
     elif radec != None:
 
         RADEC = SkyCoord(radec, unit=(u.hour,u.deg), frame='icrs')
 
     else:
-        print('\nERROR: Name or RA+DEC is required for the query...')
+        print(color.error+'Name or RA+DEC is required for the query...'+color.end)
         return None
 
     #width  = u.Quantity(radius, u.arcsec)
@@ -1305,19 +1308,19 @@ def query_Gaia(name=None, gaia='dr3', ra=None, dec=None, radec=None, radius=2, l
 
     if len(query.results) == 0:
         if name is not None:
-            print('Gaia query failed for object',name)
+            print(color.error+'Gaia query failed for object',name+color.end)
         else:
-            print('Gaia query failed for object with RA DEC =',RADEC.ra,RADEC.dec)
+            print(color.error+'Gaia query failed for object with RA DEC =',RADEC.ra,RADEC.dec+color.end)
         return None
 
     if limit_one_source and len(query.results) > 1:
-        print('WARNING: More than one Gaia result')
+        print(color.warn+'More than one Gaia result'+color.end)
         # To make use of the Gaia DRX ######, if used as name
         if name in query.results['designation']:
             query = query.results[query.results['designation'] == name]
             print('Choosing the same Gaia source ID as the input...')
         else:
-            print('WARNING: Input name not in Gaia source ID, choosing the brigtest source...')
+            print(color.warn+'Input name not in Gaia source ID, choosing the brigtest source...'+color.end)
 
             query.results.sort('phot_g_mean_mag')
             query = Table(query.results[0])
@@ -1369,7 +1372,7 @@ def show_header(fitsfile):
     fitsfile = findstar(fitsfile)
 
     if len(fitsfile) > 1:
-        print('\033[93mERROR: Only one file can be shown at a time.\033[0m')
+        print(color.error+'Only one file can be shown at a time.'+color.end)
         return None
 
     hdul = fits.open(fitsfile[0])
