@@ -954,8 +954,9 @@ class spec():
         Parameters
         ----------
         mode : str
-            Type of convolution to apply. Options are 'any', 'rotation', 'macro', 'instrumental'.
+            Type of convolution to apply. Options are 'any', 'all', 'rotation', 'macro', 'instrumental'.
             Default is 'any', applying all the convolutions for which the parameters are provided.
+            If 'all' is selected, all kernels are convolved before convolving with the flux.
         vsini : int/float, optional
             Rotational velocity in km/s to apply in the 'rotation' mode. Default is None.
         beta : float, optional
@@ -1059,6 +1060,21 @@ class spec():
 
                 flux_ext = np.concatenate((front, flux_ori[mask], end))
 
+                if mode == 'all' and vsini is not None and vmac is not None and resol is not None:
+                    # Convolve the flux with the three kernels already convolved together.
+                    # This is the optimal way to apply the convolution if all the parameters are provided.
+                    rot = f_rot(dl, lam0, vsini, beta)
+                    macro = f_macro(dl, lam0, vmac)
+                    sigma = lam0/(2.35482*float(resol))
+                    x = np.arange(-10*sigma, 10*sigma+self.dlam, self.dlam)
+                    gauss = f_gaussian(x, sigma)
+                    rot_macro = convolve(rot/np.sum(rot), macro/np.sum(macro), mode='same')
+                    rot_macro_gauss = convolve(rot_macro, gauss/np.sum(gauss), mode='same')
+
+                    flux_ext = convolve(flux_ext, rot_macro_gauss/np.sum(rot_macro_gauss), mode='same')
+                    flux_ori[mask] = flux_ext[len(front) : len(front) + len(flux_ori[mask])]
+                    continue
+
                 if mode in ['rotation', 'any'] and vsini is not None:
                     # Applies the rotational broadening to a spectrum.
                     # This function applies rotational broadening to a given spectrum using the
@@ -1082,7 +1098,7 @@ class spec():
                     flux_ext = convolve(flux_ext, macro/np.sum(macro), mode='same')
                     flux_ori[mask] = flux_ext[len(front) : len(front) + len(flux_ori[mask])]
 
-                if mode in ['instrumental', 'any'] and resol is not None:
+                if mode in ['instrumental', 'inst', 'any'] and resol is not None:
                     # Applies the instrumental broadening to a spectrum by convolving it with a
                     # gaussian function with the sigma given by the resolution of the spectrum.
 
@@ -1093,6 +1109,11 @@ class spec():
                     # Convolve the flux with the kernel
                     flux_ext = convolve(flux_ext, gauss/np.sum(gauss), mode='same')
                     flux_ori[mask] = flux_ext[len(front) : len(front) + len(flux_ori[mask])]
+
+                if mode not in ['rotation', 'macro', 'instrumental', 'any', 'all']:
+                    print('\033[91mERROR: The input mode for convolution is not correct!\033[0m')
+                    print('\033[91mUse any of: \'any\', \'all\', \'rotation\', \'macro\', \'instrumental\'.\033[0m')
+                    return None
 
             # Enable the following line to check the convolution in each slice
             #plt.plot(self.wave, flux_ori, c='k', lw=.5)
