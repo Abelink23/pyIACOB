@@ -564,7 +564,7 @@ def RV(lines, id_star, snr=0, linesRV0=None, n_max=50, linecut=1, ewcut=25, widt
     -------
     Nothing, but output text files are created with the individual and global results.
     Terminal output is also prompted.
-    
+
     Notes
     -----
     The tolerance of the initial RV0 calculation is set to 3 times the tolerance
