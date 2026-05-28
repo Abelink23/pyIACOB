@@ -72,7 +72,7 @@ class spec():
         if self.orig == 'IACOB':
             self.fullpath = findstar(spectrum, snr=snr)
         elif self.orig == 'ascii' or self.orig == 'synthetic':
-            self.fullpath = search(spectrum, datadir+'ASCII'+os.sep)
+            self.fullpath = search(spectrum, datadir + 'ASCII' + os.sep)
             # So far the search function only returns the first match
 
         if self.fullpath is None:
@@ -236,8 +236,8 @@ class spec():
             idx_wl = next((i for i, item in enumerate(data.colnames) if item.lower() in wl_keywords), None)
 
             if idx_wl == None:
-                print('Problem in spec(): No wavelength column found in the first column of the ascii file.    ')
-                return None
+                # Assume that the first column is wavelength
+                wave = np.asarray(data[data.colnames[0]])
             else:
                 wave = np.asarray(data[data.colnames[idx_wl]])
 
@@ -245,10 +245,10 @@ class spec():
             idx_fx = next((i for i, item in enumerate(data.colnames) if item.lower() in fx_keywords), None)
 
             if idx_fx == None:
-                print('Problem in spec(): No flux column found in the second column of the ascii file.')
-                return None
+                # Assume that the second column is flux
+                flux = np.asarray(data[data.colnames[1]])
             else:
-                flux = data[data.colnames[idx_fx]]
+                flux = np.asarray(data[data.colnames[idx_fx]])
 
             dlam = (wave[-1]-wave[0])/(len(wave)-1)
             self.vbar = 0
