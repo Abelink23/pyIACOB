@@ -23,6 +23,7 @@ from astroquery.simbad import Simbad
 Simbad.add_votable_fields("U","B","V","sp_type")
 Simbad.columns_in_output = [i for i in Simbad.columns_in_output if 'coo' not in i.name]
 
+
 def load_default_paths(dir_paths_file):
 
     '''
@@ -91,7 +92,7 @@ def search(myfile, path):
         return f_dir[0]
 
 
-def findstar(spectra=None, snr=0, maindir=maindir, datadir=datadir):
+def findstar(spectra=None, snr=0):
 
     '''
     Function to get the paths of the searched spectra allowing to limitate the
@@ -148,7 +149,6 @@ def findstar(spectra=None, snr=0, maindir=maindir, datadir=datadir):
     dir_spectra = []
     for spectrum in list_spectra:
         match = 0
-        print(datadir)
         for root, dirs, files in os.walk(datadir):
             for file in files:
 
