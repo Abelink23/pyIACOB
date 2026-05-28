@@ -236,8 +236,8 @@ class spec():
             idx_wl = next((i for i, item in enumerate(data.colnames) if item.lower() in wl_keywords), None)
 
             if idx_wl == None:
-                # Assume that the first column is wavelength
-                wave = np.asarray(data[data.colnames[0]])
+                # Assume that the first column is wavelength and add the column name to the data
+                wave = np.asarray(np.concatenate(([float(data.colnames[0])], data[data.colnames[0]])))
             else:
                 wave = np.asarray(data[data.colnames[idx_wl]])
 
@@ -245,8 +245,8 @@ class spec():
             idx_fx = next((i for i, item in enumerate(data.colnames) if item.lower() in fx_keywords), None)
 
             if idx_fx == None:
-                # Assume that the second column is flux
-                flux = np.asarray(data[data.colnames[1]])
+                # Assume that the second column is flux and add the column name to the data
+                flux = np.asarray(np.concatenate(([float(data.colnames[1])], data[data.colnames[1]])))
             else:
                 flux = np.asarray(data[data.colnames[idx_fx]])
 
