@@ -18,32 +18,42 @@ from print_colors import color
 print(color.c+color.bold+color._+'\nWelcome to the pyIACOB package! - v1.20'+color.end)
 print(color.c+'developed by Abel de Burgos (2026/05/05)'+color.end+'\n')
 
-
 # Simbad
 from astroquery.simbad import Simbad
-Simbad.add_votable_fields('U','B','V','sp_type')
+Simbad.add_votable_fields("U","B","V","sp_type")
 Simbad.columns_in_output = [i for i in Simbad.columns_in_output if 'coo' not in i.name]
 
-# Load the working paths:
-dir_path_file = 'paths.txt'
-while not os.path.isfile(dir_path_file):
-    print(color.error+f"File '{dir_path_file}' not found..."+color.end)
-    dir_path_file = input("Please provide the full path to the file: ")
+def load_default_paths(dir_paths_file):
 
-with open(dir_path_file, 'r') as f:
-    dirs = {
-        key.strip(): (val.strip() if val.strip().endswith('/') else val.strip() + '/')
-        for line in f
-        if line.strip() and not line.startswith('#') and '=' in line
-        for key, val in [line.split('=', 1)]
-        }
+    '''
+    Function to load the default paths for the pyIACOB package from a text file.
 
-maindir  = dirs['main']
-datadir  = dirs['data']
-ibdir    = dirs['ib']
-mauidir  = dirs['maui']
-modeldir = dirs['models']
-tessdir  = dirs['tess']
+    Parameters
+    ----------
+    paths.txt : str
+        Name of the text file containing the paths. It must be in the same path
+        where the package is being run. If not found, it will ask for the full
+        path to the file.
+
+    Returns
+    -------
+    Paths for the main directories.
+    '''
+    while not os.path.isfile(dir_paths_file):
+        print(color.error+f"File '{dir_paths_file}' not found..."+color.end)
+        dir_paths_file = input("Please provide the full path to the file: ")
+
+    with open(dir_paths_file, 'r') as f:
+        dirs = {
+            key.strip(): (val.strip() if val.strip().endswith('/') else val.strip() + '/')
+            for line in f
+            if line.strip() and not line.startswith('#') and '=' in line
+            for key, val in [line.split('=', 1)]
+            }
+
+    return dirs[datadir], dirs[ibdir], dirs[mauidir], dirs[modeldir], dirs[tessdir]
+
+maindir, datadir, ibdir, mauidir, modeldir, tessdir = load_default_paths('paths.txt')
 
 
 def search(myfile, path):
@@ -81,7 +91,7 @@ def search(myfile, path):
         return f_dir[0]
 
 
-def findstar(spectra=None, snr=0):
+def findstar(spectra=None, snr=0, maindir=maindir, datadir=datadir):
 
     '''
     Function to get the paths of the searched spectra allowing to limitate the
@@ -138,6 +148,7 @@ def findstar(spectra=None, snr=0):
     dir_spectra = []
     for spectrum in list_spectra:
         match = 0
+        print(datadir)
         for root, dirs, files in os.walk(datadir):
             for file in files:
 
