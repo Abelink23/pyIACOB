@@ -92,7 +92,7 @@ def search(myfile, path):
         return f_dir[0]
 
 
-def findstar(spectra=None, snr=0):
+def findstar(spectra=None, snr=0, path=None):
 
     '''
     Function to get the paths of the searched spectra allowing to limitate the
@@ -149,7 +149,7 @@ def findstar(spectra=None, snr=0):
     dir_spectra = []
     for spectrum in list_spectra:
         match = 0
-        for root, dirs, files in os.walk(datadir):
+        for root, dirs, files in os.walk(path if path else datadir):
             for file in files:
 
                 if file.startswith('._'): continue
