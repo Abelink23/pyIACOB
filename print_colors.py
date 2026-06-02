@@ -1,9 +1,6 @@
 # This file contains the class color, which is use in the
 # pyIACOB package to print colored text in the terminal.
 
-from os import error
-
-
 class color:
     p = '\033[95m'
     c = '\033[96m'
