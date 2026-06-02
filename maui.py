@@ -330,7 +330,7 @@ def split_MAUI_input(path_to_file, number_per_file=10):
 
 
 class solution_maui():
-    def __init__(self, solfile, mcmcfile, solution='smooth'):
+    def __init__(self, solfile, mcmcfile=None, solution='smooth'):
 
         '''
         Parameters
@@ -338,7 +338,7 @@ class solution_maui():
         solfile : str
             Enter the input spectrum full path to the solution*.idl file.
 
-        mcmcfile : str
+        mcmcfile : str, optional
             Enter the input spectrum full path to the mcmc*.idl file.
 
         solution : str, optional
@@ -395,7 +395,10 @@ class solution_maui():
             self.B_V0 = round(soldata.phot_prim[2], 3)
 
         # Load the mcmc*.idl file
-        mcmcdata = readsav(mcmcfile)
+        if mcmcfile is not None:
+            mcmcdata = readsav(mcmcfile)
+        else:
+            mcmcdata = None
 
         # QSA Parameters
         param_lst = ['Teff','logg','lgf','He','Micro','logQs','beta',
@@ -426,10 +429,11 @@ class solution_maui():
                 idx_tef = self.parameters.index('Teff')
                 idx_lgf = self.parameters.index('lgf')
 
-                chain_teff = mcmcdata.chain_final.T[idx_tef]*(mcmcdata.xmax[idx_tef] - mcmcdata.xmin[idx_tef]) + mcmcdata.xmin[idx_tef]
-                chain_lgf = mcmcdata.chain_final.T[idx_lgf]*(mcmcdata.xmax[idx_lgf] - mcmcdata.xmin[idx_lgf]) + mcmcdata.xmin[idx_lgf]
+                if mcmcdata is not None:
+                    chain_teff = mcmcdata.chain_final.T[idx_tef]*(mcmcdata.xmax[idx_tef] - mcmcdata.xmin[idx_tef]) + mcmcdata.xmin[idx_tef]
+                    chain_lgf = mcmcdata.chain_final.T[idx_lgf]*(mcmcdata.xmax[idx_lgf] - mcmcdata.xmin[idx_lgf]) + mcmcdata.xmin[idx_lgf]
 
-                chain = [(chain_lgf +4*np.log10(chain_teff*1e4) - 16).min(), (chain_lgf +4*np.log10(chain_teff*1e4) - 16).max()]
+                    chain = [(chain_lgf +4*np.log10(chain_teff*1e4) - 16).min(), (chain_lgf +4*np.log10(chain_teff*1e4) - 16).max()]
 
             else:
                 if solution == 'max': # maximum of distribution without smoothing
@@ -439,37 +443,46 @@ class solution_maui():
                 hpd_dw = soldata.solution[0].hpd_interval[0][idx]
                 hpd_up = soldata.solution[0].hpd_interval[1][idx]
 
-                chain = [mcmcdata.xmin[idx], mcmcdata.xmax[idx]]
+                if mcmcdata is not None:
+                    chain = [mcmcdata.xmin[idx], mcmcdata.xmax[idx]]
 
             # logQs is given as logQs-10:
             if par_name == 'logQs':
                 sol_max -= 10
                 hpd_up -= 10
                 hpd_dw -= 10
-                chain = [i-10 for i in chain]
+                chain = [i-10 for i in chain] if mcmcdata is not None else None
 
             delta = 0.01
             if np.sign(sol_max) == -1:
                 delta = -delta
 
-            # Use 60% of the range to be considered as a degenerated case
-            if abs(hpd_up-hpd_dw) > abs(max(chain)-min(chain))*0.70:
-                label, err_dw, err_up = 'd', hpd_dw, hpd_up
+            if mcmcdata is not None:
+                # Use 70% of the range to be considered as a degenerated case
+                if abs(hpd_up-hpd_dw) > abs(max(chain)-min(chain))*0.70:
+                    label, err_dw, err_up = 'd', hpd_dw, hpd_up
+                # If the solution is close to the limits of the chain (i.e., the grid),
+                # we consider the difference with those limits as the error bars and we
+                # label it the parameter as upper or lower limit depending on the case,
+                elif round(hpd_dw*(1-delta), 3) < min(chain):
+                    label, err_dw, err_up = '<', abs(sol_max - min(chain)), abs(sol_max - hpd_up)
 
-            elif round(hpd_dw*(1-delta), 3) < min(chain):
-                label, err_dw, err_up = '<', abs(sol_max - min(chain)), abs(sol_max - hpd_up)
+                elif round(hpd_up*(1+delta), 3) > max(chain):
+                    label, err_dw, err_up = '>', abs(sol_max - hpd_dw), abs(sol_max - max(chain))
 
-            elif round(hpd_up*(1+delta), 3) > max(chain):
-                label, err_dw, err_up = '>', abs(sol_max - hpd_dw), abs(sol_max - max(chain))
+                else:
+                    label, err_dw, err_up = '=', abs(sol_max - hpd_dw), abs(sol_max - hpd_up)
 
             else:
-                label, err_dw, err_up = '=', abs(sol_max - hpd_dw), abs(sol_max - hpd_up)
+                # if no mcmc data is available, we cannot check for degeneracy or limits,
+                # so we just provide the solution and the hpd interval as error bars
+                label, err_dw, err_up = '?', abs(sol_max - hpd_dw), abs(sol_max - hpd_up)
 
             setattr(self, 'l_'+par_name, label)
             [setattr(self, par_name+suffix, value) for suffix,value in
                 zip(['','_eUP','_eDW'],[round(sol_max,5),round(err_up,5),round(err_dw,5)])]
 
-        # In most cases l_logg should be 'd' but is not due to 60% is not enough
+        # In most cases l_logg should be 'd' but is not due to 70% is not enough
         if 'Teff' in self.parameters and 'lgf' in self.parameters:
             if getattr(self, 'l_Teff') == 'd' or getattr(self, 'l_lgf') == 'd':
                 self.l_logg = 'd'
@@ -627,18 +640,22 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
             matches = [sorted(matches, key=lambda x: int(x[-14:-4].replace('-','')), reverse=True)[0]]
 
         for match in matches:
-
             # Search for the corresponding markov chain file
             mcmcfile = match.split('emulated_solution_')[1]
-            if not mcmcfile in os.listdir(output_dir + 'MARKOV_CHAIN/'):
-                print('%s associated mcmc file not found in MARKOV_CHAIN/ folder...' % match)
+            # if the MARKOV_CHAIN folder does not exist it will continue but without the mcmc information
+            if not 'MARKOV_CHAIN' in os.listdir(output_dir):
+                print('MARKOV_CHAIN/ folder not found in output directory. Continuing without mcmc information...')
+                mcmcfile = None
+            # if the MARKOV_CHAIN folder exists but the specific mcmc file does not exist, the file is skipped
+            if mcmcfile is not None and mcmcfile not in os.listdir(output_dir + 'MARKOV_CHAIN/'):
+                print('Associated mcmc file for %s not found in MARKOV_CHAIN/ folder...' % match.split('SOLUTION/')[1])
                 continue
-            else:
+            elif mcmcfile is not None:
                 mcmcfile = output_dir + 'MARKOV_CHAIN/' + mcmcfile
 
             # Load the idl class for the file
             try:
-                star = solution_maui(match, mcmcfile, solution=solution)
+                star = solution_maui(match, mcmcfile=mcmcfile, solution=solution)
             except:
                 print('ERROR: Problem loading maui output files: %s. Skipping...' % match)
                 continue
@@ -945,19 +962,19 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
     if output_table == True:
         output.write(full_path, format=format_table, overwrite=True)
 
-        # print the results in the terminal if only one star is in the output table
-        if len (output) == 1:
-            for row in output:
-                print('\nFile & grid: %s -- %s' % (row['filename'], row['Grid_name']))
-                print('Param     l  sol        err_d        err_u')
-                for par_name in param_err:
-                    if par_name in output.colnames:
-                        label = row['l_'+par_name]
-                        if label == 'd': label = '=d.'
-                        val = row[par_name]
-                        err_dw = row[par_name+'_eDW']
-                        err_up = row[par_name+'_eUP']
-                        print('%-6s :  %s  %.5f  %.5f  %.5f' % (par_name, label, val, err_dw, err_up))
+    # print the results in the terminal if only one star is in the output table
+    if len (output) == 1:
+        for row in output:
+            print('\nFile & grid: %s -- %s' % (row['filename'], row['Grid_name']))
+            print('Param  :  l  sol      err_d    err_u')
+            for par_name in param_err:
+                if par_name in output.colnames:
+                    label = row['l_'+par_name]
+                    if label == 'd': label = '=d.'
+                    val = row[par_name]
+                    err_dw = row[par_name+'_eDW']
+                    err_up = row[par_name+'_eUP']
+                    print('%-6s :  %s  %.5f  %.5f  %.5f' % (par_name, label, val, err_dw, err_up))
 
     print('\n' + color.g + color.bold + 'Finished!' + color.end)
 
