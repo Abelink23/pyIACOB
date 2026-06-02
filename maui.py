@@ -1,46 +1,18 @@
 from spec_posproc import *
 from scipy.io.idl import readsav
 
-
-grids_dic = {
-'all': ('Grids coverage','dodgerblue',0,
-[[4.543,4.290,4.290,4.146,4.146,4.543,4.543],[2.391,2.391,3.092,3.092,4.391,4.391,2.391]]),
-'nlte_10.1.6_SOLAR_expoclump_2019-10-24': ('BSgs_CNOSiMg','b',1,
-[[4.190,4.477,4.477,4.190,4.190],[3.785,3.785,4.391,4.391,3.785]]),
-'nlte_10.1.6_bdwarfs_SOLAR_2020-01-29': ('BDws_CNOSIMg','orange',2,
-[[4.290,4.543,4.543,4.290,4.290],[2.391,2.391,3.889,3.889,2.391]]),
-'nlte_10.4.7_OB.Sg_SOLAR_2021-01-23': ('OBSgs_hot_NOSi','g',3,
-[[4.399,4.544,4.544,4.399,4.399],[3.488,3.488,4.386,4.386,3.488]]),
-'nlte_10.4.7_late.bsgs_SOLAR_expoclump_NOSi.djl_2021-02-06': ('BSgs_cool_NOSi','r',4,
-[[4.146,4.322,4.322,4.146,4.146],[3.092,3.092,4.391,4.391,3.092]]),
-'astar2013_SOLAR_2_LMC_4_grid_2019-10-24_2019-10-24': ('ASgs_CNOMgSTiFe_Kurucz','purple',5,
-[[3.900,4.114,4.114,3.900,3.900],[3.142,3.142,4.292,4.292,3.142]]),
-'nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1_2021-05-05': ('BSg_CNOSiMg','DeepPink',6,
-[[4.146,4.477,4.477,4.146,4.146],[3.392,3.392,4.386,4.386,3.392]]),
-'nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1ehot_2022-01-19': ('O9BSg_CNOSiMg','turquoise',7,
-[[4.146,4.543,4.543,4.146,4.146],[3.54,3.54,4.394,4.394,3.54]]),
-'nlte_10.4.7_obgiants_SOLAR_noclump_n12345o123c234mg2si234djl_v1ehot_2022-02-21': ('O9BGs_CNOSiMg','lime',8,
-[[4.204,4.543,4.543,4.204,4.204],[2.937,2.937,3.791,3.791,2.937]]),
-}
-''' IMPORTANT NOTE:
--   O9BSg_CNOSiMg has the upper limit of the logL (lgf) constraint <= 3.54 (1.85)
-    also the upper limit of logQs <= -12.5
--   O9BGs_CNOSiMg has Teff > 16000K, logQs <= -12.5 and lgf <= 2.4
-
-    These are cuts a posteriori in user_defined_model_set_fastwind_....pro in PRO_BASE_USER
-    and are introduced manually in gen_gridlimits()
-'''
+from hardcoded_grids import *
 
 def gen_gridlimits(models_dir=mauidir+'MODELS/'):
 
     '''
     Function to generate a fit table containing for each MAUI grid, the boundaries of
-    each of the parameterm. The table is needed for the rest of the programs to work.
+    each of the parameters. The table is needed for the rest of the programs to work.
 
     Parameters
     ----------
     models_dir : str, optional
-        Enter the directory where the model files are.
+        Enter the directory where the MAUI model files are (e.g. MAUI/MODELS/).
 
     Returns
     -------
@@ -81,6 +53,7 @@ def gen_gridlimits(models_dir=mauidir+'MODELS/'):
 
     data_rows = []
     for file in os.listdir(models_dir):
+        print(file)
         if not file.startswith('._') and file.endswith('.idl'):
             soldata = readsav(models_dir+file)
 
@@ -131,16 +104,11 @@ def gen_gridlimits(models_dir=mauidir+'MODELS/'):
 
     output = Table(rows=data_rows, names=(names))
 
-    # Ad-hoc for one particular grid:
-    if 'nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1ehot_2022-01-19' in output['Grid_name']:
-        output['Teff_DW'][output['Grid_name']=='nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1ehot_2022-01-19'] = 1.4
-        output['lgf_UP'][output['Grid_name']=='nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1ehot_2022-01-19'] = 1.85
-        output['logQs_UP'][output['Grid_name']=='nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1ehot_2022-01-19'] = -12.2
-
-    if 'nlte_10.4.7_obgiants_SOLAR_noclump_n12345o123c234mg2si234djl_v1ehot_2022-02-21' in output['Grid_name']:
-        output['Teff_DW'][output['Grid_name']=='nlte_10.4.7_obgiants_SOLAR_noclump_n12345o123c234mg2si234djl_v1ehot_2022-02-21'] = 1.6
-        output['lgf_UP'][output['Grid_name']=='nlte_10.4.7_obgiants_SOLAR_noclump_n12345o123c234mg2si234djl_v1ehot_2022-02-21'] = 2.40
-        output['logQs_UP'][output['Grid_name']=='nlte_10.4.7_obgiants_SOLAR_noclump_n12345o123c234mg2si234djl_v1ehot_2022-02-21'] = -12.5
+    # Ad-hoc changes in grids:
+    for grid_key, limits in ad_hoc_limits.items():
+        if grid_key in output['Grid_name']:
+            for param, value in limits.items():
+                output[param][output['Grid_name']==grid_key] = value
 
     output.write(maindir + 'tables/MAUI_grid_limits.fits', format='fits', overwrite=True)
 
@@ -391,7 +359,8 @@ class solution_maui():
         self.id_star = self.filename.split('_')[0]
 
         # Resolution
-        self.resolution = int(soldata.obsdat.spectrum[0].reso_for_obs)
+        self.resolution = soldata.obsdat.spectrum[0].reso_for_obs
+        self.resolution = self.resolution[0] if type(self.resolution) in [np.ndarray, list] else self.resolution
 
         # vsini and vmac used in the input for MAUI
         self.vsini = soldata.obsdat.spectrum[0].VSINI[0]
@@ -960,15 +929,39 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
     output = Table(rows=data_rows, names=(names))
 
+    # remove all the columns with only 'nan' values
+    for col in output.colnames:
+        # if the column is of a numeric type and all values are nan, or is a string column and all values are empty, remove it
+        if ((output[col].dtype.kind in 'if' and np.isnan(output[col]).all()) or\
+            (output[col].dtype.kind in 'U' and (output[col] == '').all())):
+            output.remove_column(col)
+
     full_path = (maindir + 'tables/MAUI_results_%s.' + format_table) % timenow
 
     if format_table == 'ascii':
         format_table += '.fixed_width_two_line'
+        full_path = full_path.replace('.ascii', '.txt')
 
     if output_table == True:
         output.write(full_path, format=format_table, overwrite=True)
 
-    return 'DONE'
+        # print the results in the terminal if only one star is in the output table
+        if len (output) == 1:
+            for row in output:
+                print('\nFile & grid: %s -- %s' % (row['filename'], row['Grid_name']))
+                print('Param     l  sol        err_d        err_u')
+                for par_name in param_err:
+                    if par_name in output.colnames:
+                        label = row['l_'+par_name]
+                        if label == 'd': label = '=d.'
+                        val = row[par_name]
+                        err_dw = row[par_name+'_eDW']
+                        err_up = row[par_name+'_eUP']
+                        print('%-6s :  %s  %.5f  %.5f  %.5f' % (par_name, label, val, err_dw, err_up))
+
+    print('\n' + color.g + color.bold + 'Finished!' + color.end)
+
+    return None
 
 
 def gen_stars_in_grids(input_table, table_results):
