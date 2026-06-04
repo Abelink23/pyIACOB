@@ -981,6 +981,71 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
     return None
 
 
+def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*'):
+    '''
+    Function to compare the results of two tables containing the results of MAUI analyses.
+
+    Parameters
+    ----------
+    table_1 : str
+        First table to compare. E.g. 'table_1.txt/fits'.
+
+    table_2 : str
+        Second table to compare. E.g. 'table_2.txt/fits'.
+
+    path_t1 : str, optional
+        Path to the first table. Default is None.
+
+    path_t2 : str, optional
+        Path to the second table. Default is None.
+
+    par_name : str, optional
+        Name of the parameter to compare.
+        Default is '*' to compare all parameters in common between the two tables.
+
+    Returns
+    -------
+    Nothing but a plot comparing the results of the two tables is generated.
+    '''
+
+    t1 = findtable(table_1, path=path_t1)
+    t2 = findtable(table_2, path=path_t2)
+
+    if t1 is None or t2 is None:
+        print('ERROR: Problem loading the tables. Exiting...')
+        return None
+
+    t = join(t1, t2, keys='ID', table_names=['t1','t2'], join_type='inner')
+    if len(t) == 0:
+        print('ERROR: No common IDs between the two tables. Exiting...')
+        return None
+
+    if par_name == '*':
+        par_name = [i for i in t1.colnames if i in t2.colnames and i not in ['ID','filename','Grid_name'] and (not np.ma.is_masked(t1[i]) and not np.ma.is_masked(t2[i])) and not i.endswith(('_eUP','_eDW')) and not i.startswith('l_')]
+
+    n_pars = [i for i in par_name if i in t1.colnames and i in t2.colnames]
+    n_rows, n_cols = even_plot(len(n_pars))
+
+    fig, ax = plt.subplots(n_rows, n_cols, figsize=(16,10))
+    fig.subplots_adjust(wspace=0.3, hspace=0.3)
+
+    for i, par in enumerate(n_pars):
+        ax_i = ax.flatten()[i]
+        x = t[par+'_t1']
+        y = t[par+'_t2']
+        ax_i.scatter(x, y-x, color='k', s=20, alpha=0.7)
+        ax_i.plot([min(x), max(x)], [0,0], '--', color='r')
+        ax_i.set_xlabel(par + ' (t1)')
+        ax_i.set_ylabel(par + ' (t2) - ' + par + ' (t1)')
+        ax_i.set_title(par)
+        ax_i.tick_params(direction='in', top='on', right='on')
+
+    [fig.delaxes(ax.flatten()[i]) for i in np.arange(len(n_pars), len(ax.flatten()), 1)]
+    fig.tight_layout()
+    plt.show(block=False)
+    fig.savefig(maindir + 'plots/MAUI/comparison_%s_%s_%s.pdf' % (table_1.split('.')[0], table_2.split('.')[0], par_name), format='pdf')
+
+
 def gen_stars_in_grids(input_table, table_results):
 
     '''
