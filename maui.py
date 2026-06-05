@@ -455,7 +455,7 @@ class solution_maui():
                     chain = [mcmcdata.xmin[idx], mcmcdata.xmax[idx]]
 
             if abs(sol_max - sol_smooth) > 0.10*abs(sol_max):
-                msg.warn('max vs smooth values differ by more than 10% for parameter %s in %s.' % (par_name, self.filename))
+                msg.warn('max vs smooth values differ by more than 10\\% for parameter %s in %s.' % (par_name, self.filename))
 
             # logQs is given as logQs-10:
             if par_name == 'logQs':
@@ -665,11 +665,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                 mcmcfile = output_dir + 'MARKOV_CHAIN/' + mcmcfile
 
             # Load the idl class for the file
-            try:
-                star = solution_maui(match, mcmcfile=mcmcfile, solution=solution)
-            except:
-                msg.error('Problem loading maui output files: %s. Skipping...' % match)
-                continue
+            star = solution_maui(match, mcmcfile=mcmcfile, solution=solution)
 
             # Skip the used grid if not selected from the grid_only keyword
             if grid_only != [] and not star.gridname in grid_only:
