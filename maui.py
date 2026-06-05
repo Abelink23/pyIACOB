@@ -3,7 +3,7 @@ from turtle import color
 from spec_posproc import *
 from scipy.io.idl import readsav
 
-from hardcoded_grids import *
+from hardcoded_maui import *
 
 def gen_gridlimits(models_dir=mauidir+'MODELS/'):
 
@@ -609,11 +609,11 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
         from matplotlib.backends.backend_pdf import PdfPages
 
-        if not os.path.exists(maindir + 'plots/MAUI/'):
-            os.makedirs(maindir + 'plots/MAUI/')
+        if not os.path.exists(output_dir + 'plots/'):
+            os.makedirs(output_dir + 'plots/')
 
-        pdf_solution = PdfPages(maindir + 'plots/MAUI/MAUI_results_lines_%s.pdf' % timenow)
-        pdf_makchain = PdfPages(maindir + 'plots/MAUI/MAUI_results_chain_%s.pdf' % timenow)
+        pdf_solution = PdfPages(output_dir + 'plots/MAUI_results_lines_%s.pdf' % timenow)
+        pdf_makchain = PdfPages(output_dir + 'plots/MAUI_results_chain_%s.pdf' % timenow)
 
         plt.rcParams.update({
             'xtick.labelsize' : 6,
@@ -960,7 +960,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
             (output[col].dtype.kind in 'U' and (output[col] == '').all())):
             output.remove_column(col)
 
-    full_path = (maindir + 'tables/MAUI_results_%s.' + format_table) % timenow
+    full_path = (output_dir + 'MAUI_results_%s.' + format_table) % timenow
 
     if format_table == 'ascii':
         format_table += '.fixed_width_two_line'
@@ -988,7 +988,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
     return None
 
 
-def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*'):
+def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*', save_plot=False):
     '''
     Function to compare the results of two tables containing the results of MAUI analyses.
 
@@ -1010,6 +1010,9 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*'):
         Name of the parameter to compare.
         Default is '*' to compare all parameters in common between the two tables.
 
+    save_plot : bool, optional
+        Whether to save the plot. Default is False.
+
     Returns
     -------
     Nothing but a plot comparing the results of the two tables is generated.
@@ -1028,12 +1031,20 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*'):
         return None
 
     if par_name == '*':
-        par_name = [i for i in t1.colnames if i in t2.colnames and i not in ['ID','filename','Grid_name'] and (not np.ma.is_masked(t1[i]) and not np.ma.is_masked(t2[i])) and not i.endswith(('_eUP','_eDW')) and not i.startswith('l_')]
+        par_name = [i for i in t1.colnames if i in t2.colnames and 
+                    i not in ['ID','filename','Grid_name'] and 
+                    (not np.ma.is_masked(t1[i]) and not np.ma.is_masked(t2[i])) and 
+                    not i.endswith(('_eUP','_eDW')) and not i.startswith('l_')]
+    else:
+        par_name = par_name.split(',') if ',' in par_name else [par_name]
+        par_name = [i for i in par_name if i in t1.colnames and i in t2.colnames and 
+                    (not np.ma.is_masked(t1[i]) and not np.ma.is_masked(t2[i])) and 
+                    not i.endswith(('_eUP','_eDW')) and not i.startswith('l_')]
 
     n_pars = [i for i in par_name if i in t1.colnames and i in t2.colnames]
     n_rows, n_cols = even_plot(len(n_pars))
 
-    fig, ax = plt.subplots(n_rows, n_cols, figsize=(16,10))
+    fig, ax = plt.subplots(n_rows, n_cols, figsize=(12,7.5))
     fig.subplots_adjust(wspace=0.3, hspace=0.3)
 
     for i, par in enumerate(n_pars):
@@ -1041,7 +1052,11 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*'):
         x = t[par+'_t1']
         y = t[par+'_t2']
         ax_i.scatter(x, y-x, color='k', s=20, alpha=0.7)
-        ax_i.plot([min(x), max(x)], [0,0], '--', color='r')
+        ax_i.plot([min(x), max(x)], [0,0], '--', color='b')
+        if par in uncertainties_dic:
+            ax_i.axhline(uncertainties_dic[par], ls=':', color='r')
+            ax_i.axhline(-uncertainties_dic[par], ls=':', color='r')
+        
         ax_i.set_xlabel(par + ' (t1)')
         ax_i.set_ylabel(par + ' (t2) - ' + par + ' (t1)')
         ax_i.set_title(par)
@@ -1050,7 +1065,9 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*'):
     [fig.delaxes(ax.flatten()[i]) for i in np.arange(len(n_pars), len(ax.flatten()), 1)]
     fig.tight_layout()
     plt.show(block=False)
-    fig.savefig(maindir + 'plots/MAUI/comparison_%s_%s_%s.pdf' % (table_1.split('.')[0], table_2.split('.')[0], par_name), format='pdf')
+
+    if save_plot == True:
+        fig.savefig(maindir + 'plots/MAUI/comparison_%s_vs_%s.pdf' % (table_1.split('.')[0], table_2.split('.')[0]), format='pdf')
 
 
 def gen_stars_in_grids(input_table, table_results):
