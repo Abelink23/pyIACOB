@@ -1,3 +1,5 @@
+from turtle import color
+
 from spec_posproc import *
 from scipy.io.idl import readsav
 
@@ -77,7 +79,7 @@ def gen_gridlimits(models_dir=mauidir+'MODELS/'):
 
                 idx = parameters.index(par_name)
                 if not parameters[0] == 'Teff':
-                    print('WARNING: lgf will be wrong!')
+                    msg.warn('lgf will be wrong!')
 
                 if par_name == 'Teff':
                     data_row.extend(
@@ -201,21 +203,21 @@ def maui_input(table, table_IB='IB_results.fits', output_name='MAUI_input',
 
         # Filer based on properties from the main table:
         if 'SB' in table.columns and (row['SB'] == 'SB2' or row['SB'] == 'SB3'):
-            print('Skipping SB2 source %s' % source)
+            msg.info('Skipping SB2 source %s' % source)
             continue
 
         # Checks if the star is in the IACOB-Broad table:
         match_IB = table_IB[table_IB['ID']==star.id_star]
         if len(match_IB) == 0:
-            print('Info: Missing information in IB table for %s, skipping...\n' % source)
+            msg.warn('Missing information in IB table for %s, skipping...\n' % source)
             continue
 
         # Obtains the SNR in the 4000-5000 range
         SNR_B = star.snrcalc('B')
 
         if str(match_IB['Ref_file'][0].split('.fits')[0]) not in star.filename:
-            print('WARNING: Different files from best SNR and from IB results for %s' % id)
-            print(star.filename,' vs ',match_IB['Ref_file'][0])
+            msg.warn('Different files from best SNR and from IB results for %s' % id)
+            msg.warn(star.filename,' vs ',match_IB['Ref_file'][0])
             if ascii == True:
                 do_file = input('Which ascii do you want to create 1 or 2: ')
                 if int(do_file) == 1: star.filename = star.filename
@@ -223,8 +225,8 @@ def maui_input(table, table_IB='IB_results.fits', output_name='MAUI_input',
 
         # Checks if the ascii file for the star already exists to not repeat it
         if do_ascii == True and not search(star.filename.split('.')[0]+'_RV.ascii',\
-        spectra_path) is None:
-            print('Info: ascii file for %s already exists' % star.filename.split('.')[0])
+            spectra_path) is None:
+            msg.info('ascii file for %s already exists' % star.filename.split('.')[0])
             do_ascii = False
 
         if do_ascii == True:
@@ -233,18 +235,16 @@ def maui_input(table, table_IB='IB_results.fits', output_name='MAUI_input',
                 export_rv=True, cosmetic=True, cosmic=True, degrade=None, show_plot=True)
             plt.close('all')
 
-        # MAUI input last modifications:
+        # MAUI input final modifications:
         if 'vsini_GF_eDW' in match_IB.columns and 'vsini_GF_eUP' in match_IB.columns:
             match_IB['evsini'] = abs(match_IB['vsini_GF_eDW'] + match_IB['vsini_GF_eUP'])/2
         else:
             match_IB['evsini'] = 0.10*match_IB['vsini_GF']
 
-        try:
-            if match_IB['vsini_GF'] < 5:
-                match_IB['vsini_GF'] = 0
-                match_IB['evsini'] = 0
-        except:
-            print(star.filename, match_IB)
+        if match_IB['vsini_GF'] < 5:
+            msg.info('vsini_GF <5 km/s for %s. Setting value and error to 0.' % star.filename)
+            match_IB['vsini_GF'] = 0
+            match_IB['evsini'] = 0
 
         if 'vmac_GF_eDW' in match_IB.columns and 'vmac_GF_eUP' in match_IB.columns:
             match_IB['evmac'] = abs(match_IB['vmac_GF_eDW'] + match_IB['vmac_GF_eUP'])/2
@@ -253,6 +253,7 @@ def maui_input(table, table_IB='IB_results.fits', output_name='MAUI_input',
 
         # Based on comments from Simon-Diaz
         if (match_IB['vmac_GF'][0] < 15) or (match_IB['vsini_GF'] > 130):
+            msg.info('vmac <15 or vsini >130 km/s for %s. Setting vmac and error to 0.' % star.filename)
             match_IB['vmac_GF'] = 0
             match_IB['evmac'] = 0
 
@@ -419,10 +420,12 @@ class solution_maui():
             idx = self.parameters.index(par_name)
 
             if par_name == 'logg':
+                sol_max = soldata.solution[0].sol_logg[0].map
+                sol_smooth = soldata.solution[0].sol_logg[0].map_smooth
                 if solution == 'max': # maximum of distribution without smoothing
-                    sol_max = soldata.solution[0].sol_logg[0].map
+                    sol_final = sol_max
                 elif solution == 'smooth': # maximum of distribution without smoothing
-                    sol_max = soldata.solution[0].sol_logg[0].map_smooth
+                    sol_final = sol_smooth
                 hpd_dw = soldata.solution[0].sol_logg[0].hpdint[0]
                 hpd_up = soldata.solution[0].sol_logg[0].hpdint[1]
 
@@ -436,19 +439,24 @@ class solution_maui():
                     chain = [(chain_lgf +4*np.log10(chain_teff*1e4) - 16).min(), (chain_lgf +4*np.log10(chain_teff*1e4) - 16).max()]
 
             else:
+                sol_max = soldata.solution[0].sol_max[0][idx]
+                sol_smooth = soldata.solution[0].sol_max[1][idx]
                 if solution == 'max': # maximum of distribution without smoothing
-                    sol_max = soldata.solution[0].sol_max[0][idx]
+                    sol_final = sol_max
                 elif solution == 'smooth': # maximum of distribution with smoothing
-                    sol_max = soldata.solution[0].sol_max[1][idx]
+                    sol_final = sol_smooth
                 hpd_dw = soldata.solution[0].hpd_interval[0][idx]
                 hpd_up = soldata.solution[0].hpd_interval[1][idx]
 
                 if mcmcdata is not None:
                     chain = [mcmcdata.xmin[idx], mcmcdata.xmax[idx]]
 
+            if abs(sol_max - sol_smooth) > 0.10*abs(sol_max):
+                msg.warn('max vs smooth values differ by more than 10% for parameter %s in %s.' % (par_name, self.filename))
+
             # logQs is given as logQs-10:
             if par_name == 'logQs':
-                sol_max -= 10
+                sol_final -= 10
                 hpd_up -= 10
                 hpd_dw -= 10
                 chain = [i-10 for i in chain] if mcmcdata is not None else None
@@ -465,22 +473,22 @@ class solution_maui():
                 # we consider the difference with those limits as the error bars and we
                 # label it the parameter as upper or lower limit depending on the case,
                 elif round(hpd_dw*(1-delta), 3) < min(chain):
-                    label, err_dw, err_up = '<', abs(sol_max - min(chain)), abs(sol_max - hpd_up)
+                    label, err_dw, err_up = '<', abs(sol_final - min(chain)), abs(sol_final - hpd_up)
 
                 elif round(hpd_up*(1+delta), 3) > max(chain):
-                    label, err_dw, err_up = '>', abs(sol_max - hpd_dw), abs(sol_max - max(chain))
+                    label, err_dw, err_up = '>', abs(sol_final - hpd_dw), abs(sol_final - max(chain))
 
                 else:
-                    label, err_dw, err_up = '=', abs(sol_max - hpd_dw), abs(sol_max - hpd_up)
+                    label, err_dw, err_up = '=', abs(sol_final - hpd_dw), abs(sol_final - hpd_up)
 
             else:
                 # if no mcmc data is available, we cannot check for degeneracy or limits,
                 # so we just provide the solution and the hpd interval as error bars
-                label, err_dw, err_up = '?', abs(sol_max - hpd_dw), abs(sol_max - hpd_up)
+                label, err_dw, err_up = '?', abs(sol_final - hpd_dw), abs(sol_final - hpd_up)
 
             setattr(self, 'l_'+par_name, label)
             [setattr(self, par_name+suffix, value) for suffix,value in
-                zip(['','_eUP','_eDW'],[round(sol_max,5),round(err_up,5),round(err_dw,5)])]
+                zip(['','_eUP','_eDW'],[round(sol_final,5),round(err_up,5),round(err_dw,5)])]
 
         # In most cases l_logg should be 'd' but is not due to 70% is not enough
         if 'Teff' in self.parameters and 'lgf' in self.parameters:
@@ -633,7 +641,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                     matches.append(output_dir + 'SOLUTION/' + file)
 
         if len(matches) == 0:
-            print('\nWARNING: No solution*.idl file found for %s. Continuing...' % name)
+            msg.warn('No solution*.idl file found for %s. Continuing...' % name)
             continue
 
         if len(matches) > 1 and last_only == True:
@@ -644,11 +652,11 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
             mcmcfile = match.split('emulated_solution_')[1]
             # if the MARKOV_CHAIN folder does not exist it will continue but without the mcmc information
             if not 'MARKOV_CHAIN' in os.listdir(output_dir):
-                print('MARKOV_CHAIN/ folder not found in output directory. Continuing without mcmc information...')
+                msg.warn('MARKOV_CHAIN/ folder not found in output directory. Continuing without mcmc information...')
                 mcmcfile = None
             # if the MARKOV_CHAIN folder exists but the specific mcmc file does not exist, the file is skipped
             if mcmcfile is not None and mcmcfile not in os.listdir(output_dir + 'MARKOV_CHAIN/'):
-                print('Associated mcmc file for %s not found in MARKOV_CHAIN/ folder...' % match.split('SOLUTION/')[1])
+                msg.warn('Associated mcmc file for %s not found in MARKOV_CHAIN/ folder...' % match.split('SOLUTION/')[1])
                 continue
             elif mcmcfile is not None:
                 mcmcfile = output_dir + 'MARKOV_CHAIN/' + mcmcfile
@@ -657,7 +665,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
             try:
                 star = solution_maui(match, mcmcfile=mcmcfile, solution=solution)
             except:
-                print('ERROR: Problem loading maui output files: %s. Skipping...' % match)
+                msg.error('Problem loading maui output files: %s. Skipping...' % match)
                 continue
 
             # Skip the used grid if not selected from the grid_only keyword
@@ -670,7 +678,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
             # Check if the input file matches with the best SNR spectra available
             if check_best == True and star.filename != best_SNR.filename:
-                print('\nWARNING: %s does not match with best spectrum available.' % star.filename)
+                msg.warn('%s does not match with best spectrum available.' % star.filename)
 
             # Generate the table with the results of each of the parameters (basic and with errors)
             data_row = [star.id_star, star.filename, star.gridname, star.BC, star.B_V0, star.vsini, star.vmac]
@@ -965,7 +973,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
     # print the results in the terminal if only one star is in the output table
     if len (output) == 1:
         for row in output:
-            print('\nFile & grid: %s -- %s' % (row['filename'], row['Grid_name']))
+            msg.info('\nFile & grid: %s -- %s' % (row['filename'], row['Grid_name']))
             print('Param  :  l  sol      err_d    err_u')
             for par_name in param_err:
                 if par_name in output.colnames:
@@ -976,7 +984,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                     err_up = row[par_name+'_eUP']
                     print('%-6s :  %s  %.5f  %.5f  %.5f' % (par_name, label, val, err_dw, err_up))
 
-    print('\n' + color.g + color.bold + 'Finished!' + color.end)
+    msg.bold('g','Finished!')
 
     return None
 
@@ -1109,7 +1117,7 @@ def phot_table(input_table):
 
     cols = ['Teff','lgf','He','Micro','logQs','beta','C','N','O','Mg','Si','fcl','vcl','Grid_name']
     if any([i not in table.colnames for i in cols]):
-        print('WARNING: missing column names. Exiting...\n')
+        print(color.error+'missing column names. Exiting...\n' + color.end)
         return None
 
     table['Teff'] = [('%.3f') % i +'d0' for i in table['Teff']]
