@@ -246,12 +246,15 @@ def maui_input(table, table_IB='IB_results.fits', output_name='MAUI_input',
             match_IB['vsini_GF'] = 0
             match_IB['evsini'] = 0
 
+        if match_IB['vsini_GF'] < 40:
+            msg.info('vsini<40km/s for %s -> Following Simon-Diaz+14 this value is likely an upper limit.' % star.filename)
+
         if 'vmac_GF_eDW' in match_IB.columns and 'vmac_GF_eUP' in match_IB.columns:
             match_IB['evmac'] = abs(match_IB['vmac_GF_eDW'] + match_IB['vmac_GF_eUP'])/2
         else:
             match_IB['evmac'] = 0.10*match_IB['vmac_GF']
 
-        # Based on comments from Simon-Diaz
+        # From Simon-Diaz+14 (vmac <15 for Gs and vmac <40 for SGs are not reliable -> we measure the micro)
         if (match_IB['vmac_GF'][0] < 15) or (match_IB['vsini_GF'] > 130):
             msg.info('vmac <15 or vsini >130 km/s for %s. Setting vmac and error to 0.' % star.filename)
             match_IB['vmac_GF'] = 0
