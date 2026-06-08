@@ -50,7 +50,7 @@ dic_maui_uncertainties = {
 'logQs': 0.12,
 'beta': 0.41,
 'He': 0.02,
-'micro': 1.5,
+'Micro': 1.5,
 'Si': 0.08
 }
 
