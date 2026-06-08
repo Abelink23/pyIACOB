@@ -795,7 +795,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                     # Plot the region with weight = 1
                     ymean = np.asarray(ax_i.get_ylim()).mean()
                     weight = [None if i==0 else ymean for i in weight]
-                    ax_i.plot(window_wave, weight, c='dodgerblue', lw=.5, alpha=0.5)
+                    ax_i.plot(window_wave, weight, c='dodgerblue', lw=1, alpha=0.5)
 
                     ax_i.set_title(line_name)
                     ax_i.tick_params(direction='in', top='on', right='on')
@@ -974,6 +974,7 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*', 
                     i not in ['ID','filename','Grid_name'] and 
                     (not np.ma.is_masked(t1[i]) and not np.ma.is_masked(t2[i])) and 
                     not i.endswith(('_eUP','_eDW')) and not i.startswith('l_')]
+        par_name = [i for i in par_name if i not in ['vsini','vmac']]
     else:
         par_name = par_name.split(',') if ',' in par_name else [par_name]
         par_name = [i for i in par_name if i in t1.colnames and i in t2.colnames and 
@@ -987,6 +988,11 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*', 
     fig.subplots_adjust(wspace=0.3, hspace=0.3)
 
     for i, par in enumerate(n_pars):
+        # print the name of the star if the parameter values are outside the MAUI uncertainties
+        if par in dic_maui_uncertainties:
+            outliers = t[abs(t[par+'_t2']-t[par+'_t1']) > dic_maui_uncertainties[par]]['ID'].tolist()
+            print(f'Stars with difference in {par} outside uncertainties: {outliers}')
+
         ax_i = ax.flatten()[i]
         x = t[par+'_t1']
         y = t[par+'_t2']
@@ -1000,6 +1006,8 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*', 
         ax_i.set_ylabel(par + ' (t2) - ' + par + ' (t1)')
         ax_i.set_title(par)
         ax_i.tick_params(direction='in', top='on', right='on')
+        ax_i.minorticks_on()
+        
 
     [fig.delaxes(ax.flatten()[i]) for i in np.arange(len(n_pars), len(ax.flatten()), 1)]
     fig.tight_layout()
