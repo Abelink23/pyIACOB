@@ -404,16 +404,13 @@ class solution_maui():
         else:
             mcmcdata = None
 
-        # QSA Parameters
-        param_lst = ['Teff','logg','lgf','He','Micro','logQs','beta',
-            'C','N','O','Mg','Si','S','Fe','Ti','fcl','vcl']
-
         # Fill the class with the parameter values:
         self.parameters = [j.decode() for j in soldata.solution.var_label[0]] # 11/13 param.
         if 'SOL_LOGG' in soldata.solution.dtype.names:
             self.parameters.append('logg') # assumes lgf is always
 
-        for par_name in param_lst:
+        # Take hardcoded QSA Parameters
+        for par_name in dic_maui_param:
 
             if not par_name in self.parameters:
                 setattr(self, 'l_'+par_name, '')
@@ -622,10 +619,6 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
             'axes.titlepad' : 3
             })
 
-    # Parameters with errors
-    param_err = ['Teff','logg','lgf','He','Micro','logQs','beta',
-        'C','N','O','Mg','Si','S','Fe','Ti','fcl','vcl']
-
     # Iteration through the list of stars
     data_rows = []
     for i in range(len(stars)):
@@ -687,7 +680,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                 getattr(star, par_name),
                 getattr(star, par_name+'_eUP'),
                 getattr(star, par_name+'_eDW'),
-                ]) for par_name in param_err]
+                ]) for par_name in dic_maui_param]
 
             # Append the raw to the table
             data_rows.append(tuple(data_row))
@@ -748,7 +741,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                 fig, ax = plt.subplots(nrows, ncols, figsize=(13,8))
 
                 fig_title = ''
-                for par_name in param_err:
+                for par_name in dic_maui_param:
                     val = getattr(star, par_name)
                     if np.isnan(val) == True: continue
 
@@ -770,84 +763,29 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                 for ax_i,line_lwl,line_rwl,line_name,c in zip(axs,lines_lwl,lines_rwl,line_names,line_colors):
                     #mask = (star.synwave > line_lwl) & (star.synwave < line_rwl)
                     #ax_i.plot(star.synwave[mask], star.synflux[mask], color='gray', lw=.3)
-
                     mask = (star.obswave > line_lwl) & (star.obswave < line_rwl)
-                    ax_i.plot(star.obswave[mask], star.obsflux[mask], color='k', lw=.7)
+                    window_wave = star.obswave[mask]
+                    window_flux = star.obsflux[mask]
+                    ax_i.plot(window_wave, window_flux, color='k', lw=.7)
 
+                    weight_mask = np.zeros(window_wave.shape, dtype=bool)
                     if FR == False:
-                        # Define the regions used for the weight (weight=1)
-                        # If only a region within the window is used, then the rest of the window has weight 0.
-                        # In this case, I add -0.1 and +0.1 to the window limits defined in '*_lines_for_chi2_*'
-                        # Otherwise I specify the exact region with weight 1 within the window.
-                        weight = [0 if (
-                            (i >= 6521.00 and i <= 6532.00) or # Halpha, mask NII lines in the blue wing [??]
-                            (i >= 6575.75 and i <= 6585.29) or #         mask CII lines in the red wing
-                            (i >= 4330.50 and i <= 4335.00) or # Hgamma, mask NIII/SIII? lines in the blue wind
-                            (i >= 4344.42 and i <= 4355.83) or #         mask OII lines in the red wing
-                            (i >= 4083.20 and i <= 4085.50) or # Hdelta, mask metal lines
-                            (i >= 4086.29 and i <= 4090.53) or
-                            (i >= 4092.27 and i <= 4093.99) or
-                            (i >= 4096.50 and i <= 4098.00) or
-                            (i >= 3953.09 and i <= 3955.05) or # Hepsil, mask metal lines
-                            (i >= 3960.70 and i <= 3962.24) or
-                            (i >= 3963.38 and i <= 3965.76) or
-                            (i >= 3967.00 and i <= 3969.00) or
-                            (i >= 3972.53 and i <= 3974.10) or
-                            (i >= 4465.00 and i <= 4468.50) or # HeI 4471, mask OII lines in the blue wind
-                            (i >= 4923.50 and i <= 4926.00) or # HeI 4922, mask an OII line in the red wing
-                            (i >= 5013.20 and i <= 5014.50) or # HeI 5015, mask a SII line
-                            (i >= 5017.50 and i <= 5019.50) or #           mask some Ni I/II lines?
-                            (i >= 4544.00 and i <= 4546.00) or # HeII 4541, mask AlIII lines
-                            (i >= 4478.87 and i <= 4480.20) or # MgII 4481, mask the AlIII blend
-                            (i >= 4128.71 and i <= 4130.10) or # SiIII 4130
-                            (i >= 4131.40 and i <= 4134.08) or
-                            (i >= 4547.60 and i <= 4550.20) or # SiIII 4552 (remove continuum)
-                            (i >= 4555.00 and i <= 4558.96) or
-                            (i >= 4563.08 and i <= 4565.00) or # SiIII 4567 (remove continuum)
-                            (i >= 4571.00 and i <= 4571.35) or
-                            (i >= 4571.30 and i <= 4572.50) or # SiIII 4575 (remove continuum)
-                            (i >= 4576.00 and i <= 4579.32) or
-                            (i >= 4112.50 and i <= 4113.80) or # SiIV 4116 (first val should match lmin)
-                            (i >= 4117.70 and i <= 4124.70)    # (last val should match lmax)
-                            ) else 1 for i in star.obswave[mask]]
-
+                        for lmin, lmax in mask_maui_SR:
+                            weight_mask |= (window_wave >= lmin) & (window_wave <= lmax)
                     elif FR == True:
-                        weight = [0 if (
-                            (i >= 6521.00 and i <= 6532.00) or # Halpha, mask NII line in the blue wing [??]
-                            (i >= 6575.75 and i <= 6585.29) or #         mask CII lines in the red wing
-                            (i >= 4330.50 and i <= 4335.00) or # Hgamma, mask NIII/SIII? lines in the blue wind
-                            (i >= 4344.42 and i <= 4355.83) or #         mask OII lines in the red wing
-                            (i >= 4083.20 and i <= 4085.50) or # Hdelta, mask metal lines
-                            (i >= 4086.29 and i <= 4090.53) or
-                            (i >= 4092.27 and i <= 4093.99) or
-                            (i >= 4096.50 and i <= 4098.00) or
-                            (i >= 3953.09 and i <= 3955.05) or # Hepsil, mask metal lines
-                            (i >= 3960.70 and i <= 3962.24) or
-                            (i >= 3963.38 and i <= 3965.76) or
-                            (i >= 3967.00 and i <= 3969.00) or
-                            (i >= 3972.53 and i <= 3974.10) or
-                            (i >= 4465.00 and i <= 4468.50) or # HeI 4471, mask OII lines in the blue wind
-                            (i >= 4923.50 and i <= 4926.00) or # HeI 4922, mask an OII line in the red wing
-                            (i >= 5013.20 and i <= 5014.50) or # HeI 5015, mask a SII line
-                            (i >= 5017.50 and i <= 5019.50) or #           mask some Ni I/II lines?
-                            (i >= 4544.00 and i <= 4546.00) or # HeII 4541, mask AlIII lines
-                            (i >= 4478.87 and i <= 4480.20) or # MgII 4481, mask the AlIII blend
-                            (i >= 4128.71 and i <= 4130.10) or # SiIII 4130
-                            (i >= 4131.40 and i <= 4134.08) or
-                            (i >= 4547.40 and i <= 4549.00) or # SiIII 4552 (remove continuum)
-                            (i >= 4556.00 and i <= 4558.90) or
-                            (i >= 4576.00 and i <= 4581.40) or # SiIII 4567 + 4575 (remove continuum)
-                            (i >= 4112.50 and i <= 4113.80) or # SiIV 4116 (first val should match lmin)
-                            (i >= 4117.70 and i <= 4126.10)    # (last val should match lmax)
-                            ) else 1 for i in star.obswave[mask]]
+                        for lmin, lmax in mask_maui_FR:
+                            weight_mask |= (window_wave >= lmin) & (window_wave <= lmax)
+
+                    # Where the condition is True, weight is 0. Otherwise, it's 1.
+                    weight = np.where(weight_mask, 0, 1).tolist()
 
                     # This is a visual trick to place the synthetic spectra where it really is ifthe
                     # normalization option is used, as this is not stored in the solution*.idl file
-                    scale = np.sum(star.obsflux[mask]*star.synconv[mask]*weight)\
+                    scale = np.sum(window_flux*star.synconv[mask]*weight)\
                                 /np.sum(star.synconv[mask]*star.synconv[mask]*weight)
                     star.synconv_scaled = scale * star.synconv[mask]
 
-                    ax_i.plot(star.obswave[mask], star.synconv_scaled, color=c, ls='--', lw=1)
+                    ax_i.plot(window_wave, star.synconv_scaled, color=c, ls='--', lw=1)
 
                     if ax_i.get_ylim()[0] > 0.875:
                         ax_i.set_ylim(bottom=0.875)
@@ -857,7 +795,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                     # Plot the region with weight = 1
                     ymean = np.asarray(ax_i.get_ylim()).mean()
                     weight = [None if i==0 else ymean for i in weight]
-                    ax_i.plot(star.obswave[mask], weight, c='dodgerblue', lw=.5, alpha=0.5)
+                    ax_i.plot(window_wave, weight, c='dodgerblue', lw=.5, alpha=0.5)
 
                     ax_i.set_title(line_name)
                     ax_i.tick_params(direction='in', top='on', right='on')
@@ -948,8 +886,9 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
     names = ['ID','filename','Grid_name','BC','BV_0','vsini','vmac']
 
     # - Add names for the parameter column names
-    for i in range(len(param_err)):
-        names += ['l_'+param_err[i],param_err[i],param_err[i]+'_eUP',param_err[i]+'_eDW']
+    for i in range(len(dic_maui_param)):
+        names += ['l_'+ list(dic_maui_param.keys())[i],list(dic_maui_param.values())[i],\
+                        list(dic_maui_param.values())[i]+'_eUP',list(dic_maui_param.values())[i]+'_eDW']
 
     output = Table(rows=data_rows, names=(names))
 
@@ -974,7 +913,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
         for row in output:
             msg.info('\nFile & grid: %s -- %s' % (row['filename'], row['Grid_name']))
             print('Param  :  l  sol      err_d    err_u')
-            for par_name in param_err:
+            for par_name in dic_maui_param:
                 if par_name in output.colnames:
                     label = row['l_'+par_name]
                     if label == 'd': label = '=d.'
@@ -1053,9 +992,9 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*', 
         y = t[par+'_t2']
         ax_i.scatter(x, y-x, color='k', s=20, alpha=0.7)
         ax_i.plot([min(x), max(x)], [0,0], '--', color='b')
-        if par in uncertainties_dic:
-            ax_i.axhline(uncertainties_dic[par], ls=':', color='r')
-            ax_i.axhline(-uncertainties_dic[par], ls=':', color='r')
+        if par in dic_maui_uncertainties:
+            ax_i.axhline(dic_maui_uncertainties[par], ls=':', color='r')
+            ax_i.axhline(-dic_maui_uncertainties[par], ls=':', color='r')
         
         ax_i.set_xlabel(par + ' (t1)')
         ax_i.set_ylabel(par + ' (t2) - ' + par + ' (t1)')
@@ -1099,8 +1038,8 @@ def gen_stars_in_grids(input_table, table_results):
 
     points = np.column_stack([log_Teff,log_LLsol])
 
-    # Change ...grids_dic][1:] for individual grids
-    for name,_,_,box in [grids_dic[i] for i in grids_dic][1:]:
+    # Change ...dic_maui_grids][1:] for individual grids
+    for name,_,_,box in [dic_maui_grids[i] for i in dic_maui_grids][1:]:
         verts = np.array([box[0],box[1]]).T
         path = mpath.Path(verts)
         inout = path.contains_points(points)
@@ -1191,7 +1130,7 @@ def gen_synthetic(output_dir, convolve=True, lwl=3900, rwl=5080):
                                  output_dir + 'MARKOV_CHAIN/' + file.replace('emulated_solution_',''))
 
             #star.filename = star.filename.replace(str(star.resolution),'85000')
-            new_star = '%s_red%i.dat' % (star.filename[:-5],grids_dic[star.gridname][2])
+            new_star = '%s_red%i.dat' % (star.filename[:-5],dic_maui_grids[star.gridname][2])
 
             # Check if the file already exists and ask if it should be overwritten
             if os.path.exists(save_dir + new_star):
