@@ -455,7 +455,7 @@ class solution_maui():
                     chain = [mcmcdata.xmin[idx], mcmcdata.xmax[idx]]
 
             if abs(sol_max - sol_smooth) > 0.10*abs(sol_max):
-                msg.warn('max vs smooth values differ by more than 10\\% for parameter %s in %s.' % (par_name, self.filename))
+                msg.warn('max vs smooth values differ by more than 10%% or parameter %s in %s.' % (par_name, self.filename))
 
             # logQs is given as logQs-10:
             if par_name == 'logQs':
