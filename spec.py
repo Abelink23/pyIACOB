@@ -14,6 +14,7 @@ from astropy.stats import sigma_clip
 
 # Plot packages
 import matplotlib.pyplot as plt
+from matplotlib.ticker import AutoMinorLocator
 plt.rc('xtick', direction='in', top=True)
 plt.rc('ytick', direction='in', right=True)
 
@@ -1246,6 +1247,8 @@ class spec():
 
             plt.plot(self.wave[mask], self.flux[mask], lw=.5, label=self.id_star+' '+self.SpC)
             plt.tick_params(direction='in', top='on')
+            plt.gca().xaxis.set_minor_locator(AutoMinorLocator())
+            plt.gca().yaxis.set_minor_locator(AutoMinorLocator())
 
             if ylim is not None and (type(ylim) is list or type(ylim) is tuple):
                 plt.ylim(ylim)
@@ -1357,6 +1360,8 @@ class spec():
 
         plt.plot(self.wave[mask], self.flux[mask], lw=.5, label=self.id_star+' '+self.SpC)
         plt.tick_params(direction='in', top='on')
+        plt.gca().xaxis.set_minor_locator(AutoMinorLocator())
+        plt.gca().yaxis.set_minor_locator(AutoMinorLocator())
 
         if ylim is not None and (type(ylim) is list or type(ylim) is tuple):
             plt.ylim(ylim)
