@@ -62,7 +62,7 @@ dic_maui_uncertainties = {
 mask_maui_SR = [
     (6521.00, 6532.00), # Halpha, mask NII lines in the blue wing [??]
     (6575.75, 6585.29), #         mask CII lines in the red wing
-    (4330.50, 4335.00), # Hgamma, mask NIII/SIII? lines in the blue wind
+    (4330.50, 4345.33), # Hgamma, mask NIII/SIII? lines in the blue wind
     (4344.42, 4355.83), #         mask OII lines in the red wing
     (4083.20, 4085.50), # Hdelta, mask metal lines
     (4086.29, 4090.53),
@@ -79,7 +79,7 @@ mask_maui_SR = [
     (5017.50, 5019.50), #           mask some Ni I/II lines?
     (4544.00, 4546.00), # HeII 4541, mask AlIII lines
     (4478.87, 4480.20), # MgII 4481, mask the AlIII blend
-    (4128.71, 4130.10), # SiIII 4130
+    (4128.71, 4130.10), # SiII 4130
     (4131.40, 4134.08),
     (4547.60, 4550.20), # SiIII 4552 (remove continuum)
     (4555.00, 4558.96),
@@ -94,7 +94,7 @@ mask_maui_SR = [
 mask_maui_FR = [
     (6521.00, 6532.00), # Halpha, mask NII line in the blue wing [??]
     (6575.75, 6585.29), #         mask CII lines in the red wing
-    (4330.50, 4335.00), # Hgamma, mask NIII/SIII? lines in the blue wind
+    (4330.50, 4345.33), # Hgamma, mask NIII/SIII? lines in the blue wind
     (4344.42, 4355.83), #         mask OII lines in the red wing
     (4083.20, 4085.50), # Hdelta, mask metal lines
     (4086.29, 4090.53),
@@ -111,11 +111,11 @@ mask_maui_FR = [
     (5017.50, 5019.50), #           mask some Ni I/II lines?
     (4544.00, 4546.00), # HeII 4541, mask AlIII lines
     (4478.87, 4480.20), # MgII 4481, mask the AlIII blend
-    (4128.71, 4130.10), # SiIII 4130
+    (4128.71, 4130.10), # SiII 4130
     (4131.40, 4134.08),
     (4547.40, 4549.00), # SiIII 4552 (remove continuum)
     (4556.00, 4558.90),
     (4576.00, 4581.40), # SiIII 4567 + 4575 (remove continuum)
     (4112.50, 4113.80), # SiIV 4116 (first val should match lmin)
-    (4117.70, 4126.10), # (last val should match lmax)
+    (4117.70, 4124.70), # (last val should match lmax)
 ]
