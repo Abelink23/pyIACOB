@@ -990,8 +990,10 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*', 
     n_pars = [i for i in par_name if i in t1.colnames and i in t2.colnames]
     n_rows, n_cols = even_plot(len(n_pars))
 
-    fig, ax = plt.subplots(n_rows, n_cols, figsize=(12,7.5))
-    fig.subplots_adjust(wspace=0.3, hspace=0.3)
+    plt.style.use('dark_background')
+
+    fig1, ax1 = plt.subplots(n_rows, n_cols, figsize=(12,7.5))
+    fig1.subplots_adjust(wspace=0.3, hspace=0.3)
 
     for i, par in enumerate(n_pars):
         # print the name of the star if the parameter values are outside the MAUI uncertainties
@@ -999,10 +1001,10 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*', 
             outliers = t[abs(t[par+'_t2']-t[par+'_t1']) > dic_maui_uncertainties[par]]['ID'].tolist()
             print(f'Stars with difference in {par} outside uncertainties: {outliers}')
 
-        ax_i = ax.flatten()[i]
+        ax_i = ax1.flatten()[i]
         x = t[par+'_t1']
         y = t[par+'_t2']
-        ax_i.scatter(x, y-x, color='k', s=20, alpha=0.7)
+        ax_i.scatter(x, y-x, color='w', s=20, alpha=0.7)
         ax_i.plot([min(x), max(x)], [0,0], '--', color='b')
         if par in dic_maui_uncertainties:
             ax_i.axhline(dic_maui_uncertainties[par], ls=':', color='r')
@@ -1013,15 +1015,65 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*', 
         ax_i.set_title(par)
         ax_i.tick_params(direction='in', top='on', right='on')
         ax_i.minorticks_on()
-        
+    
+    fig1.suptitle('Comparison between %s (t1) and %s (t2)' % (table_1, table_2), fontsize=10)
+    [fig1.delaxes(ax1.flatten()[i]) for i in np.arange(len(n_pars), len(ax1.flatten()), 1)]
+    fig1.tight_layout()
+    plt.show(block=False)
 
-    [fig.delaxes(ax.flatten()[i]) for i in np.arange(len(n_pars), len(ax.flatten()), 1)]
-    fig.tight_layout()
+    fig2, ax2 = plt.subplots(1, 3, figsize=(12,3.5))
+    fig2.subplots_adjust(wspace=0.3, hspace=0.3)
+    if 'Teff' in t1.colnames and 'logg' in t1.colnames and 'Teff' in t2.colnames and 'logg' in t2.colnames:
+        ax2[0].scatter(t['Teff_t1']-t['Teff_t2'], t['logg_t1']-t['logg_t2'], color='w', s=20)
+        ax2[0].axhline(0, ls='--', color='b'); ax2[0].axvline(0, ls='--', color='b')
+        ax2[0].plot([-dic_maui_uncertainties['Teff'],-dic_maui_uncertainties['Teff'],+dic_maui_uncertainties['Teff'],
+                    +dic_maui_uncertainties['Teff'],-dic_maui_uncertainties['Teff']],\
+                    [-dic_maui_uncertainties['logg'],+dic_maui_uncertainties['logg'],+dic_maui_uncertainties['logg'],
+                    -dic_maui_uncertainties['logg'],-dic_maui_uncertainties['logg']],\
+                    ls=':', color='r')
+        ax2[0].set_xlabel('Teff (t1) - Teff (t2)')
+        ax2[0].set_ylabel('logg (t1) - logg (t2)')
+        ax2[0].tick_params(direction='in', top='on', right='on')
+    else:
+        ax2[0].set_visible(False)
+    
+    if 'He' in t1.colnames and 'Micro' in t1.colnames and 'He' in t2.colnames and 'Micro' in t2.colnames:
+        ax2[1].scatter(t['He_t1']-t['He_t2'], t['Micro_t1']-t['Micro_t2'], color='w', s=20)
+        ax2[1].axhline(0, ls='--', color='b'); ax2[1].axvline(0, ls='--', color='b')
+        ax2[1].plot([-dic_maui_uncertainties['He'],-dic_maui_uncertainties['He'],+dic_maui_uncertainties['He'],
+                    +dic_maui_uncertainties['He'],-dic_maui_uncertainties['He']],\
+                    [-dic_maui_uncertainties['Micro'],+dic_maui_uncertainties['Micro'],+dic_maui_uncertainties['Micro'],
+                    -dic_maui_uncertainties['Micro'],-dic_maui_uncertainties['Micro']],\
+                    ls=':', color='r')
+        ax2[1].set_xlabel('He (t1) - He (t2)')
+        ax2[1].set_ylabel('Micro (t1) - Micro (t2)')
+        ax2[1].tick_params(direction='in', top='on', right='on')
+    else:
+        ax2[1].set_visible(False)
+    
+    if 'Si' in t1.colnames and 'Micro' in t1.colnames and 'Si' in t2.colnames and 'Micro' in t2.colnames:
+        ax2[2].scatter(t['Si_t1']-t['Si_t2'], t['Micro_t1']-t['Micro_t2'], color='w', s=20)
+        ax2[2].axhline(0, ls='--', color='b'); ax2[2].axvline(0, ls='--', color='b')
+        ax2[2].plot([-dic_maui_uncertainties['Si'],-dic_maui_uncertainties['Si'],+dic_maui_uncertainties['Si'],
+                    +dic_maui_uncertainties['Si'],-dic_maui_uncertainties['Si']],\
+                    [-dic_maui_uncertainties['Micro'],+dic_maui_uncertainties['Micro'],+dic_maui_uncertainties['Micro'],
+                    -dic_maui_uncertainties['Micro'],-dic_maui_uncertainties['Micro']],\
+                    ls=':', color='r')
+        ax2[2].set_xlabel('Si (t1) - Si (t2)')
+        ax2[2].set_ylabel('Micro (t1) - Micro (t2)')
+        ax2[2].tick_params(direction='in', top='on', right='on')
+    else:
+        ax2[2].set_visible(False)
+
+    fig2.tight_layout()
     plt.show(block=False)
 
     if save_plot == True:
-        fig.savefig(maindir + 'plots/MAUI/comparison_%s_vs_%s.pdf' % (table_1.split('.')[0], table_2.split('.')[0]), format='pdf')
+        tail_name = (table_1.split('_')[-1].replace('.fits', ''), table_2.split('_')[-1].replace('.fits', ''))
+        fig1.savefig(maindir + 'plots/MAUI/comparison_%s_vs_%s.pdf' % tail_name, format='pdf')
+        fig2.savefig(maindir + 'plots/MAUI/comparison_deltas_%s_vs_%s.pdf' % tail_name, format='pdf')
 
+    plt.style.use('default')
 
 def gen_stars_in_grids(input_table, table_results):
 
