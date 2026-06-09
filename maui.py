@@ -695,7 +695,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
                 # PLOT OF SPECTRAL LINES OUT OF THE IDL SOLUTION FILES
                 if pdflines == 'diag':
-                    mask = [i == 1. for i in star.line_weights]
+                    mask = [i > 0 for i in star.line_weights]
 
                     line_names = np.asarray(star.line_names)[mask].tolist()
                     lines_lwl,lines_rwl = np.asarray(star.line_windows).T
