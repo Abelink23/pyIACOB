@@ -1,7 +1,7 @@
 from turtle import color
 
 from spec_posproc import *
-from scipy.io.idl import readsav
+from scipy.io import readsav
 
 from hardcoded_maui import *
 
@@ -22,41 +22,43 @@ def gen_gridlimits(models_dir=mauidir+'MODELS/'):
     '''
 
     param_dic = {
-    'Teff' : ('Teff_UP','Teff_DW'),
-    'logg' : ('logg_UP','logg_DW'),
-    'lgf' : ('lgf_UP','lgf_DW'),
-    'beta' : ('beta_UP','beta_DW'),
-    'xf' : ('Micro_UP','Micro_DW'),
-    'clf' : ('fcl_UP','fcl_DW'),
-    'vclf' : ('vcl_UP','vcl_DW'),
-    'logqs' : ('logQs_UP','logQs_DW'),
-    'He' : ('He_UP','He_DW'),
-    'C' : ('C_UP','C_DW'),
-    'N' : ('N_UP','N_DW'),
-    'O' : ('O_UP','O_DW'),
-    'Mg' : ('Mg_UP','Mg_DW'),
-    'Si' : ('Si_UP','Si_DW'),
-    'S' : ('S_UP','S_DW'),
-    'Ti' : ('Ti_UP','Ti_DW'),
-    'Fe' : ('Fe_UP','Fe_DW')
+        'Teff' : ('Teff_UP','Teff_DW'),
+        'logg' : ('logg_UP','logg_DW'),
+        'lgf' : ('lgf_UP','lgf_DW'),
+        'beta' : ('beta_UP','beta_DW'),
+        'xf' : ('Micro_UP','Micro_DW'),
+        'fcl' : ('fcl_UP','fcl_DW'),
+        'vcl' : ('vcl_UP','vcl_DW'),
+        'logQs' : ('logQs_UP','logQs_DW'),
+        'He' : ('He_UP','He_DW'),
+        'C' : ('C_UP','C_DW'),
+        'N' : ('N_UP','N_DW'),
+        'O' : ('O_UP','O_DW'),
+        'Mg' : ('Mg_UP','Mg_DW'),
+        'Si' : ('Si_UP','Si_DW'),
+        'S' : ('S_UP','S_DW'),
+        'Ti' : ('Ti_UP','Ti_DW'),
+        'Fe' : ('Fe_UP','Fe_DW')
     }
 
     param_other = {
-    'micro' : 'xf',
-    'HE' : 'He',
-    'CARB' : 'C',
-    'NIT' : 'N',
-    'OXY' : 'O',
-    'MAG' : 'Mg',
-    'SUL' : 'S',
-    'TIT' : 'Ti',
-    'IRON' : 'Fe'
+        'vclf': 'vcl',
+        'clf' : 'fcl',
+        'logqs' : 'logQs',
+        'micro' : 'xf',
+        'HE' : 'He',
+        'CARB' : 'C',
+        'NIT' : 'N',
+        'OXY' : 'O',
+        'MAG' : 'Mg',
+        'SUL' : 'S',
+        'TIT' : 'Ti',
+        'IRON' : 'Fe'
     }
 
     data_rows = []
     for file in os.listdir(models_dir):
-        print(file)
-        if not file.startswith('._') and file.endswith('.idl'):
+        if not file.startswith('.') and file.endswith('.idl'):
             soldata = readsav(models_dir+file)
 
             data_row = []; data_row.extend([file.split('.idl')[0]])
@@ -68,7 +70,8 @@ def gen_gridlimits(models_dir=mauidir+'MODELS/'):
 
             # To fix for the B8-As grid with different param labels:
             for i,par_name in zip(range(len(parameters)),parameters):
-                if par_name in param_other: parameters[i] = param_other[par_name]
+                if par_name in param_other:
+                    parameters[i] = param_other[par_name]
 
             for par_name in param_dic:
 
@@ -98,6 +101,9 @@ def gen_gridlimits(models_dir=mauidir+'MODELS/'):
 
                 else:
                     data_row.extend([soldata.param[idx].max(),soldata.param[idx].min()])
+
+            # if the row has floats, round it to 3 decimals:
+            data_row = [round(i,3) if type(i) in [float,np.float32,np.float64] else i for i in data_row]
 
             data_rows.append(tuple(data_row))
 
