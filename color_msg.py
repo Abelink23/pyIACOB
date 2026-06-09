@@ -54,10 +54,10 @@ class msg:
         print(f"{self.BOLD}{self.UNDER}{color_code}{text}{self.END}")
 
     def info(self, text: str):
-        print(f"{self.INFO}{text}{self.END}")
+        print(f"{self.INFO}INFO: {text}{self.END}")
     
     def warn(self, text: str):
-        print(f"{self.WARN}{text}{self.END}")
-    
+        print(f"{self.WARN}WARNING: {text}{self.END}")
+
     def error(self, text: str):
-        print(f"{self.ERROR}{text}{self.END}")
+        print(f"{self.ERROR}ERROR: {text}{self.END}")
