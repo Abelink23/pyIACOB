@@ -515,7 +515,8 @@ class solution_maui():
 
 
 def maui_results(input_list, output_dir, check_best=False, last_only=False, solution='max', FR=False,
-    do_logg=False, do_pdf=False, pdflines='diag', grid_only=[], output_table=True, format_table='fits'):
+    do_logg=False, do_pdf=False, pdflines='diag', grid_only=[], output_table=True, format_table='fits',
+    black_theme=False):
 
     '''
     Function to generate a table with the results from MAUI given an input table
@@ -568,6 +569,9 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
     format_table : str, optional
         Enter the output format for the table: 'fits' (default), 'ascii' or 'csv'.
 
+    black_theme : boolean, optional
+        If True, the plots will be generated with a black background. Default is False.
+
     Returns
     -------
     Nothing but the output table (+PDFs) with the MAUI results are generated.
@@ -602,6 +606,9 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
     else:
         stars = input_list.split(',')
 
+    # Sort the list of stars by name
+    stars = sorted(stars)
+
     # Set the progress bar
     bar = pb.ProgressBar(maxval=len(stars),
                          widgets=[pb.Bar('=','[',']'),' ',pb.Percentage(),' ',pb.ETA()])
@@ -611,6 +618,8 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
     if do_pdf == True:
 
         from matplotlib.backends.backend_pdf import PdfPages
+        if black_theme == True:
+            plt.style.use('dark_background')
 
         if not os.path.exists(output_dir + 'plots/'):
             os.makedirs(output_dir + 'plots/')
@@ -696,19 +705,18 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                 # PLOT OF SPECTRAL LINES OUT OF THE IDL SOLUTION FILES
                 if pdflines == 'diag':
                     mask = [i > 0 for i in star.line_weights]
-
                     line_names = np.asarray(star.line_names)[mask].tolist()
                     lines_lwl,lines_rwl = np.asarray(star.line_windows).T
                     lines_lwl = np.asarray(lines_lwl)[mask].tolist()
                     lines_rwl = np.asarray(lines_rwl)[mask].tolist()
                     line_colors = ['g']*len(line_names)
 
-                elif pdflines == 'all':
+                elif pdflines == 'all' or pdflines == '*':
                     line_names = star.line_names
                     lines_lwl,lines_rwl = np.asarray(star.line_windows).T
                     #lines_lwl = np.asarray(lines_lwl).tolist()
                     #lines_rwl = np.asarray(lines_rwl).tolist()
-                    line_colors = ['g' if i == 1 else 'r' for i in star.line_weights]
+                    line_colors = ['g' if i > 0 else 'r' for i in star.line_weights]
 
                 elif pdflines == 'def' or pdflines == 'default':
                     line_names = [
@@ -717,7 +725,6 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                         'SiIV 4116','SiIII 4552','SiIII 4568/75','SiII 6347',
                         'NII 3995','CII 4267','OII 4662','MgII 4881',
                         ]
-
                     lines_lamb = [
                         4101.735,4340.463,4861.325,6562.8,
                         5015.678,5875.62,4541.591,5411.52,
@@ -726,7 +733,6 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
                     lines_lwl = [i-10 for i in lines_lamb]
                     lines_rwl = [i+10 for i in lines_lamb]
-
                     line_colors = ['g']*len(line_names)
 
                 else:
@@ -805,6 +811,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
                     ax_i.set_title(line_name)
                     ax_i.tick_params(direction='in', top='on', right='on')
+                    ax_i.minorticks_on()
 
                 [fig.delaxes(axs[i]) for i in np.arange(len(line_names), len(axs), 1)]
 
@@ -852,26 +859,29 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                     axs[j].hist(chain, bins=np.arange(min(chain), max(chain) + fd_bin, fd_bin),
                         weights=weights, histtype='stepfilled', fc='gray', ec='g', lw=1, alpha=0.6)
 
-                    ylim = axs[j].get_ylim()[1]
+                    par_val = getattr(star, parameters[j])
 
                     # plot the values of sol_max and the hdp intervals
-                    axs[j].plot([getattr(star, parameters[j])]*2, [0,ylim], '--', c='r', label='sol_%s + HDP' % solution)
+                    axs[j].axvline(par_val, ls='--', c='r', label='sol_%s + HDP' % solution)
 
                     if not 'd' in getattr(star, 'l_'+parameters[j]):
-                        axs[j].plot([getattr(star, parameters[j])-getattr(star, parameters[j]+'_eDW')]*2, [0,ylim*.8], ':', lw=2, c='r')
-                        axs[j].plot([getattr(star, parameters[j])+getattr(star, parameters[j]+'_eUP')]*2, [0,ylim*.8], ':', lw=2, c='r')
+                        axs[j].axvline(par_val-getattr(star, parameters[j]+'_eDW'), ls=':', lw=2,c='r')                        
+                        axs[j].axvline(par_val+getattr(star, parameters[j]+'_eUP'), ls=':', lw=2, c='r')
 
                     # plot the median and the IQR intervals
-                    axs[j].plot([np.median(chain),np.median(chain)], [0,ylim], '--', c='orange', label='median + IQR')
-                    axs[j].plot([iqr[0],iqr[0]], [0,ylim*.8], ':', c='orange')
-                    axs[j].plot([iqr[1],iqr[1]], [0,ylim*.8], ':', c='orange')
+                    axs[j].axvline(np.median(chain), ls='--', c='orange', label='median + IQR')
+                    axs[j].axvline(iqr[0], ls=':', c='orange')
+                    axs[j].axvline(iqr[1], ls=':', c='orange')
 
                     # add the legend
                     if j == 0:
                         fig.legend(fontsize=8, loc='upper left', handlelength=3)
 
-                    axs[j].set_title(parameters[j], fontsize=8)
+                    # add parameter in bold  and the sol_ and median to the title
+                    axs[j].set_title(r"$\bf{%s}$ -- sol_%s = %.5f, median = %.5f" % (parameters[j],\
+                        solution, par_val, np.median(chain)), fontsize=8)
                     axs[j].tick_params(direction='in', top='on')
+                    axs[j].minorticks_on()
 
                 [fig.delaxes(axs[i]) for i in np.arange(len(parameters), len(axs), 1)]
 
@@ -884,6 +894,9 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
     if do_pdf == True:
         pdf_solution.close()
         pdf_makchain.close()
+
+    if black_theme == True:
+        plt.style.use('default')
 
     bar.finish()
 
@@ -933,7 +946,8 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
     return None
 
 
-def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*', save_plot=False):
+def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*', exclude=None,
+                    save_plot=False):
     '''
     Function to compare the results of two tables containing the results of MAUI analyses.
 
@@ -955,6 +969,9 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*', 
         Name of the parameter to compare.
         Default is '*' to compare all parameters in common between the two tables.
 
+    exclude : list, optional
+        List of stars to exclude from the comparison. Default is None.
+
     save_plot : bool, optional
         Whether to save the plot. Default is False.
 
@@ -974,6 +991,10 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*', 
     if len(t) == 0:
         print('ERROR: No common IDs between the two tables. Exiting...')
         return None
+
+    if exclude is not None and type(exclude) == str:
+        exclude = exclude.split(',')
+        t = t[~np.isin(t['ID'], exclude)]
 
     if par_name == '*':
         par_name = [i for i in t1.colnames if i in t2.colnames and 
@@ -998,8 +1019,9 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*', 
     for i, par in enumerate(n_pars):
         # print the name of the star if the parameter values are outside the MAUI uncertainties
         if par in dic_maui_uncertainties:
-            outliers = t[abs(t[par+'_t2']-t[par+'_t1']) > dic_maui_uncertainties[par]]['ID'].tolist()
-            print(f'Stars with difference in {par} outside uncertainties: {outliers}')
+            outliers = t[abs(t[par+'_t2']-t[par+'_t1']) > 1.5*dic_maui_uncertainties[par]]['ID'].tolist()
+            if len(outliers) > 0:
+                print(f'Stars with difference in {par} outside uncertainties: {outliers}')
 
         ax_i = ax1.flatten()[i]
         x = t[par+'_t1']
