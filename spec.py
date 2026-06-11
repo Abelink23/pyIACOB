@@ -59,7 +59,7 @@ class spec():
 
         if type(spectrum) == list:
             if len(spectrum) > 1:
-                print('Problem in spec(): More than one spectrum selected.\nExiting...')
+                print(msg.error('Problem in spec(): More than one spectrum found.\nExiting...'))
                 return None
             else: spectrum = spectrum[0]
 
@@ -77,12 +77,12 @@ class spec():
             # So far the search function only returns the first match
 
         if self.fullpath is None:
-            print('Problem in spec(): No spectrum found.\nExiting...')
+            print(msg.error('Problem in spec(): No spectrum found.\nExiting...'))
             return None
 
         if self.orig == 'IACOB':
             if len(self.fullpath) > 1:
-                print('Problem in spec(): More than one spectrum selected.\nExiting...')
+                print(msg.error('Problem in spec(): More than one spectrum for %s found. Exiting...' % spectrum))
                 return None
             else:
                 self.fullpath = self.fullpath[0]
@@ -1265,7 +1265,7 @@ class spec():
         return None
 
 
-    def plotspec(self, lwl=3700, rwl=8000, lines=None, ylim=None):
+    def plotspec(self, lwl=3700, rwl=8000, lines=None, ylim=None, lw=.5):
 
         '''
         Function to create a plot of a portion of the spectra and optionally overplot
@@ -1281,10 +1281,13 @@ class spec():
 
         lines : str, optional
             Use to overplot position of spectral lines. Current options are:
-            ALL, ALLOB, 35-10K, 35K, 30K, 25K, 20K, 15K, 10K
+            ALLOB (recommended), ALL, 35-10K, 35K, 30K, 25K, 20K, 15K, 10K
 
         ylim : tuple/list, optional
             Sets the y-limits for the plot. Input must be like "[ymin,ymax]".
+
+        lw : float, optional
+            Sets the line width for the spectrum plot. Default is 0.5.
 
         Returns
         -------
@@ -1358,7 +1361,7 @@ class spec():
                 # depth line mask = depth deepest line
                 plt.text(line['wl_air'],1.004-depth, line['spc'], c=c, size=6, rotation=-90, clip_on=True)
 
-        plt.plot(self.wave[mask], self.flux[mask], lw=.5, label=self.id_star+' '+self.SpC)
+        plt.plot(self.wave[mask], self.flux[mask], lw=lw, label=self.id_star+' '+self.SpC)
         plt.tick_params(direction='in', top='on')
         plt.gca().xaxis.set_minor_locator(AutoMinorLocator())
         plt.gca().yaxis.set_minor_locator(AutoMinorLocator())
