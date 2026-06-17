@@ -51,14 +51,16 @@ dic_maui_uncertainties = {
 'beta': 0.41,
 'He': 0.02,
 'Micro': 1.5,
-'Si': 0.08
+'Si': 0.08,
+'C': 0.15, # TEMPORARY
+'N': 0.15, # TEMPORARY
+'O': 0.15, # TEMPORARY
 }
 
-# Define the regions used with weight=1 that are evaluated in the chi2 calculation.
-# They must match the exact use_defined_model_fitness.pro used in the analysis.
-# If only a region within the window is used, then the rest of the window has weight 0.
-# In this case, I add -0.1 and +0.1 to the window limits defined in '*_lines_for_chi2_*'
-# Otherwise I specify the exact region with weight 1 within the window.
+# Define with tuples the wavelength regions to be masked in the chi2 calculation.
+# They must match those you put in user_defined_model_fitness.pro for your analysis.
+# If only a region within the window is used (the rest has weight 0) you have to
+# put the left_edge-0.1 and right_edge+0.1 for the edges defined in '*_lines_for_chi2_*'
 mask_maui_SR = [
     (6521.00, 6532.00), # Halpha, mask NII lines in the blue wing [??]
     (6575.75, 6585.29), #         mask CII lines in the red wing
@@ -89,6 +91,12 @@ mask_maui_SR = [
     (4576.00, 4579.32),
     (4112.50, 4113.80), # SiIV 4116 (first val should match lmin)
     (4117.70, 4124.70), # (last val should match lmax)
+    (3922.60, 3923.58), # CII 3920, mask SII line above 3922.60A
+    (4269.40, 4270.00), # CII 4267, mask SII line around 4269.70A
+    (4617.50, 4621.00), # NII 4600, mask CII line not in FW
+    (5009.00, 5010.00), # NII 5000, mask SII line
+    (4511.70, 4513.50), # NIII 4515, mask one unidentified line
+    (4074.00, 4075.25), # OII 4070, mask CII line not in FW
 ]
 
 mask_maui_FR = [
