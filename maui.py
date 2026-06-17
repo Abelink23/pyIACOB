@@ -755,8 +755,8 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                 fig_title = ''
                 for par_name in dic_maui_param:
                     val = getattr(star, par_name)
-                    if np.isnan(val) == True: continue
-
+                    if np.isnan(val) == True:
+                        continue
                     label = getattr(star, 'l_'+par_name)
                     if label == 'd': label = '=d.'
                     if par_name == 'Teff':
@@ -772,13 +772,13 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                 else:
                     axs = ax.flatten()
 
-                for ax_i,line_lwl,line_rwl,line_name,c in zip(axs,lines_lwl,lines_rwl,line_names,line_colors):
+                for j,line_lwl,line_rwl,line_name,c in zip(range(len(line_names)),lines_lwl,lines_rwl,line_names,line_colors):
                     #mask = (star.synwave > line_lwl) & (star.synwave < line_rwl)
                     #ax_i.plot(star.synwave[mask], star.synflux[mask], color='gray', lw=.3)
                     mask = (star.obswave > line_lwl) & (star.obswave < line_rwl)
                     window_wave = star.obswave[mask]
                     window_flux = star.obsflux[mask]
-                    ax_i.plot(window_wave, window_flux, color='k', lw=.7)
+                    axs[j].plot(window_wave, window_flux, color='k', lw=.7)
 
                     weight_mask = np.zeros(window_wave.shape, dtype=bool)
                     if FR == False:
@@ -797,21 +797,21 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                                 /np.sum(star.synconv[mask]*star.synconv[mask]*weight)
                     star.synconv_scaled = scale * star.synconv[mask]
 
-                    ax_i.plot(window_wave, star.synconv_scaled, color=c, ls='--', lw=1)
+                    axs[j].plot(window_wave, star.synconv_scaled, color=c, ls='--', lw=1)
 
-                    if ax_i.get_ylim()[0] > 0.875:
-                        ax_i.set_ylim(bottom=0.875)
-                    if ax_i.get_ylim()[1] < 1.025:
-                        ax_i.set_ylim(top=1.025)
+                    if axs[j].get_ylim()[0] > 0.875:
+                        axs[j].set_ylim(bottom=0.875)
+                    if axs[j].get_ylim()[1] < 1.025:
+                        axs[j].set_ylim(top=1.025)
 
                     # Plot the region with weight = 1
-                    ymean = np.asarray(ax_i.get_ylim()).mean()
+                    ymean = np.asarray(axs[j].get_ylim()).mean()
                     weight = [None if i==0 else ymean for i in weight]
-                    ax_i.plot(window_wave, weight, c='dodgerblue', lw=1, alpha=0.5)
+                    axs[j].plot(window_wave, weight, c='dodgerblue', lw=1, alpha=0.5)
 
-                    ax_i.set_title(line_name)
-                    ax_i.tick_params(direction='in', top='on', right='on')
-                    ax_i.minorticks_on()
+                    axs[j].set_title(line_name)
+                    axs[j].tick_params(direction='in', top='on', right='on')
+                    axs[j].minorticks_on()
 
                 [fig.delaxes(axs[i]) for i in np.arange(len(line_names), len(axs), 1)]
 
@@ -880,7 +880,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                     # add parameter in bold  and the sol_ and median to the title
                     axs[j].set_title(r"$\bf{%s}$ -- sol_%s = %.5f, median = %.5f" % (parameters[j],\
                         solution, par_val, np.median(chain)), fontsize=8)
-                    axs[j].tick_params(direction='in', top='on')
+                    axs[j].tick_params(direction='in', top='on', right='on')
                     axs[j].minorticks_on()
 
                 [fig.delaxes(axs[i]) for i in np.arange(len(parameters), len(axs), 1)]
@@ -1019,7 +1019,7 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*', 
     for i, par in enumerate(n_pars):
         # print the name of the star if the parameter values are outside the MAUI uncertainties
         if par in dic_maui_uncertainties:
-            outliers = t[abs(t[par+'_t2']-t[par+'_t1']) > 1.5*dic_maui_uncertainties[par]]['ID'].tolist()
+            outliers = t[abs(t[par+'_t2']-t[par+'_t1']) > dic_maui_uncertainties[par]]['ID'].tolist()
             if len(outliers) > 0:
                 print(f'Stars with difference in {par} outside uncertainties: {outliers}')
 
