@@ -53,7 +53,7 @@ def load_default_paths(dir_paths_file):
 maindir, datadir, ibdir, mauidir, modeldir, tessdir = load_default_paths('paths.txt')
 
 
-def search(myfile, path):
+def search(myfile, path, silent_search=False):
 
         '''
         Function to search a file within a directory.
@@ -78,10 +78,11 @@ def search(myfile, path):
                     f_dir.append(os.path.join(root, file))
 
         if f_dir == []:
-            msg.error('File %s not found.\n' % myfile)
+            if not silent_search:
+                msg.error('File %s not found.\n' % myfile)
             return None
 
-        elif len(f_dir) > 1:
+        elif len(f_dir) > 1 and not silent_search:
             msg.warn('More than one file found, selecting the first one: %s' % f_dir[0])
 
         return f_dir[0]
@@ -325,7 +326,8 @@ def findlist(list, path=None):
 
 
 def findtable(table, path=None, format=None, delimiter=',', header_start=None,
-    fits_strip_end=True, fix_missing=False, guess=False, quicklook=False):
+    fits_strip_end=True, fix_missing=False, guess=False, quicklook=False,
+    silent_search=False):
 
     '''
     Function to get the data from a table with different formats.
@@ -362,6 +364,10 @@ def findtable(table, path=None, format=None, delimiter=',', header_start=None,
     quicklook : boolean, optional
         If 'True' it will show the table in the web browser. Default is 'False'.
 
+    silent_search : boolean, optional
+        If 'True' it will not print any message if the file is not found of more
+        than one file is found. Default is 'False'.
+
     Returns
     -------
     Data in table, in table format.
@@ -376,7 +382,7 @@ def findtable(table, path=None, format=None, delimiter=',', header_start=None,
         elif os.name == 'posix':
             path = path.replace('\\', '/')
 
-    table_dir = search(table, path)
+    table_dir = search(table, path, silent_search=silent_search)
 
     if table_dir == None:
         return None
@@ -389,7 +395,7 @@ def findtable(table, path=None, format=None, delimiter=',', header_start=None,
         if fits_strip_end == True:
             to_strip = [i for i in data.colnames if data.dtype[i].type in [np.str_,np.bytes_]]
             for col in to_strip:
-                 data[col] = [i.strip() if np.ma.is_masked(i) == False else i for i in data[col]]
+                data[col] = [i.strip() if np.ma.is_masked(i) == False else i for i in data[col]]
 
     elif header_start != None:
         data = ascii.read(table_dir, header_start=header_start, format=format, delimiter=delimiter, guess=guess)
