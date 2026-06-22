@@ -114,10 +114,10 @@ class spec():
         '''
 
         try:
-            query = Simbad.query_object(self.id_star)
+            query = query_Simbad(self.id_star)
             if query is None and 'HD' in self.id_star:
                 new_id_star = self.id_star.replace('HD', 'HD ')
-                query = Simbad.query_object(new_id_star)
+                query = query_Simbad(new_id_star)
             self.SpC = query['sp_type'][0]
             #self.otypes = query['otypes.otype'][0]
 
@@ -1227,7 +1227,7 @@ class spec():
         Nothing, but the plots are generated.
         '''
 
-        if self.orig != 'synthetic':
+        if self.orig != 'synthetic' and self.SpC != '':
             self.get_spc()
 
         lines,elements,_ = findlines(lines)
@@ -1294,7 +1294,7 @@ class spec():
         Nothing, but the plots are generated.
         '''
 
-        if self.orig != 'synthetic':
+        if self.orig != 'synthetic' and self.SpC == '':
             self.get_spc()
 
         if lwl < min(self.wave):
