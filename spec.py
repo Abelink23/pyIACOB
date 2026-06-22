@@ -19,7 +19,8 @@ plt.rc('xtick', direction='in', top=True)
 plt.rc('ytick', direction='in', right=True)
 
 class spec():
-    def __init__(self, spectrum, snr=0, rv0=0, offset=0, cut_edges=False, orig='IACOB', delimiter=' '):
+    def __init__(self, spectrum, snr=0, rv0=0, offset=0, cut_edges=False, orig='IACOB', delimiter=' ',
+                 outside_dir=''):
 
         '''
         Parameters
@@ -55,6 +56,10 @@ class spec():
         delimiter : str, optional
             Delimiter used in the txt file to separate lambda/wavelength and flux.
             This is valid only if orig='txt'. Default is ' '.
+
+        outside_dir : str, optional
+            If the spectrum is outside the datadir, enter the path to the folder where
+            the spectrum is located. Default is '' (i.e., "dissabled").
         '''
 
         if type(spectrum) == list:
@@ -73,8 +78,11 @@ class spec():
         if self.orig == 'IACOB':
             self.fullpath = findstar(spectrum, snr=snr)
         elif self.orig == 'ascii' or self.orig == 'synthetic':
-            self.fullpath = search(spectrum, datadir + 'ASCII' + os.sep)
-            # So far the search function only returns the first match
+            if outside_dir == '':
+                #! So far the search function only returns the first match
+                self.fullpath = search(spectrum, datadir + 'ASCII' + os.sep)
+            else:
+                self.fullpath = search(spectrum, outside_dir)
 
         if self.fullpath is None:
             print(msg.error('Problem in spec(): No spectrum found.\nExiting...'))
@@ -94,15 +102,14 @@ class spec():
             (self.orig in ['ascii','synthetic'] and any([i in self.filename for i in ['_V','_R']])):
             self.resolution = int(re.split(r'(\d*\d+)',self.filename)[-2])
         else:
-            self.resolution = 5000
-            msg.warn('Resolution not found in filename. Assuming R5000.')
+            self.resolution = np.nan
+            msg.warn('Resolution not found in filename. Set to NaN.')
 
         self.offset = offset # Note, run self.waveflux to apply offset.
 
         self.rv0 = rv0 # Note, run self.waveflux to apply the correction.
 
         self.SpC = '' # Spectral classification
-
         self.waveflux(cut_edges=cut_edges, delimiter=delimiter)
 
 
@@ -230,8 +237,8 @@ class spec():
             hdu.close()
 
         elif self.orig == 'ascii' or self.orig == 'synthetic':
-
-            data = findtable(self.filename, path=self.fullpath.replace(self.filename,''), delimiter=delimiter, format='basic')
+            data = findtable(self.filename, path=self.fullpath.replace(self.filename,''),
+                            delimiter=delimiter, format='basic', silent_search=True)
 
             wl_keywords = ['wave','wavelength','lambda','lamb','ang','angstroms']
             idx_wl = next((i for i, item in enumerate(data.colnames) if item.lower() in wl_keywords), None)
@@ -255,7 +262,7 @@ class spec():
             self.vbar = 0
             self.hjd  = 0
 
-            if self.orig != 'synthetic':
+            if self.orig == 'IACOB':
                 self.get_spc()
 
         # Apply the radial velocity correction (if provided)
@@ -1294,7 +1301,7 @@ class spec():
         Nothing, but the plots are generated.
         '''
 
-        if self.orig != 'synthetic' and self.SpC == '':
+        if self.orig == 'IACOB' and self.SpC == '':
             self.get_spc()
 
         if lwl < min(self.wave):
