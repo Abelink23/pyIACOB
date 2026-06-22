@@ -64,7 +64,7 @@ dic_maui_uncertainties = {
 mask_maui_SR = [
     (6521.00, 6532.00), # Halpha, mask NII lines in the blue wing [??]
     (6575.75, 6585.29), #         mask CII lines in the red wing
-    (4330.50, 4345.33), # Hgamma, mask NIII/SIII? lines in the blue wind
+    (4330.50, 4335.33), # Hgamma, mask NIII/SIII? lines in the blue wind
     (4344.42, 4355.83), #         mask OII lines in the red wing
     (4083.20, 4085.50), # Hdelta, mask metal lines
     (4086.29, 4090.53),
