@@ -1278,7 +1278,7 @@ class spec():
         Nothing, but the plots are generated.
         '''
 
-        if self.orig != 'synthetic' and self.SpC != '':
+        if self.orig != 'IACOB' and self.SpC == '':
             self.get_spc()
 
         lines,elements,_ = findlines(lines)
@@ -1296,7 +1296,8 @@ class spec():
                 plt.xticks([round(line - width/3, 1),round(line, 1),round(line + width/3, 1)])
                 plt.title(element, fontsize=6, pad=1)
 
-            plt.plot(self.wave[mask], self.flux[mask], lw=.5, label=self.id_star+' '+self.SpC)
+            plt.plot(self.wave[mask], self.flux[mask], lw=lw, c=c, alpha=alpha,
+                        label=self.id_star+' '+self.SpC)
             plt.tick_params(direction='in', top='on')
             plt.gca().xaxis.set_minor_locator(AutoMinorLocator())
             plt.gca().yaxis.set_minor_locator(AutoMinorLocator())
@@ -1332,7 +1333,7 @@ class spec():
 
         lines : str, optional
             Use to overplot position of spectral lines. Current options are:
-            ALLOB/OB (recommended), ALL, 35-10K, 35K, 30K, 25K, 20K, 15K, 10K
+            all_OB/OB (recommended), all, 35-10k, 35k, 30k, 25k, 20k, 15k, 10k
 
         ylim : tuple/list, optional
             Sets the y-limits for the plot. Input must be like "[ymin,ymax]".
@@ -1372,13 +1373,13 @@ class spec():
             if self.rv0 == 0:
                 print('Spectrum not corrected from RV, lines will have offset.')
 
-            if  lines.upper() in ['ALL']:
-                table = findtable('ALL_all.txt', delimiter=',', path=maindir+'lists/lines/atlas_lines/')
+            if  lines.lower() in ['all']:
+                table = findtable('all.txt', delimiter=',', path=maindir+'lists/lines/atlas_lines/')
                 table = table[table['-lg(gf)'] > -1]
-            elif lines.upper() in ['ALLOB','OB','OBS']:
-                table = findtable('ALL_OBs_n4+.txt', delimiter=',', path=maindir+'lists/lines/atlas_lines/')
+            elif lines.lower() in ['all_ob','all_obs','all_ob','ob','obs']:
+                table = findtable('all_OBs.txt', delimiter=',', path=maindir+'lists/lines/atlas_lines/')
                 table = table[table['-lg(gf)'] > -1]
-            elif lines.upper() in ['35-10K','35K','30K','25K','20K','15K','10K']:
+            elif lines.lower() in ['35-10k','35k','30k','25k','20k','15k','10k']:
                 table = findtable('%s.fits' % lines, path=maindir+'lists/lines/atlas_lines/')
                 # www.lsw.uni-heidelberg.de/projects/hot-stars/websynspec.php
             elif '.txt' in lines or '.lst' in lines:
