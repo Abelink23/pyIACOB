@@ -222,8 +222,8 @@ def maui_input(table, table_IB='IB_results.fits', output_name='MAUI_input',
         SNR_B = star.snrcalc('B')
 
         if str(match_IB['Ref_file'][0].split('.fits')[0]) not in star.filename:
-            msg.warn('Different files from best SNR and from IB results for %s' % id)
-            msg.warn(star.filename,' vs ',match_IB['Ref_file'][0])
+            msg.warn('Different files from best SNR and from IB results for %s\n %s vs %s'\
+                % (source, star.filename, match_IB['Ref_file'][0]))
             if ascii == True:
                 do_file = input('Which ascii do you want to create 1 or 2: ')
                 if int(do_file) == 1: star.filename = star.filename
@@ -290,7 +290,9 @@ def maui_input(table, table_IB='IB_results.fits', output_name='MAUI_input',
     if ascii == True:
         print('Remember to move the new ascii into "ASCII_ARCHIVE" folder')
 
-    return 'DONE'
+    msg.info('MAUI input file %s.txt generated!' % output_name)
+
+    return None
 
 
 def split_MAUI_input(path_to_file, number_per_file=10):
@@ -515,8 +517,8 @@ class solution_maui():
 
 
 def maui_results(input_list, output_dir, check_best=False, last_only=False, solution='max', FR=False,
-    do_logg=False, do_pdf=False, pdflines='diag', grid_only=[], output_table=True, format_table='fits',
-    black_theme=False):
+    do_logg=False, do_local_norm=True, do_pdf=False, pdflines='diag', grid_only=[], 
+    output_table=True, format_table='fits', black_theme=False):
 
     '''
     Function to generate a table with the results from MAUI given an input table
@@ -550,6 +552,9 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
     do_logg : boolean, optional
         If True, the logg is calculated from the Teff and lgf values replacing 'lgf' in the
         output plots. Default is False.
+
+    do_local_norm : boolean, optional
+        If True, the local normalization is applied to the synthetic spectra. Default is True.
 
     do_pdf : boolean, optional
         If True, a pdf comparing the synthetic diagnostic lines with the original is made.
@@ -605,6 +610,10 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
     # Create the input list from a string with one ID or IDs separated by coma
     else:
         stars = input_list.split(',')
+
+    # print info of the keywords used for the output
+    msg.info('Using: do_logg: %s, do_local_norm: %s, solution: %s, FR: %s, pdflines: %s, grid_only: %s' % \
+        (do_logg, do_local_norm, solution, FR, pdflines, grid_only))
 
     # Sort the list of stars by name
     stars = sorted(stars)
@@ -793,9 +802,10 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
                     # This is a visual trick to place the synthetic spectra where it really is ifthe
                     # normalization option is used, as this is not stored in the solution*.idl file
-                    scale = np.sum(window_flux*star.synconv[mask]*weight)\
-                                /np.sum(star.synconv[mask]*star.synconv[mask]*weight)
-                    star.synconv_scaled = scale * star.synconv[mask]
+                    if do_local_norm == True:
+                        scale = np.sum(window_flux*star.synconv[mask]*weight)\
+                                    /np.sum(star.synconv[mask]*star.synconv[mask]*weight)
+                        star.synconv_scaled = scale * star.synconv[mask]
 
                     axs[j].plot(window_wave, star.synconv_scaled, color=c, ls='--', lw=1)
 
@@ -935,7 +945,8 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
             for par_name in dic_maui_param:
                 if par_name in output.colnames:
                     label = row['l_'+par_name]
-                    if label == 'd': label = '=d.'
+                    if label == 'd':
+                        label = '=d.'
                     val = row[par_name]
                     err_dw = row[par_name+'_eDW']
                     err_up = row[par_name+'_eUP']
@@ -946,7 +957,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
     return None
 
 
-def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*', exclude=None,
+def compare_results(table_1, table_2, path_t1=None, path_t2=None, sigma=1, par_name='*', exclude=None,
                     save_plot=False):
     '''
     Function to compare the results of two tables containing the results of MAUI analyses.
@@ -964,6 +975,10 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*', 
 
     path_t2 : str, optional
         Path to the second table. Default is None.
+
+    sigma : float, optional
+        Times sigma where 1-sigma is the typical uncertainty of the parameters defined in 
+        the hardcoded dictionary. Default is 1.
 
     par_name : str, optional
         Name of the parameter to compare.
@@ -992,6 +1007,12 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*', 
         print('ERROR: No common IDs between the two tables. Exiting...')
         return None
 
+    # remove cases where l_Teff, l_lgf or l_logg are 'd', '<' or '>' in either table
+    for par in ['Teff','lgf','logg']:
+        tmp = t[~((t['l_'+par+'_t1'] != '=') | (t['l_'+par+'_t2'] != '='))]
+        msg.warn('Removing %d stars with degenerated or limit values in %s' % (len(t)-len(tmp), par))
+        t = tmp
+
     if exclude is not None and type(exclude) == str:
         exclude = exclude.split(',')
         t = t[~np.isin(t['ID'], exclude)]
@@ -1003,7 +1024,7 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*', 
                     not i.endswith(('_eUP','_eDW')) and not i.startswith('l_')]
         par_name = [i for i in par_name if i not in ['vsini','vmac']]
     else:
-        par_name = par_name.split(',') if ',' in par_name else [par_name]
+        par_name = par_name.replace(' ', '').split(',') if ',' in par_name else [par_name]
         par_name = [i for i in par_name if i in t1.colnames and i in t2.colnames and 
                     (not np.ma.is_masked(t1[i]) and not np.ma.is_masked(t2[i])) and 
                     not i.endswith(('_eUP','_eDW')) and not i.startswith('l_')]
@@ -1016,10 +1037,12 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*', 
     fig1, ax1 = plt.subplots(n_rows, n_cols, figsize=(12,7.5))
     fig1.subplots_adjust(wspace=0.3, hspace=0.3)
 
+    msg.info('Comparing the following parameters: %s' % ', '.join(n_pars))
+
     for i, par in enumerate(n_pars):
         # print the name of the star if the parameter values are outside the MAUI uncertainties
         if par in dic_maui_uncertainties:
-            outliers = t[abs(t[par+'_t2']-t[par+'_t1']) > dic_maui_uncertainties[par]]['ID'].tolist()
+            outliers = t[abs(t[par+'_t2']-t[par+'_t1']) > sigma*dic_maui_uncertainties[par]]['ID'].tolist()
             if len(outliers) > 0:
                 print(f'Stars with difference in {par} outside uncertainties: {outliers}')
 
@@ -1029,8 +1052,8 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*', 
         ax_i.scatter(x, y-x, color='w', s=20, alpha=0.7)
         ax_i.plot([min(x), max(x)], [0,0], '--', color='b')
         if par in dic_maui_uncertainties:
-            ax_i.axhline(dic_maui_uncertainties[par], ls=':', color='r')
-            ax_i.axhline(-dic_maui_uncertainties[par], ls=':', color='r')
+            ax_i.axhline(sigma*dic_maui_uncertainties[par], ls=':', color='r')
+            ax_i.axhline(-sigma*dic_maui_uncertainties[par], ls=':', color='r')
         
         ax_i.set_xlabel(par + ' (t1)')
         ax_i.set_ylabel(par + ' (t2) - ' + par + ' (t1)')
@@ -1048,10 +1071,11 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*', 
     if 'Teff' in t1.colnames and 'logg' in t1.colnames and 'Teff' in t2.colnames and 'logg' in t2.colnames:
         ax2[0].scatter(t['Teff_t1']-t['Teff_t2'], t['logg_t1']-t['logg_t2'], color='w', s=20)
         ax2[0].axhline(0, ls='--', color='b'); ax2[0].axvline(0, ls='--', color='b')
-        ax2[0].plot([-dic_maui_uncertainties['Teff'],-dic_maui_uncertainties['Teff'],+dic_maui_uncertainties['Teff'],
-                    +dic_maui_uncertainties['Teff'],-dic_maui_uncertainties['Teff']],\
-                    [-dic_maui_uncertainties['logg'],+dic_maui_uncertainties['logg'],+dic_maui_uncertainties['logg'],
-                    -dic_maui_uncertainties['logg'],-dic_maui_uncertainties['logg']],\
+        ax2[0].plot([-sigma*dic_maui_uncertainties['Teff'],-sigma*dic_maui_uncertainties['Teff'],
+                    sigma*dic_maui_uncertainties['Teff'],sigma*dic_maui_uncertainties['Teff'],
+                    -sigma*dic_maui_uncertainties['Teff']],[-sigma*dic_maui_uncertainties['logg'],
+                    sigma*dic_maui_uncertainties['logg'],sigma*dic_maui_uncertainties['logg'],
+                    -sigma*dic_maui_uncertainties['logg'],-sigma*dic_maui_uncertainties['logg']],\
                     ls=':', color='r')
         ax2[0].set_xlabel('Teff (t1) - Teff (t2)')
         ax2[0].set_ylabel('logg (t1) - logg (t2)')
@@ -1062,10 +1086,11 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*', 
     if 'He' in t1.colnames and 'Micro' in t1.colnames and 'He' in t2.colnames and 'Micro' in t2.colnames:
         ax2[1].scatter(t['He_t1']-t['He_t2'], t['Micro_t1']-t['Micro_t2'], color='w', s=20)
         ax2[1].axhline(0, ls='--', color='b'); ax2[1].axvline(0, ls='--', color='b')
-        ax2[1].plot([-dic_maui_uncertainties['He'],-dic_maui_uncertainties['He'],+dic_maui_uncertainties['He'],
-                    +dic_maui_uncertainties['He'],-dic_maui_uncertainties['He']],\
-                    [-dic_maui_uncertainties['Micro'],+dic_maui_uncertainties['Micro'],+dic_maui_uncertainties['Micro'],
-                    -dic_maui_uncertainties['Micro'],-dic_maui_uncertainties['Micro']],\
+        ax2[1].plot([-sigma*dic_maui_uncertainties['He'],-sigma*dic_maui_uncertainties['He'],
+                    sigma*dic_maui_uncertainties['He'],sigma*dic_maui_uncertainties['He'],
+                    -sigma*dic_maui_uncertainties['He']],[-sigma*dic_maui_uncertainties['Micro'],
+                    sigma*dic_maui_uncertainties['Micro'],sigma*dic_maui_uncertainties['Micro'],
+                    -sigma*dic_maui_uncertainties['Micro'],-sigma*dic_maui_uncertainties['Micro']],\
                     ls=':', color='r')
         ax2[1].set_xlabel('He (t1) - He (t2)')
         ax2[1].set_ylabel('Micro (t1) - Micro (t2)')
@@ -1076,10 +1101,11 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, par_name='*', 
     if 'Si' in t1.colnames and 'Micro' in t1.colnames and 'Si' in t2.colnames and 'Micro' in t2.colnames:
         ax2[2].scatter(t['Si_t1']-t['Si_t2'], t['Micro_t1']-t['Micro_t2'], color='w', s=20)
         ax2[2].axhline(0, ls='--', color='b'); ax2[2].axvline(0, ls='--', color='b')
-        ax2[2].plot([-dic_maui_uncertainties['Si'],-dic_maui_uncertainties['Si'],+dic_maui_uncertainties['Si'],
-                    +dic_maui_uncertainties['Si'],-dic_maui_uncertainties['Si']],\
-                    [-dic_maui_uncertainties['Micro'],+dic_maui_uncertainties['Micro'],+dic_maui_uncertainties['Micro'],
-                    -dic_maui_uncertainties['Micro'],-dic_maui_uncertainties['Micro']],\
+        ax2[2].plot([-sigma*dic_maui_uncertainties['Si'],-sigma*dic_maui_uncertainties['Si'],
+                    sigma*dic_maui_uncertainties['Si'],sigma*dic_maui_uncertainties['Si'],
+                    -sigma*dic_maui_uncertainties['Si']],[-sigma*dic_maui_uncertainties['Micro'],
+                    sigma*dic_maui_uncertainties['Micro'],sigma*dic_maui_uncertainties['Micro'],
+                    -sigma*dic_maui_uncertainties['Micro'],-sigma*dic_maui_uncertainties['Micro']],\
                     ls=':', color='r')
         ax2[2].set_xlabel('Si (t1) - Si (t2)')
         ax2[2].set_ylabel('Micro (t1) - Micro (t2)')
