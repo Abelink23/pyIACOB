@@ -59,7 +59,7 @@ class spec():
 
         outside_dir : str, optional
             If the spectrum is outside the datadir, enter the path to the folder where
-            the spectrum is located. Default is '' (i.e., "dissabled").
+            the spectrum is located. Default is '' (i.e., "disabled").
         '''
 
         if type(spectrum) == list:
@@ -172,7 +172,7 @@ class spec():
 
         if self.orig == 'IACOB':
 
-            # Retrieve the key values fron the fits header
+            # Retrieve the key values from the fits header
             hdu = fits.open(self.fullpath)  # Open the fits image file
             hdu.verify('fix')               # Fix possible issues with the keywords
             header0 = hdu[0].header         # Read header of primary extension
@@ -288,7 +288,7 @@ class spec():
         # Cut the spectrum to the desired wavelength range given by lwl and rwl
         if lwl != None and rwl != None:
             if wave[0] > lwl+dlam or wave[-1] < rwl-dlam:
-                msg.warn('Wavelenght limits outside spectrum wavelength range.')
+                msg.warn('Wavelength limits outside spectrum wavelength range.')
             flux = flux[(wave >= lwl-width/2) & (wave <= rwl+width/2)]
             wave = wave[(wave >= lwl-width/2) & (wave <= rwl+width/2)]
 
@@ -1135,10 +1135,12 @@ class spec():
         print('Convolution applied in %.3f seconds.' % (Time.now() - t).sec)
 
 
-    def resamp(self, dlam, lwl=None, rwl=None, method='linear'):
+    def resamp(self, dlam, lwl=None, rwl=None, force_edges=False,method='linear'):
 
         '''
         Function to resample a spectrum into a fixed delta-lambda and wavelength range.
+        Note: the last point of the output wavelength may not match rwl if the difference
+        between lwl and rwl is not an integer multiple of dlam.
 
         Parameters
         ----------
@@ -1153,6 +1155,10 @@ class spec():
             Enter the forced final wavelength to be used during interpolation.
             If None, the original final wavelength will be used.
 
+        force_edges : boolean, optional
+            If True, the first and last points of the output wavelength will be forced
+            to match lwl and rwl respectively. Default is False.
+
         method : str, optional
             Enter the interpolation method to be used. See doc for np.interp1d.
             Default is 'linear'. See interp1d (keyword kind) for more options.
@@ -1162,25 +1168,51 @@ class spec():
         Nothing, but the spectrum (wavelength,flux) is resampled.
         '''
 
-        # Check that the input dlam is either a float or an integrer
+        # Check that the input dlam is either a float or an integer
         if not isinstance(dlam, float) and not isinstance(dlam, int):
-            msg.error('The input delta lambda is not a float or an integrer.')
+            msg.error('The input delta lambda is not a float or an integer.')
             return None
+
+        # Calculate the new delta lambda if applicable
+        if force_edges and (lwl is None or rwl is None):
+            msg.error('If force_edges is True, both lwl and rwl should be provided.')
+            return None
+        elif force_edges and (lwl is not None and rwl is not None):
+            if abs(rwl - lwl) % dlam > 1e-6:
+                # calculate the closest dlam to the input value that best fits the lwl and rwl range
+                dlam = (rwl - lwl) / round((rwl - lwl) / dlam)
+                msg.info('The input delta-lambda is now %.6f to respect the input lwl and rwl values.' % dlam)
 
         self.dlam = dlam
 
         if dlam > np.mean(self.wave)/self.resolution:
-            msg.warn('The new delta lambda implies lossing information...')
+            msg.warn('The new delta lambda implies losing information...')
             #print('dlam/(wavelength/resolution) = ',round(dlam/np.mean(self.wave)/self.resolution, 2))
 
-        if lwl is None or lwl < self.wave[0]:
+        if lwl is None:
             lwl = self.wave[0]
-        if rwl is None or rwl > self.wave[-1]:
+        else:
+            if not force_edges and lwl < self.wave[0]:
+                msg.warn('lwl < wavelength[0]. Use force_edges=True to match the lwl value.')
+                lwl = self.wave[0]
+            elif force_edges:
+                msg.info('I will extrapolate the spectrum to the input initial wavelength value.')
+
+        if rwl is None:
             rwl = self.wave[-1]
+        else:
+            if rwl < lwl:
+                msg.error('rwl < lwl. Please enter valid wavelength limits.')
+                return None
+            if not force_edges and rwl > self.wave[-1]:
+                msg.warn('rwl > wavelength[-1]. Use force_edges=True to match the rwl value.')
+                rwl = self.wave[-1]
+            elif force_edges:
+                msg.info('I will extrapolate the spectrum to the input final wavelength value.')
 
         # Interpolate the spectrum to the new delta lambda / step size
         f = interp1d(self.wave, self.flux, kind=method, fill_value='extrapolate')
-        self.wave = np.arange(lwl, rwl+self.dlam, self.dlam)
+        self.wave =  np.arange(lwl, rwl, dlam)
         self.flux = f(self.wave)
 
 
@@ -1272,7 +1304,7 @@ class spec():
         return None
 
 
-    def plotspec(self, lwl=3700, rwl=8000, lines=None, ylim=None, lw=.5):
+    def plotspec(self, lwl=3700, rwl=8000, lines=None, ylim=None, lw=.5, alpha=1):
 
         '''
         Function to create a plot of a portion of the spectra and optionally overplot
@@ -1309,7 +1341,7 @@ class spec():
         if rwl > max(self.wave):
             rwl = max(self.wave)
 
-        mask = (self.wave > lwl) & (self.wave < rwl)
+        mask = (self.wave >= lwl) & (self.wave <= rwl)
 
         if lines != None:
 
@@ -1368,7 +1400,7 @@ class spec():
                 # depth line mask = depth deepest line
                 plt.text(line['wl_air'],1.004-depth, line['spc'], c=c, size=6, rotation=-90, clip_on=True)
 
-        plt.plot(self.wave[mask], self.flux[mask], lw=lw, label=self.id_star+' '+self.SpC)
+        plt.plot(self.wave[mask], self.flux[mask], lw=lw, label=self.id_star+' '+self.SpC, alpha=alpha)
         plt.tick_params(direction='in', top='on')
         plt.gca().xaxis.set_minor_locator(AutoMinorLocator())
         plt.gca().yaxis.set_minor_locator(AutoMinorLocator())
