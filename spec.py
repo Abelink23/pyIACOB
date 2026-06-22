@@ -18,6 +18,9 @@ from matplotlib.ticker import AutoMinorLocator
 plt.rc('xtick', direction='in', top=True)
 plt.rc('ytick', direction='in', right=True)
 
+
+#+ Spec module version 2.00 (2026-06-22)
+
 class spec():
     def __init__(self, spectrum, snr=0, rv0=0, offset=0, cut_edges=False, orig='IACOB', delimiter=' ',
                  outside_dir=''):
