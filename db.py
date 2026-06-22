@@ -16,8 +16,8 @@ from astropy.coordinates import SkyCoord
 from color_msg import msg
 
 msg = msg()
-msg.bold_under('c','\nWelcome to the pyIACOB package! - v1.21')
-msg.c('developed by Abel de Burgos (2026/05/05)\n')
+msg.bold_under('c','\nWelcome to the pyIACOB package! - v1.22')
+msg.c('developed by Abel de Burgos (2026/06/22)\n')
 
 
 def load_default_paths(dir_paths_file):
