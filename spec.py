@@ -1247,7 +1247,7 @@ class spec():
         return None
 
 
-    def plotline(self, lines, width=10, ylim=None, lw=.5,c=None, alpha=1):
+    def plotline(self, lines, width=10, ylim=None, lw=.5, c=None, alpha=1):
 
         '''
         Function to create a plot around a spectral line or lines.
@@ -1332,7 +1332,7 @@ class spec():
 
         lines : str, optional
             Use to overplot position of spectral lines. Current options are:
-            ALLOB (recommended), ALL, 35-10K, 35K, 30K, 25K, 20K, 15K, 10K
+            ALLOB/OB (recommended), ALL, 35-10K, 35K, 30K, 25K, 20K, 15K, 10K
 
         ylim : tuple/list, optional
             Sets the y-limits for the plot. Input must be like "[ymin,ymax]".
@@ -1372,13 +1372,13 @@ class spec():
             if self.rv0 == 0:
                 print('Spectrum not corrected from RV, lines will have offset.')
 
-            if  lines in ['ALL','all']:
+            if  lines.upper() in ['ALL']:
                 table = findtable('ALL_all.txt', delimiter=',', path=maindir+'lists/lines/atlas_lines/')
                 table = table[table['-lg(gf)'] > -1]
-            elif lines == 'ALLOB':
+            elif lines.upper() in ['ALLOB','OB','OBS']:
                 table = findtable('ALL_OBs_n4+.txt', delimiter=',', path=maindir+'lists/lines/atlas_lines/')
                 table = table[table['-lg(gf)'] > -1]
-            elif lines in ['35-10K','35K','30K','25K','20K','15K','10K']:
+            elif lines.upper() in ['35-10K','35K','30K','25K','20K','15K','10K']:
                 table = findtable('%s.fits' % lines, path=maindir+'lists/lines/atlas_lines/')
                 # www.lsw.uni-heidelberg.de/projects/hot-stars/websynspec.php
             elif '.txt' in lines or '.lst' in lines:
@@ -1409,14 +1409,14 @@ class spec():
                 'Si':'tan', 'Mg':'g', 'Fe':'chocolate', 'Ne':'teal', 'Al':'rosybrown'}
 
             for line in table:
-                try: c = at_color[line['spc'].replace(' ','')[:2]]
-                except: c = 'dimgray'
+                try: c_l = at_color[line['spc'].replace(' ','')[:2]]
+                except: c_l = 'dimgray'
 
                 plt.plot([line['wl_air'],line['wl_air']], [1.008-depth,np.median(self.flux[mask])],
-                c=c, linestyle='dotted', lw=line['width'])
+                c=c_l, linestyle='dotted', lw=line['width'])
 
                 # depth line mask = depth deepest line
-                plt.text(line['wl_air'],1.004-depth, line['spc'], c=c, size=6, rotation=-90, clip_on=True)
+                plt.text(line['wl_air'],1.004-depth, line['spc'], c=c_l, size=6, rotation=-90, clip_on=True)
 
         plt.plot(self.wave[mask], self.flux[mask], lw=lw, label=self.id_star+' '+self.SpC, alpha=alpha, c=c)
         plt.tick_params(direction='in', top='on')
