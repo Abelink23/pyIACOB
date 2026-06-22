@@ -16,14 +16,8 @@ from astropy.coordinates import SkyCoord
 from color_msg import msg
 
 msg = msg()
-
 msg.bold_under('c','\nWelcome to the pyIACOB package! - v1.21')
 msg.c('developed by Abel de Burgos (2026/05/05)\n')
-
-# Simbad
-from astroquery.simbad import Simbad
-Simbad.add_votable_fields("U","B","V","sp_type")
-Simbad.columns_in_output = [i for i in Simbad.columns_in_output if 'coo' not in i.name]
 
 
 def load_default_paths(dir_paths_file):
@@ -762,11 +756,11 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
                 c = SkyCoord(source, unit=u.deg)
 
             try: # The actual query
-                simbad = Simbad.query_region(c, radius=radius*u.arcsec)
+                simbad = query_Simbad(c.ra.deg, c.dec.deg, radius=radius*u.arcsec)
             except: # Retry after 2 seconds
                 time.sleep(2)
                 print('Trying with a larger radius (%i arcsec)' % 2*radius)
-                simbad = Simbad.query_region(c, radius=2*radius*u.arcsec)
+                simbad = query_Simbad(c.ra.deg, c.dec.deg, radius=2*radius*u.arcsec)
 
             try: # For more than one result, takes the first one
                 if len(simbad) > 1: simbad = Table(simbad[0])
@@ -1118,7 +1112,7 @@ def spc_code(spc, sub_class_I=False):
     return round(spt_c,2), round(lc_c,2)
 
 
-def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False):
+def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False, other_names=False):
 
     '''
     Function to query an object in Simbad database.
@@ -1141,16 +1135,34 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False):
         If True, the object types will be also queried. Default is False.
         Note that sometimes this issues some errors.
 
+    other_names : boolean, optional
+        If True, it asks Simbad for all the other names of the source.
+        Default is False.
+
     Returns
     -------
     Queried object in Table format.
     '''
 
-    if otypes is True:
+    # if SIMBAD module is not imported, import it
+    if 'Simbad' not in globals():
+        from astroquery.simbad import Simbad
+        Simbad.add_votable_fields("U","B","V","sp_type")
+        Simbad.columns_in_output = [i for i in Simbad.columns_in_output if 'coo' not in i.name]
+
+    if otypes is True and 'otypes' not in Simbad.columns_in_output:
         Simbad.add_votable_fields('otypes')
         Simbad.columns_in_output = [i for i in Simbad.columns_in_output if i.name not in ['origin', 'otype_txt']]
 
     if name is not None:
+        if other_names is True:
+            simbad = Simbad.query_objectids(name)
+            if len(simbad) > 0:
+                [print(i['ID']) for i in simbad]
+            else:
+                print('No objects found for %s in Simbad.' % name)
+            return None
+        
         # For some reason sometimes adding a whitespace fix some querying issues
         for name_i in [name, name+' ', ' '+name]:
             simbad = Simbad.query_object(name_i)
@@ -1608,7 +1620,7 @@ def fix_fits(list, coords_Simbad=True, radius=60, savepath=''):
 
         if coords_Simbad == True:
 
-            region = Simbad.query_region(RADEC, radius=radius*u.arcsec)
+            region = query_Simbad(ra=RADEC.ra, dec=RADEC.dec, radius=radius*u.arcsec)
 
             if type(region) != type(None):
                 print('From Simbad (querying header RA,DEC):\n-------------------------------------')
@@ -1625,11 +1637,7 @@ def fix_fits(list, coords_Simbad=True, radius=60, savepath=''):
             user = input("Or hit return to continue. Input: ")
 
             if user.startswith('+') and not ':' in user:
-
-                try:
-                    [print(i['ID']) for i in Simbad.query_objectids(user.replace('+',''))]
-                except:
-                    print('No names were found for the input name.')
+                query_Simbad(name=user.replace('+',''), other_names=True)
 
             if ':' in user:
                 try:
