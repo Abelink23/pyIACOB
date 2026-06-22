@@ -19,7 +19,7 @@ plt.rc('xtick', direction='in', top=True)
 plt.rc('ytick', direction='in', right=True)
 
 
-#+ Spec module version 2.00 (2026-06-22)
+#_* Spec module version 2.00 (2026-06-22)
 
 class spec():
     def __init__(self, spectrum, snr=0, rv0=0, offset=0, cut_edges=False, orig='IACOB', delimiter=' ',
@@ -1247,7 +1247,7 @@ class spec():
         return None
 
 
-    def plotline(self, lines, width=10, ylim=None):
+    def plotline(self, lines, width=10, ylim=None, lw=.5,c=None, alpha=1):
 
         '''
         Function to create a plot around a spectral line or lines.
@@ -1263,6 +1263,15 @@ class spec():
 
         ylim : tuple/list, optional
             Sets the y-limits for the plot. Input must be like "[ymin,ymax]".
+
+        lw : float, optional
+            Sets the line width for the spectrum plot. Default is 0.5.
+
+        c : str, optional
+            Sets the color for the spectrum plot. Default is None.
+
+        alpha : float, optional
+            Sets the transparency level for the spectrum plot. Default is 1 (opaque).
 
         Returns
         -------
@@ -1307,7 +1316,7 @@ class spec():
         return None
 
 
-    def plotspec(self, lwl=3700, rwl=8000, lines=None, ylim=None, lw=.5, alpha=1):
+    def plotspec(self, lwl=3700, rwl=8000, lines=None, ylim=None, lw=.5, c=None, alpha=1):
 
         '''
         Function to create a plot of a portion of the spectra and optionally overplot
@@ -1330,6 +1339,12 @@ class spec():
 
         lw : float, optional
             Sets the line width for the spectrum plot. Default is 0.5.
+
+        c : str, optional
+            Sets the color for the spectrum plot. Default is None.
+
+        alpha : float, optional
+            Sets the transparency level for the spectrum plot. Default is 1 (opaque).
 
         Returns
         -------
@@ -1403,7 +1418,7 @@ class spec():
                 # depth line mask = depth deepest line
                 plt.text(line['wl_air'],1.004-depth, line['spc'], c=c, size=6, rotation=-90, clip_on=True)
 
-        plt.plot(self.wave[mask], self.flux[mask], lw=lw, label=self.id_star+' '+self.SpC, alpha=alpha)
+        plt.plot(self.wave[mask], self.flux[mask], lw=lw, label=self.id_star+' '+self.SpC, alpha=alpha, c=c)
         plt.tick_params(direction='in', top='on')
         plt.gca().xaxis.set_minor_locator(AutoMinorLocator())
         plt.gca().yaxis.set_minor_locator(AutoMinorLocator())
