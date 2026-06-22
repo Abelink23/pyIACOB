@@ -16,7 +16,7 @@ modules that facilitate the use these programs either by preparing their input d
 creating summary tables with their results. The current list of supported programs are:
 
 - IACOB-Broad (S. Simón-Díaz & A. Herrero 2013)
-- MAUI (M.A. Urbaneja 2025)
+- MAUI (M.A. Urbaneja 2026)
 
 Created by: Abel de Burgos
 
@@ -59,7 +59,8 @@ NOTE: For the actual models needed in models.py to work, drop me an email and
 - reduction.py contains functions to perform the reduction of the spectra, including
   the data extraction, normalization, and formatting to match the IACOB database format.
 
-- spec.py contains functions that manipulate an input spectrum and plot it.
+- spec.py contains functions that manipulate an input spectrum (in FITS or ASCII format),
+  plot it, make different measurements, and eventually export the new spectrum into a file.
 
 - rv.py contains functions to calculate the radial velocity offset via cross-correlation
   or via input list of lines. It also allows to create RV curves.
@@ -94,8 +95,5 @@ NOTE: For the actual models needed in models.py to work, drop me an email and
 
 # Acknowledgments:
 
-Sergio Simón-Díaz
-Gonzalo Holgado
-Alba Casabuenas
-Carlos Martinez-Sebastian
+Sergio Simón-Díaz, Gonzalo Holgado, Alba Casabuenas, and Carlos Martinez-Sebastian
 
