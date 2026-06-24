@@ -28,7 +28,7 @@ Created by: Abel de Burgos
 - astropy 7.2.0
 - astroquery 0.4.11
 - matplotlib 3.10.8
-- progressbar 2.5
+- progressbar 4.5
 
 # Other Requirements:
 
