@@ -43,13 +43,13 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
         EW threshold value for a line to be considered as detected. Default is 10.
 
     tol : int, optional
-        Sets the tolerance [km/s] to shifting the spectrum in order to fit the lines 
+        Sets the tolerance [km/s] to shifting the spectrum in order to fit the lines
         after being corrected from radial velocity. Default is 100.
 
     orig : str, optional
         If 'IACOB', it assumes that the spectrum comes from the IACOB database.
         If 'txt', it assumes that the spectrum comes from a two-columns file with
-        wavelength and flux with no header in the file. 
+        wavelength and flux with no header in the file.
         If 'syn', it assumes that the spectrum comes from a synthetic spectrum.
         Default is IACOB.
 
@@ -231,7 +231,7 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
 
                 # SNR threshold of a line window for the SNR to be replaced by 100. This is used
                 # to prevent the line properties to be exported if 3/SNR(line) > depth(line)
-                snrcut = 100 
+                snrcut = 100
                 if snr > snrcut:
                     snr_min = snrcut
                 else:
@@ -325,7 +325,7 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='vrg_H', rv_to
 
     rv_func : str, optional
         Choose the function to fit the lines used for the initial RV:
-        'g' Gaussian; 'l' Lorentzian; 'v' Voigt; 'r' Rotational; 
+        'g' Gaussian; 'l' Lorentzian; 'v' Voigt; 'r' Rotational;
         'vr_H' Voigt profile with rotation;
         'vrg_H' (default) Voigt profile with rotation and extra gaussian.
 
@@ -333,14 +333,14 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='vrg_H', rv_to
         Tolerance for a line to be considered for the RV0 calculation.
 
     binarity : bool, optional
-        If True, the function will also make use of the binarity module to help 
+        If True, the function will also make use of the binarity module to help
         you to identify possible binary stars. See binarity.py for more info.
         Default is False.
 
     orig : str, optional
         If 'IACOB', it assumes that the spectrum comes from the IACOB database.
         If 'txt', it assumes that the spectrum comes from a two-columns file with
-        wavelength and flux with no header in the file. 
+        wavelength and flux with no header in the file.
         If 'syn', it assumes that the spectrum comes from a synthetic spectrum.
         Default is IACOB.
 
@@ -473,7 +473,7 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='vrg_H', rv_to
                     except: wid = '-'
 
             plt.close('all')
-            fit = star.fitline(4861.325, width=wid, func=fun, iter=1, fw3414=True, 
+            fit = star.fitline(4861.325, width=wid, func=fun, iter=1, fw3414=True,
                                info=True, outfit=True, plot=True)
 
             if fit['sol'] != 0:
@@ -550,7 +550,7 @@ def auto_measure(lines, table, output_table='new_RVEWFW.fits',
     orig : str, optional
         If 'IACOB', it assumes that the spectrum comes from the IACOB database.
         If 'txt', it assumes that the spectrum comes from a two-columns file with
-        wavelength and flux with no header in the file. 
+        wavelength and flux with no header in the file.
         If 'syn', it assumes that the spectrum comes from a synthetic spectrum.
         Default is IACOB.
 
@@ -589,7 +589,7 @@ def auto_measure(lines, table, output_table='new_RVEWFW.fits',
     if len(lines) < 3: ncols = len(lines)
     else: ncols = 3
 
-    bar = pb.ProgressBar(maxval=len(table),
+    bar = pb.ProgressBar(maxval=len(table), term_width=80, redirect_stdout=True,
                          widgets=[pb.Bar('=','[',']'),' ',pb.Percentage()])
     bar.start()
 
@@ -721,36 +721,36 @@ def auto_measure(lines, table, output_table='new_RVEWFW.fits',
 
 
 def auto_RV(table, snrcut=20, n_max=50, n_min=0, info=False):
-    
+
     '''
     Function to automatically calculate the radial velocity of stars in a table
     using the lines from the rv_Os.lst, rv_Bs.lst and rv_As.lst files.
     The input table must contain a column 'ID' with the name of the stars.
     It has to contain a column 'SpC' or 'SpT' with the spectral type of the star.
     The SpT follows: O9 = 1.9, B1.5 = 2.15, A2 = 3.2, etc.
-    
+
     Parameters
     ----------
     table : str
         Name of the input table contaning the list of stars to analyze.
-    
+
     snrcut : int, optional
         SNR threshold to consider a spectrum for the RV calculation. Default is 20.
-    
+
     n_max : int, optional
         Maximum number of spectra above snrcut used in the RV analysis. Default is 50.
-    
+
     n_min : int, optional
         Minimum number of spectra above snrcut used in the RV analysis. Default is 0.
-    
+
     info : bool, optional
         If True, it will print the information of the individual fittings.
-    
+
     Returns
     -------
     Nothing, but the output files from the rv.RV function are generated.
     '''
-    
+
     # Dictionary to convert spectral types to the list of lines to be fitted
     rv0_dic = {'O' : 'rv_Os.lst', 'B' : 'rv_Bs.lst', 'A' : 'rv_As.lst'}
     rv_dic = {
@@ -769,7 +769,7 @@ def auto_RV(table, snrcut=20, n_max=50, n_min=0, info=False):
         3.1 : 'A1.lst',
         3.2 : 'A2.lst',
         }
-    
+
     # If input table is a string, it will try to find the table in the tables folder
     # if input table is already a table, it will continue
     # if input table is not a string or a table, it will exit
@@ -780,27 +780,27 @@ def auto_RV(table, snrcut=20, n_max=50, n_min=0, info=False):
     else:
         print('Bad input for "table" parameter. Exiting...\n')
         return None
-    
+
     print('Input table: %s' % table)
     ewcut = 50  # Minimum EW to consider a line as detected
     print('Minimum EW to consider a line as detected: %s mA' % ewcut)
     print('SNR threshold for the spectra: %d' % snrcut)
-    
+
     # Initialize the progress bar
     bar = pb.ProgressBar(maxval=len(table),
                          widgets=[pb.Bar('=','[',']'),' ',pb.Percentage()])
     bar.start()
-    
+
     # Begin the loop over the table
     for star,i in zip(table,range(len(table))):
-        
+
         bar.update(i); print('\n')
-        
+
         if 'SpT' in table.colnames and not np.ma.is_masked(star['SpT']):
             spt = round(star['SpT'], 1)
         else:
             spt = round(spc_code(star['SpC'])[0], 1)
-        
+
         if spt < 1.95:
             linesRV0 = rv0_dic['O']
             spt = 1.0
@@ -813,14 +813,14 @@ def auto_RV(table, snrcut=20, n_max=50, n_min=0, info=False):
         else:
             print('\n%s has SpT=%s, skipping...' % (star['ID'], spt))
             continue
-        
+
         print('Adopted spectral type: %.1f \n' % spt)
-        
+
         spec_i = spec(star['ID'], snr='bestHF')
-        
+
         repeat = 'yes'
         while repeat in ['yes','y']:
-            
+
             n = len(findstar(star['ID'], snr=snrcut))
             if n > n_max:
                 print('\nWARNING: %s has %i spectra above SNR=%d (limit is %i)' % (star['ID'], n, snrcut, n_max))
@@ -828,42 +828,42 @@ def auto_RV(table, snrcut=20, n_max=50, n_min=0, info=False):
                 print('\nWARNING: %s has only %i spectra above SNR=%d (limit is %i)' % (star['ID'], n, snrcut, n_min))
                 repeat = 'no'
                 continue
-            
+
             skip = input("%s (%d spec) - Hit return to continue, type 's' to skip, 'q' to quit: " % (star['ID'],n))
             if skip == 's':
                     repeat = 'no'
                     continue
             elif skip == 'q':
                 break
-            
+
             next = 'n'; plt.close('all')
             while next == 'n':
-                
+
                 print('\nShowing the Si III triplet...\n')
                 spec_i.cosmic(zs_cut=1, dmin=0.03)
                 spec_i.plotspec(4510,4600)
-                
+
                 fun = get_input('Choose function to fit between g,r,vr_Z,vrg_Z (default is g): ', 'g', str)
                 wid = get_input('Choose the initial width in angstroms (default is 7): ', 7, float)
                 rv_tol = get_input('Choose the tolerance in km/s (default is 150): ', 150, float)
-                
+
                 plt.close('all')
-                
+
                 spec_i.rv0, eRV0 = RV0(linesRV0, spec_i.filename, ewcut=ewcut, width=wid, tol=rv_tol, func=fun)
-                
+
                 spec_i.waveflux()
                 spec_i.cosmic(zs_cut=1, dmin=0.03)
                 spec_i.plotspec(4510,4600, lines='35-10K')
-                
+
                 next = input("\nContinue to the RV analysis / repeat it [''/'n']: ")
                 plt.close('all')
-            
+
             RV(lines=rv_dic[spt], id_star=star['ID'], snr=snrcut, linesRV0=linesRV0, n_max=n_max,
                linecut=1, ewcut=ewcut, width=wid, tol=rv_tol/3, func=fun, info=info)
-            
+
             repeat = input("\nHit return to continue, type 'y' to repeat [''/yes/y']: ")
             plt.close('all')
-    
+
     print('DONE\n')
     bar.finish()
 
