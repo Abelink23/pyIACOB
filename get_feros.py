@@ -37,7 +37,7 @@ def get_feros(fname, radius=2, program=None, limit=9999):
             return print('Column name not found in the table. Check the column names and try again.')
         sources = findtable(fname)[colname]
 
-    bar = pb.ProgressBar(maxval=len(sources),
+    bar = pb.ProgressBar(maxval=len(sources), term_width=80, redirect_stdout=True,
             widgets=[pb.Bar('=','[',']'),' ',pb.Percentage()])
     bar.start()
 
