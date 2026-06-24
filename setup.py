@@ -69,7 +69,7 @@ packages = [
     'scipy==1.14.1',
     'astropy==7.2',
     'astroquery==0.4.11',
-    'progressbar==2.5',
+    'progressbar2==4.5.0',
     ]
 
 # Loop through packages and check if they are installed
