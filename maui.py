@@ -1,4 +1,4 @@
-from turtle import color
+from matplotlib.pyplot import bar
 
 from spec_posproc import *
 from scipy.io import readsav
@@ -327,7 +327,8 @@ def split_MAUI_input(path_to_file, number_per_file=10):
         new_file.append(line)
         n = n + 1
 
-        # if the last file has less than number_per_file entries, the last lines will be added to the last new file
+        # if the last file has less than number_per_file entries,
+        # the last lines will be added to the last new file
         if len(file) % number_per_file != 0 and m == len(file) // number_per_file:
             number_per_file = number_per_file + len(file) % number_per_file
 
@@ -378,6 +379,10 @@ class solution_maui():
         self.vsini = soldata.obsdat.spectrum[0].VSINI[0]
         self.vmac = soldata.obsdat.spectrum[0].MACRO[0]
 
+        # SNR of the observed spectrum
+        self.snr = soldata.obsdat.spectrum[0].SNR[0].mean()
+        self.snr_input = soldata.obsdat.spectrum[0].SNR_FIX[0]
+
         # Grid used
         self.gridname = soldata.modelgridname.decode()
 
@@ -398,6 +403,12 @@ class solution_maui():
 
         # Delta lambda of spectrum
         self.dx = (soldata.xx_mod[-1]-soldata.xx_mod[0])/len(soldata.xx_mod)
+
+        # Was local normalization applied to the spectrum?
+        if hasattr(soldata.obsdat.spectrum[0], 'do_local_normalization'):
+            self.do_local_norm = True if soldata.obsdat.spectrum[0].do_local_normalization[0] == 1 else False
+        else:
+            msg.warn('do_local_normalization keyword not found in %s. Assuming False.' % solfile)
 
         # Photometric information
         if soldata.phot_prim.dtype in ['int16','int32','float32','float64']:
@@ -444,7 +455,8 @@ class solution_maui():
                     chain_teff = mcmcdata.chain_final.T[idx_tef]*(mcmcdata.xmax[idx_tef] - mcmcdata.xmin[idx_tef]) + mcmcdata.xmin[idx_tef]
                     chain_lgf = mcmcdata.chain_final.T[idx_lgf]*(mcmcdata.xmax[idx_lgf] - mcmcdata.xmin[idx_lgf]) + mcmcdata.xmin[idx_lgf]
 
-                    chain = [(chain_lgf +4*np.log10(chain_teff*1e4) - 16).min(), (chain_lgf +4*np.log10(chain_teff*1e4) - 16).max()]
+                    chain = [(chain_lgf +4*np.log10(chain_teff*1e4) - 16).min()
+                            ,(chain_lgf +4*np.log10(chain_teff*1e4) - 16).max()]
 
             else:
                 sol_max = soldata.solution[0].sol_max[0][idx]
@@ -460,7 +472,8 @@ class solution_maui():
                     chain = [mcmcdata.xmin[idx], mcmcdata.xmax[idx]]
 
             if abs(sol_max - sol_smooth) > 0.10*abs(sol_max):
-                msg.warn('max vs smooth values differ by more than 10%% or parameter %s in %s.' % (par_name, self.filename))
+                msg.warn('max vs smooth values differ by more than 10%% or parameter %s in %s.' % \
+                        (par_name, self.filename))
 
             # logQs is given as logQs-10:
             if par_name == 'logQs':
@@ -488,7 +501,6 @@ class solution_maui():
 
                 else:
                     label, err_dw, err_up = '=', abs(sol_final - hpd_dw), abs(sol_final - hpd_up)
-
             else:
                 # if no mcmc data is available, we cannot check for degeneracy or limits,
                 # so we just provide the solution and the hpd interval as error bars
@@ -517,8 +529,8 @@ class solution_maui():
 
 
 def maui_results(input_list, output_dir, check_best=False, last_only=False, solution='max', FR=False,
-    do_logg=False, do_local_norm=True, do_pdf=False, pdflines='diag', grid_only=[], 
-    output_table=True, format_table='fits', black_theme=False):
+    do_logg=False, do_local_norm=True, do_qflag=False, snr_qflag=90, do_pdf=False, pdflines='diag',
+    grid_only=[], output_table=True, format_table='fits', black_theme=False):
 
     '''
     Function to generate a table with the results from MAUI given an input table
@@ -555,6 +567,14 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
     do_local_norm : boolean, optional
         If True, the local normalization is applied to the synthetic spectra. Default is True.
+
+    do_qflag : boolean, optional
+        If True, a quality flag is added to the output table based on the SNR and the
+        residual of the fit. Default is False.
+
+    snr_qflag : int, optional
+        SNR above which you think that the MAUI analysis is not dependent of the SNR of the
+        input spectra (i.e., it is more limited by the models). Default is 90.
 
     do_pdf : boolean, optional
         If True, a pdf comparing the synthetic diagnostic lines with the original is made.
@@ -619,7 +639,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
     stars = sorted(stars)
 
     # Set the progress bar
-    bar = pb.ProgressBar(maxval=len(stars),
+    bar = pb.ProgressBar(maxval=len(stars), term_width=80, redirect_stdout=True,
                          widgets=[pb.Bar('=','[',']'),' ',pb.Percentage(),' ',pb.ETA()])
     bar.start()
 
@@ -706,10 +726,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                 getattr(star, par_name+'_eDW'),
                 ]) for par_name in dic_maui_param]
 
-            # Append the raw to the table
-            data_rows.append(tuple(data_row))
-
-            if do_pdf == True:
+            if do_pdf == True or do_qflag == True:
 
                 # PLOT OF SPECTRAL LINES OUT OF THE IDL SOLUTION FILES
                 if pdflines == 'diag':
@@ -758,7 +775,6 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                     line_colors = ['g']*len(line_names)
 
                 nrows, ncols = even_plot(len(line_names))
-
                 fig, ax = plt.subplots(nrows, ncols, figsize=(13,8))
 
                 fig_title = ''
@@ -781,33 +797,50 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                 else:
                     axs = ax.flatten()
 
-                for j,line_lwl,line_rwl,line_name,c in zip(range(len(line_names)),lines_lwl,lines_rwl,line_names,line_colors):
-                    #mask = (star.synwave > line_lwl) & (star.synwave < line_rwl)
-                    #ax_i.plot(star.synwave[mask], star.synflux[mask], color='gray', lw=.3)
-                    mask = (star.obswave > line_lwl) & (star.obswave < line_rwl)
-                    window_wave = star.obswave[mask]
-                    window_flux = star.obsflux[mask]
-                    axs[j].plot(window_wave, window_flux, color='k', lw=.7)
+                if do_qflag == True:
+                    qflag = []
 
-                    weight_mask = np.zeros(window_wave.shape, dtype=bool)
+                for j,line_lwl,line_rwl,line_name,c in \
+                    zip(range(len(line_names)),lines_lwl,lines_rwl,line_names,line_colors):
+
+                    #mask_window = (star.synwave > line_lwl) & (star.synwave < line_rwl)
+                    #ax_i.plot(star.synwave[mask_window], star.synflux[mask_window], color='gray', lw=.3)
+                    mask_window = (star.obswave > line_lwl) & (star.obswave < line_rwl)
+                    window_wave = star.obswave[mask_window]
+                    window_flux = star.obsflux[mask_window]
+                    window_synconv = star.synconv[mask_window]
+
+                    # Plot the observed spectrum
+                    if black_theme == True:
+                        axs[j].plot(window_wave, window_flux, color='w', lw=.7)
+                    else:
+                        axs[j].plot(window_wave, window_flux, color='k', lw=.7)
+
+                    mask_weight = np.zeros(window_wave.shape, dtype=bool)
                     if FR == False:
                         for lmin, lmax in mask_maui_SR:
-                            weight_mask |= (window_wave >= lmin) & (window_wave <= lmax)
+                            mask_weight |= (window_wave >= lmin) & (window_wave <= lmax)
                     elif FR == True:
                         for lmin, lmax in mask_maui_FR:
-                            weight_mask |= (window_wave >= lmin) & (window_wave <= lmax)
+                            mask_weight |= (window_wave >= lmin) & (window_wave <= lmax)
 
-                    # Where the condition is True, weight is 0. Otherwise, it's 1.
-                    weight = np.where(weight_mask, 0, 1).tolist()
-
-                    # This is a visual trick to place the synthetic spectra where it really is ifthe
+                    # This is a visual trick to place the synthetic spectra where it really is if the
                     # normalization option is used, as this is not stored in the solution*.idl file
+                    scale = 1.0
                     if do_local_norm == True:
-                        scale = np.sum(window_flux*star.synconv[mask]*weight)\
-                                    /np.sum(star.synconv[mask]*star.synconv[mask]*weight)
-                        star.synconv_scaled = scale * star.synconv[mask]
+                        if hasattr(star, 'do_local_norm') and star.do_local_norm == False:
+                            msg.error('do_local_norm is set to True, but it was not applied to the spectrum according to the solution file. Consider changing it to False.')
+                        # Convert the True/False (TF) mask to 0/1
+                        mask_weight01 = np.where(mask_weight, 0, 1).tolist()
+                        scale = np.sum(window_flux*window_synconv*mask_weight01)/ \
+                                np.sum(window_synconv*window_synconv*mask_weight01)
 
-                    axs[j].plot(window_wave, star.synconv_scaled, color=c, ls='--', lw=1)
+                    if do_qflag == True and c == 'g':
+                        snr = snr_qflag if star.snr > snr_qflag else star.snr
+                        qflag.append(round(1/len(window_wave[~mask_weight]) * \
+                            np.sum(((window_flux[~mask_weight]-window_synconv[~mask_weight])*snr)**2),8))
+
+                    axs[j].plot(window_wave, window_synconv*scale, color=c, ls='--', lw=1.5)
 
                     if axs[j].get_ylim()[0] > 0.875:
                         axs[j].set_ylim(bottom=0.875)
@@ -816,9 +849,9 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
                     # Plot the region with weight = 1
                     ymean = np.asarray(axs[j].get_ylim()).mean()
-                    weight = [None if i==0 else ymean for i in weight]
-                    axs[j].plot(window_wave, weight, c='dodgerblue', lw=1, alpha=0.5)
-
+                    if c == 'g':
+                        plot_weight = [None if i==True else ymean for i in mask_weight]
+                        axs[j].plot(window_wave, plot_weight, c='dodgerblue', lw=1, alpha=0.5)
                     axs[j].set_title(line_name)
                     axs[j].tick_params(direction='in', top='on', right='on')
                     axs[j].minorticks_on()
@@ -875,7 +908,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                     axs[j].axvline(par_val, ls='--', c='r', label='sol_%s + HDP' % solution)
 
                     if not 'd' in getattr(star, 'l_'+parameters[j]):
-                        axs[j].axvline(par_val-getattr(star, parameters[j]+'_eDW'), ls=':', lw=2,c='r')                        
+                        axs[j].axvline(par_val-getattr(star, parameters[j]+'_eDW'), ls=':', lw=2,c='r')
                         axs[j].axvline(par_val+getattr(star, parameters[j]+'_eUP'), ls=':', lw=2, c='r')
 
                     # plot the median and the IQR intervals
@@ -899,6 +932,13 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
                 pdf_makchain.savefig(fig); plt.close(fig)
 
+            # Append the quality flag to the table
+            if do_qflag == True:
+                data_row.extend(qflag)
+
+            # Append the raw to the table
+            data_rows.append(tuple(data_row))
+
         bar.update(i)
 
     if do_pdf == True:
@@ -911,13 +951,17 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
     bar.finish()
 
     # Saving the results:
-    # - Add names for the basic columns
+    # add names for the basic columns
     names = ['ID','filename','Grid_name','BC','BV_0','vsini','vmac']
 
-    # - Add names for the parameter column names
+    # add names for the parameter column names
     for i in range(len(dic_maui_param)):
         names += ['l_'+ list(dic_maui_param.keys())[i],list(dic_maui_param.values())[i],\
                         list(dic_maui_param.values())[i]+'_eUP',list(dic_maui_param.values())[i]+'_eDW']
+
+    # add names for the quality flag columns only if the do_qflag is True and the line_color is 'g'
+    if do_qflag == True:
+        names += ['q_'+i for i in line_names if line_colors[line_names.index(i)] == 'g']
 
     output = Table(rows=data_rows, names=(names))
 
@@ -977,7 +1021,7 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, sigma=1, par_n
         Path to the second table. Default is None.
 
     sigma : float, optional
-        Times sigma where 1-sigma is the typical uncertainty of the parameters defined in 
+        Times sigma where 1-sigma is the typical uncertainty of the parameters defined in
         the hardcoded dictionary. Default is 1.
 
     par_name : str, optional
@@ -1018,15 +1062,15 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, sigma=1, par_n
         t = t[~np.isin(t['ID'], exclude)]
 
     if par_name == '*':
-        par_name = [i for i in t1.colnames if i in t2.colnames and 
-                    i not in ['ID','filename','Grid_name'] and 
-                    (not np.ma.is_masked(t1[i]) and not np.ma.is_masked(t2[i])) and 
+        par_name = [i for i in t1.colnames if i in t2.colnames and
+                    i not in ['ID','filename','Grid_name'] and
+                    (not np.ma.is_masked(t1[i]) and not np.ma.is_masked(t2[i])) and
                     not i.endswith(('_eUP','_eDW')) and not i.startswith('l_')]
         par_name = [i for i in par_name if i not in ['vsini','vmac']]
     else:
         par_name = par_name.replace(' ', '').split(',') if ',' in par_name else [par_name]
-        par_name = [i for i in par_name if i in t1.colnames and i in t2.colnames and 
-                    (not np.ma.is_masked(t1[i]) and not np.ma.is_masked(t2[i])) and 
+        par_name = [i for i in par_name if i in t1.colnames and i in t2.colnames and
+                    (not np.ma.is_masked(t1[i]) and not np.ma.is_masked(t2[i])) and
                     not i.endswith(('_eUP','_eDW')) and not i.startswith('l_')]
 
     n_pars = [i for i in par_name if i in t1.colnames and i in t2.colnames]
@@ -1054,13 +1098,13 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, sigma=1, par_n
         if par in dic_maui_uncertainties:
             ax_i.axhline(sigma*dic_maui_uncertainties[par], ls=':', color='r')
             ax_i.axhline(-sigma*dic_maui_uncertainties[par], ls=':', color='r')
-        
+
         ax_i.set_xlabel(par + ' (t1)')
         ax_i.set_ylabel(par + ' (t2) - ' + par + ' (t1)')
         ax_i.set_title(par)
         ax_i.tick_params(direction='in', top='on', right='on')
         ax_i.minorticks_on()
-    
+
     fig1.suptitle('Comparison between %s (t1) and %s (t2)' % (table_1, table_2), fontsize=10)
     [fig1.delaxes(ax1.flatten()[i]) for i in np.arange(len(n_pars), len(ax1.flatten()), 1)]
     fig1.tight_layout()
@@ -1082,7 +1126,7 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, sigma=1, par_n
         ax2[0].tick_params(direction='in', top='on', right='on')
     else:
         ax2[0].set_visible(False)
-    
+
     if 'He' in t1.colnames and 'Micro' in t1.colnames and 'He' in t2.colnames and 'Micro' in t2.colnames:
         ax2[1].scatter(t['He_t1']-t['He_t2'], t['Micro_t1']-t['Micro_t2'], color='w', s=20)
         ax2[1].axhline(0, ls='--', color='b'); ax2[1].axvline(0, ls='--', color='b')
@@ -1097,7 +1141,7 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, sigma=1, par_n
         ax2[1].tick_params(direction='in', top='on', right='on')
     else:
         ax2[1].set_visible(False)
-    
+
     if 'Si' in t1.colnames and 'Micro' in t1.colnames and 'Si' in t2.colnames and 'Micro' in t2.colnames:
         ax2[2].scatter(t['Si_t1']-t['Si_t2'], t['Micro_t1']-t['Micro_t2'], color='w', s=20)
         ax2[2].axhline(0, ls='--', color='b'); ax2[2].axvline(0, ls='--', color='b')
@@ -1186,7 +1230,7 @@ def phot_table(input_table):
 
     cols = ['Teff','lgf','He','Micro','logQs','beta','C','N','O','Mg','Si','fcl','vcl','Grid_name']
     if any([i not in table.colnames for i in cols]):
-        print(color.error+'missing column names. Exiting...\n' + color.end)
+        msg.error('The input table does not contain all the required columns. Exiting...')
         return None
 
     table['Teff'] = [('%.3f') % i +'d0' for i in table['Teff']]
