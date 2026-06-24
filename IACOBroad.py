@@ -52,7 +52,7 @@ def ib_input(table, folder, old_input=None, new_master=False, orig='IACOB'):
 
     i = 0
 
-    bar = pb.ProgressBar(maxval=len(table),
+    bar = pb.ProgressBar(maxval=len(table), term_width=80, redirect_stdout=True,
                         widgets=[pb.Bar('=','[',']'),' ',pb.Percentage()])
     bar.start()
 
