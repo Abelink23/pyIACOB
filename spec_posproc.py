@@ -5,45 +5,60 @@ from copy import deepcopy
 from matplotlib.backends.backend_pdf import PdfPages
 
 
-def gen_ascii(id, orig='IACOB', db_table=None, spt='auto', lwl=None, rwl=None, rv_corr=True, RV0tol=200, 
-    export_rv=False, cosmetic=False, cosmic=False, lines_cosmic=None, degrade=None, show_plot=False):
+def gen_ascii(id, orig='IACOB', rv_corr=True, rv_method='fitting', rv_tol=200, export_rv=False, spt_table=None, spt='auto',
+              folder_ccf=None, lwl=None, rwl=None, cosmetic=False, cosmic=False, lines_cosmic=None, degrade=None,
+              show_plot=False):
 
     '''
-    Function to generate ascii spectra from the FITS files of the IACOB database, with 
+    Function to generate ascii spectra from the FITS files of the IACOB database, with
     the possibility to apply different corrections to the spectra.
 
     Parameters
     ----------
     id : str
-        Name or filename of the star.
+        Name or filename of the star. If the input is a name, the function will search
+        for the best available spectrum in the IACOB database.
 
     orig : str, optional
         See spec() function for more information. Default is 'IACOB'.
 
-    db_table : str, optional
-        Input table containing information of the spectral type for the star.
-        The table must contain either 'SpT'/'SpT'/'SpC' columns.
+    rv_corr : boolean, optional
+        If True, the output ascii spectrum will be corrected from radial velocity.
+        Default is True.
+
+    rv_method : str, optional
+        If rv_corr is True, choose the method to calculate the radial velocity correction:
+        - 'fitting' : Uses a pre-defined list of lines depending on the spectral type.
+                    --> See spt_table and spt input parameters too.
+        - 'CCF' : Uses a cross-correlation function with a template spectrum.
+                    --> See folder_ccf input parameter too.
+
+    rv_tol: int, optional
+        If rv_corr is True, and rv_method is 'fitting':
+        Enter the input radial velocity tolerance use for discarding bad-fitted lines.
+        Default is 200 km/s. See also "tol" input parameter in rv.RV0() function.
+
+    export_rv : boolean, optional
+        If True and rv_corr also True, then the calculated radial velocity is exported
+        as a table named 'gen_ascii_RVs.txt' with columns 'ID, RV0, eRV0'
 
     spt : str, optional
         Input spectral type of the star. If 'auto' (default), it takes it from either the
-        db_table or the fits file. Otherwise enter an input type (e.g. B4Ia).
+        spt_table or the fits file. Otherwise enter an input type (e.g. B4Ia).
+
+    spt_table : str, optional
+        Input table containing information of the spectral type for the star.
+        The table must contain either 'SpT'/'SpT'/'SpC' columns.
+
+    folder_ccf : str, optional
+        Folder containing the CCF templates for the radial velocity correction.
+        The function will search for a template with the same ID as the input star.
 
     lwl : float, optional
         Lower wavelength limit for the exported spectrum. Default is None.
 
     rwl : float, optional
         Upper wavelength limit for the exported spectrum. Default is None.
-
-    rv_corr : boolean, optional
-        If True, the output ascii spectrum will be corrected from radial velocity.
-        Default is True.
-
-    RV0tol : int, optional
-        Enter the input radial velocity tolerance for the radial velocity correction.
-
-    export_rv : boolean, optional
-        If True and rv_corr also True, then the calculated radial velocity is exported
-        as a table named 'gen_ascii_RVs.txt' with columns 'ID, RV0, eRV0'
 
     cosmetic : boolean, optional
         If True, the output ascii spectrum will be corrected from cosmetic defects.
@@ -55,7 +70,7 @@ def gen_ascii(id, orig='IACOB', db_table=None, spt='auto', lwl=None, rwl=None, r
 
     lines_cosmic : str/list, optional
         Enter the wavelenght(s) of the line(s) to show, either in a coma-separated
-        string, or in a .txt/.lst file containing the lines to plot in order to review
+        string, or in a .txt/.txt file containing the lines to plot in order to review
         the cosmic rays removal.
 
     degrade : int/float, optional
@@ -71,42 +86,55 @@ def gen_ascii(id, orig='IACOB', db_table=None, spt='auto', lwl=None, rwl=None, r
     Nothing, but the ascii file for the input star is created.
     '''
 
-    if db_table is not None:
-        db_table = findtable(db_table)
-        if not 'ID' in db_table.colnames:
-            print('Column ID must be included in the table columns. Exiting...\n')
+    if rv_corr == True and rv_method == 'fitting' and spt_table is not None:
+        spt_table = findtable(spt_table)
+        if not 'ID' in spt_table.colnames:
+            msg.error('Column ID must be included in the table columns. Exiting...\n')
             return None
 
-        row_id = db_table[db_table['ID']==id.split('_')[0]]
+        row_id = spt_table[spt_table['ID']==id.split('_')[0]]
 
         if spt == 'auto':
-            if 'SpT' in db_table.colnames:
-                print('Initial spectral type taken from SpT column.')
+            if 'SpT' in spt_table.colnames:
+                msg.info('Initial spectral type taken from SpT column.')
                 spt = row_id['SpT'][0]
-            elif 'SpT' in db_table.colnames:
-                print('Initial spectral type taken from SpT column.')
-                spt = spc_code(row_id['SpT'][0])[0]
-            elif 'SpC' in db_table.colnames:
-                print('Initial spectral type taken from SpC column.')
+            elif 'SpC' in spt_table.colnames:
+                msg.info('Initial spectral type taken from SpC column.')
                 spt = spc_code(row_id['SpC'][0])[0]
-        elif spt in db_table.colnames:
-            spt = spc_code(row_id[spt][0])[0]
-
-    if spt == 'auto':
-        if orig == 'IACOB':
-            print('Initial spectral type taken from FITS header.')
+            else:
+                star = spec(id, snr='bestHF', orig=orig)
+                if orig == 'IACOB':
+                    msg.info('Initial spectral type taken from FITS header.')
+                else:
+                    msg.info('Initial spectral type taken from Simbad query.')
+                    star.get_spc()
+                spt = spc_code(star.SpC)[0]
+        elif isinstance(spt, str) and spt not in ['auto','']:
+            spt = spc_code(spt)[0]
         else:
-            print('Initial spectral type taken from Simbad query.')
+            msg.warn('Input spectral is not set, or not valid. Exiting...\n')
+            spt = input('SpC keyword not set, please specify an SpC for the star: ')
+            spt = spc_code(spt)[0]
 
-        star = spec(id, snr='bestHF', orig=orig)
-        spt = spc_code(star.SpC)[0]
+        msg.info('Initial spectral type is set to: %s' % spt)
 
-    elif isinstance(spt, str):
-        spt = spc_code(spt)[0]
+    elif rv_corr == True and rv_method.lower() == 'ccf':
+        if folder_ccf is None:
+            msg.error('Input folder for CCF templates is not set. Exiting...\n')
+            return None
+        elif folder_ccf is not None and not os.path.exists(folder_ccf):
+            msg.error('Input folder for CCF templates does not exist. Exiting...\n')
+            return None
 
-    if spt == '':
-        spt = input('SpC keyword not set, please specify an SpC for the star: ')
-        spt = spc_code(spt)[0]
+        # find a template file for the CCF with the ID in the filename:
+        ccf_file = [ccf for ccf in os.listdir(folder_ccf) if id.split('_')[0] in ccf]
+        while len(ccf_file) == 0 or len(ccf_file) > 1:
+            for ccf in ccf_file:
+                print('  - %s' % ccf)
+            ccf_input = input('Please type a file to use as template for the CCF: ')
+            ccf_file = [ccf for ccf in os.listdir(folder_ccf) if ccf_input in ccf]
+
+        msg.info('Using %s as template for the CCF.' % ccf_file[0])
 
     skip = input('%s - Hit return to continue, type "s" to skip: ' % id)
     if skip == 's':
@@ -115,7 +143,12 @@ def gen_ascii(id, orig='IACOB', db_table=None, spt='auto', lwl=None, rwl=None, r
     finish = 'n'
     while finish == 'n':
 
-        star = spec(id, snr='bestHF', orig=orig, cut_edges=True)
+        if type(rv_corr) is float:
+            rv0 = rv_corr
+        else:
+            rv0 = 0
+
+        star = spec(id, snr='bestHF', orig=orig, cut_edges=True, rv0=rv0)
 
         if show_plot == True:
             fig,axs = plt.subplots(3, 1, figsize=(14,8))
@@ -123,11 +156,11 @@ def gen_ascii(id, orig='IACOB', db_table=None, spt='auto', lwl=None, rwl=None, r
             axs[0].tick_params(direction='in', top='on')
             axs[0].set_xlim(3950, 6850)
             axs[0].set_ylim(0.5, 1.1)
-            axs[0].plot(star.wave_0, star.flux_0, c='orange', lw=.2, label='RV corrected')
+            label = 'RV corrected' if rv_corr == True else 'Original'
+            axs[0].plot(star.wave_0, star.flux_0, c='orange', lw=.2, label=label)
 
         # Correct the spectrum form cosmetic defects:
         if cosmetic == True:
-
             if '_F_' in star.filename:
                 i = 0
                 std = np.std(star.flux[(star.wave > 4968) & (star.wave < 4985)])
@@ -146,15 +179,14 @@ def gen_ascii(id, orig='IACOB', db_table=None, spt='auto', lwl=None, rwl=None, r
                         c='r', lw=.2, label='Cosmetic fix' if i==0 else '')
                     i += 1
 
-        # Correct the spectrum form radial velocity:
-        if rv_corr == True:
-
+        # Correct the spectrum form radial velocity using the fitting method:
+        if rv_corr == True and rv_method.lower() == 'fitting':
             if spt <= 2.:
-                spt_list = 'rv_Os.lst'
+                spt_list = 'rv_Os.txt'
             elif spt > 2. and spt < 2.7:
-                spt_list = 'rv_Bs.lst'
+                spt_list = 'rv_Bs.txt'
             elif spt >=2.7:
-                spt_list = 'rv_As.lst'
+                spt_list = 'rv_As.txt'
 
             next_rv0 = 'n'; fun = 'g'; wid = 15; tmp_wave = star.wave
             while next_rv0 == 'n':
@@ -167,11 +199,11 @@ def gen_ascii(id, orig='IACOB', db_table=None, spt='auto', lwl=None, rwl=None, r
 
                 if change == 'list':
                     spt_list = '-'
-                    while spt_list not in ['rv_Os.lst','rv_Bs.lst','rv_As.lst']:
+                    while spt_list not in ['rv_Os.txt','rv_Bs.txt','rv_As.txt']:
                         spt_list = input('Choose list of lines between O/B/A: ')
-                        if spt_list == '' or spt_list in ['B','b']: SpT = 'B'; spt_list = 'rv_Bs.lst'
-                        elif spt_list in ['A','a']: SpT = 'A'; spt_list = 'rv_As.lst'
-                        elif spt_list in ['O','o']: SpT = 'O'; spt_list = 'rv_Os.lst'
+                        if spt_list == '' or spt_list in ['B','b']: SpT = 'B'; spt_list = 'rv_Bs.txt'
+                        elif spt_list in ['A','a']: SpT = 'A'; spt_list = 'rv_As.txt'
+                        elif spt_list in ['O','o']: SpT = 'O'; spt_list = 'rv_Os.txt'
                 elif change in ['fun','function','func']:
                     fun = '-'
                     while fun not in ['g','l','v','r','vr']:
@@ -184,7 +216,7 @@ def gen_ascii(id, orig='IACOB', db_table=None, spt='auto', lwl=None, rwl=None, r
                         if wid == '': wid = 15.
                         else: wid = float(wid)
 
-                star.rv0, erv0 = RV0(spt_list, star.filename, orig=orig, ewcut=30, width=wid, tol=RV0tol, func=fun)
+                star.rv0, erv0 = RV0(spt_list, star.filename, orig=orig, ewcut=30, width=wid, tol=rv_tol, func=fun)
                 star.wave = tmp_wave*(1 - 1000*star.rv0/cte.c)
 
                 star.plotspec(4821,4901, lines='35-10K')
@@ -198,30 +230,26 @@ def gen_ascii(id, orig='IACOB', db_table=None, spt='auto', lwl=None, rwl=None, r
                 if next_rv0 not in ['n','']:
                     next_rv0 = 'n'
 
-            plt.close('all')
+        if rv_corr == True and rv_method.lower() == 'ccf':
+            star.rv0, erv0, _,_  = RV0_cc(star.filename, ccf_file[0], orig1=orig, orig2='ascii',
+                                    outside_dir=folder_ccf, method='windows')
+            star.wave = star.wave*(1 - 1000*star.rv0/cte.c)
 
-            if export_rv == True:
-                rv_table = open(maindir+'tables/gen_ascii_RVs.txt', 'a+')
-                rv_table.write('{}, {}, {:.3f}, {:.3f}\n'.format(star.id_star, star.filename, star.rv0, erv0))
-                rv_table.close()
+        plt.close('all')
 
-        elif rv_corr not in [True,False]:
-            try:
-                star.rv0 = float(rv_corr)
-                star.wave = star.wave*(1 - 1000*star.rv0/cte.c)
-                print('Correcting spectrum using the input RV correction.')
-            except:
-                print('Spectrum could not be corrected using the input RV correction.')
+        if export_rv == True:
+            rv_table = open(maindir+'tables/gen_ascii_RVs.txt', 'a+')
+            rv_table.write('{}, {}, {:.3f}, {:.3f}\n'.format(star.id_star, star.filename, star.rv0, erv0))
+            rv_table.close()
 
         # Correct the spectrum form cosmic rays:
         if cosmic == True:
-
-            next_cosm = 'n'; dmin = 0.05; zs_cut = 3; blue_cut = '4000'
+            next_cosm = 'n'; dmin = 0.05; zs_cut = 5; niter=3; blue_cut = '4000'
             while next_cosm == 'n':
 
                 print('Current input for cosmic rays correction is zs_cut({})'.format(zs_cut)
-                    +' / dmin({})'.format(dmin))
-                change = input('To change type cut/dmin, otherwise hit return: ')
+                    +' / dmin({})'.format(dmin) +' / niter({})'.format(niter))
+                change = input('To change type cut/dmin/niter, otherwise hit return: ')
 
                 if change in ['cut','zs_cut']:
                     zs_cut = '-'
@@ -233,9 +261,14 @@ def gen_ascii(id, orig='IACOB', db_table=None, spt='auto', lwl=None, rwl=None, r
                     while type(dmin) is not float:
                         dmin = input('Choose a new dmin value: ')
                         if dmin != '': dmin = float(str(dmin).replace(',','.'))
+                elif change == 'niter':
+                    niter = '-'
+                    while type(niter) is not int:
+                        niter = input('Choose a new number of iterations: ')
+                        if niter != '': niter = int(niter)
 
                 tmp_star = deepcopy(star)
-                tmp_star.cosmic(method='zscore', dmin=dmin, zs_cut=zs_cut)
+                tmp_star.cosmic(method='zscore', dmin=dmin, zs_cut=zs_cut, iter=niter)
 
                 # To prevent the noisier blue part of the spectrum to be taken for cosmic removal:
                 try:
@@ -260,7 +293,6 @@ def gen_ascii(id, orig='IACOB', db_table=None, spt='auto', lwl=None, rwl=None, r
                 fig_cosm.show()
 
                 if lines_cosmic is not None:
-
                     lines,elems,_ = findlines(lines_cosmic)
                     nrows = int(np.ceil(np.sqrt(len(lines))))
                     ncols = round(len(lines)/np.ceil(np.sqrt(len(lines)))+0.4)
@@ -343,10 +375,10 @@ def gen_ascii(id, orig='IACOB', db_table=None, spt='auto', lwl=None, rwl=None, r
         star.flux = star.flux[mask]
 
     # Create the output ascii file:
-    if not os.path.exists(datadir+'ASCII/POSPROC_NEW/'):
-        os.makedirs(datadir+'ASCII/POSPROC_NEW/')
+    if not os.path.exists(datadir+'ASCII/POSPROC/NEW/'):
+        os.makedirs(datadir+'ASCII/POSPROC/NEW/')
 
-    star.export(output_dir=datadir+'ASCII/POSPROC_NEW/', tail='_RV', extension='.ascii')
+    star.export(output_dir=datadir+'ASCII/POSPROC/NEW/', tail='_RV', extension='.ascii')
 
     return None
 
@@ -395,19 +427,19 @@ def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, cosmic_manual=Fals
 
         # Determines best list for RV calculation and line for sanity check based on SpT
         if row['SpT'] < 2:
-            rv_list = 'rv_Os.lst'
+            rv_list = 'rv_Os.txt'
             line = 5411.52 # 5592.252
 
         elif 2 <= row['SpT'] < 2.5:
-            rv_list = 'rv_Bs.lst'
+            rv_list = 'rv_Bs.txt'
             line = 4552.622
 
         elif 2.5 <= row['SpT'] < 2.9:
-            rv_list = 'rv_Bs.lst'
+            rv_list = 'rv_Bs.txt'
             line = 6371.37
 
         elif row['SpT'] >= 2.9:
-            rv_list = 'rv_As.lst'
+            rv_list = 'rv_As.txt'
             line = 4233.129
 
         # Determines the RV with a default fitting function and width
@@ -614,47 +646,3 @@ def remove_wave(path=maindir+'tmp/', only_list='to_correct.txt'):
 
         else: continue
 
-
-#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-# Update tables with new data | / IMPLEMENT IN DB AT SOME POINT!!
-#table1,table2 = findtable('OBAs_ML_raw.fits'),findtable('MAUI_results.fits')
-#columns_to_update = table2.colnames[1:-9]+[table2.colnames[-1]]
-#for row,i in zip(table1,range(len(table1))):
-#    updated = False
-#    if row['ID'] not in table2['ID']: continue
-#    if row['Teff'] == table2[table2['ID'] == row['ID']]['Teff'].data[0]: continue
-#    for col_name in columns_to_update:
-#        table1[i][col_name] = table2[table2['ID'] == row['ID']][col_name].data[0]
-#        if updated == False: print(row['ID']); updated = True
-#table1.write(maindir+'tables/table1_updated.fits',format='fits',overwrite=True)
-
-# This one is to empty bad data
-#table1 = findtable('OBAs_ML_raw.fits')
-#columns_to_update = [i for i in table1.columns[36:-1]]
-#for row,i in zip(table1,range(len(table1))):
-#    for col_name in columns_to_update:
-#        if row[col_name] in ['d','<','>']:
-#            for j in columns_to_update[columns_to_update.index(col_name)+1:columns_to_update.index(col_name)+4]:
-#                table1[i][j] = np.nan
-#table1.write(maindir+'tables/OBAs_ML_ver1.fits',format='fits',overwrite=True)
-
-#table1 = findtable('OBAs_ML_ver1b.fits')
-#for row,i in zip(table1,range(len(table1))):
-#    if row['QSiIII'] < 3:
-#        table1[i]['EWSiIII1'] = table1[i]['FWSiIII1'] = table1[i]['depSiIII1'] = np.nan
-#        table1[i]['EWSiIII2'] = table1[i]['FWSiIII2'] = table1[i]['depSiIII2'] = np.nan
-#        table1[i]['EWSiIII3'] = table1[i]['FWSiIII3'] = table1[i]['depSiIII3'] = np.nan
-#    if row['QSiII'] < 3:
-#        table1[i]['EWSiII'] = table1[i]['FWSiII'] = table1[i]['depSiII'] = np.nan
-#    if row['QHb'] < 3:
-#        table1[i]['EWHb'] = table1[i]['FWHb'] = table1[i]['FW14Hb'] = table1[i]['FW34Hb'] = table1[i]['depHb'] = table1[i]['gamma'] = np.nan
-#table1.write(maindir+'tables/OBAs_ML_ver1.fits',format='fits',overwrite=True)
-
-#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-# Replace values in table
-#table = findtable('OBAs_ML_raw.fits')
-#for row,i in zip(table,range(len(table))):
-#    for column,j in zip(row,range(len(row))):
-#        #if column == 'N': table[i][j] = '='
-#        if str(column) == str(1e+20): table[i][j] = np.nan
-#table.write(maindir+'tables/OBAs_ML_raw_.fits',format='fits',overwrite=True)
