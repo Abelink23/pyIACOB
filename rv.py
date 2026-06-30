@@ -1,5 +1,5 @@
 '''=============================================================================
-Program to calculate the radial velocities for a given spectra/spectrum via
+Module to calculate the radial velocities for a given spectra/spectrum via
 lists of individual lines or via cross correlation using synthetic spectra.
 ============================================================================='''
 
@@ -10,8 +10,8 @@ from scipy.signal import correlate,correlation_lags
 import random
 
 
-def RV0_cc(spec1, spec2, orig1='IACOB', orig2='synthetic', method='windows', 
-           lwl=3800, rwl=8000, show_plot=False,
+def RV0_cc(spec1, spec2, orig1='IACOB', orig2='synthetic', outside_dir=None,
+           method='windows', lwl=3800, rwl=8000, show_plot=False,
            windows=[(3950,4160),(4310,4360),(4370,4490),(4540,4690),(4840,4950)]):
 
     '''
@@ -46,13 +46,16 @@ def RV0_cc(spec1, spec2, orig1='IACOB', orig2='synthetic', method='windows',
         Select the origin of the spectrum to compare (see spec() for more information).
         Default is 'synthetic'.
 
+    outside_dir : str, optional
+        If the spectrum to compare is not in the default directory, enter the path to it.
+
     method : str, optional
         Options are 'windows', 'simple' and 'mcmc'. Default is 'windows'.
 
     lwl, rwl : float, optional
         Left and right wavelength limits of the spectra.
         Default is 3800 and 8000, respectively.
-    
+
     show_plot : boolean, optional
         True if you want to see the parts of the spectra used for the cross correlation.
 
@@ -67,11 +70,11 @@ def RV0_cc(spec1, spec2, orig1='IACOB', orig2='synthetic', method='windows',
     '''
 
     spec1 = spec(spec1, orig=orig1)
-    spec2 = spec(spec2, orig=orig2)
+    spec2 = spec(spec2, orig=orig2, outside_dir=outside_dir)
 
     spec1.waveflux(lwl, rwl)
     spec2.waveflux(lwl, rwl)
-    
+
     snr1 = spec1.snrcalc()
     snr2 = spec2.snrcalc()
 
@@ -129,11 +132,12 @@ def RV0_cc(spec1, spec2, orig1='IACOB', orig2='synthetic', method='windows',
 
     if show_plot == True:
         fig, ax = plt.subplots(1, 2, width_ratios=[3, 1], figsize=(12, 4), constrained_layout=True)
-        ax[0].plot(spec1.wave[~mask], spec1.flux[~mask], 'r', lw=2, alpha=.4)
-        ax[0].plot(spec1.wave, spec1.flux, 'b', lw=.5)
+        ax[0].plot(spec1.wave[~mask], spec1.flux[~mask], 'r', lw=2, alpha=.4, label='Masked continuum')
+        ax[0].plot(spec1.wave, spec1.flux, 'b', lw=.5, label='Spectrum 1')
         ax[0].plot(spec2.wave[~mask], spec2.flux[~mask], 'r', lw=2, alpha=.4)
-        ax[0].plot(spec2.wave, spec2.flux, 'g', lw=.5)
+        ax[0].plot(spec2.wave, spec2.flux, 'g', lw=.5, label='Spectrum 2')
         ax[0].set_xlabel(r'Wavelength [$\AA$]', size=10)
+        ax[0].legend()
 
     spec1.wave = spec1.wave[mask]
     spec1.flux = spec1.flux[mask]
@@ -266,7 +270,7 @@ def RV0_cc(spec1, spec2, orig1='IACOB', orig2='synthetic', method='windows',
     return RV_kms, e_RV_kms, RV_A, e_RV_A
 
 
-def RV_cc(id_star, snr=0, n_max=50, orig='IACOB', method='windows', lwl=3800, rwl=8000, 
+def RV_cc(id_star, snr=0, n_max=50, orig='IACOB', method='windows', lwl=3800, rwl=8000,
           windows=[(3950,4160),(4310,4360),(4370,4490),(4540,4690),(4840,4950)]):
 
     '''
@@ -347,7 +351,7 @@ def RV_cc(id_star, snr=0, n_max=50, orig='IACOB', method='windows', lwl=3800, rw
         print('Analyzing spectrum: ' + spectrum)
 
         print(spectrum, synthetic)
-        RV_kms_i, e_RV_kms_i, _,_ = RV0_cc(spectrum, synthetic, orig1=orig, orig2='syn', 
+        RV_kms_i, e_RV_kms_i, _,_ = RV0_cc(spectrum, synthetic, orig1=orig, orig2='syn',
                                     method=method, lwl=lwl, rwl=rwl, windows=windows)
 
         spectrum = spec(spectrum, rv0=RV_kms_i)
@@ -524,7 +528,7 @@ def RV0(lines, spectrum, orig='IACOB', ewcut=50, width=20, tol=150, func='g', ch
     return RV_0, e_RV_0
 
 
-def RV(lines, id_star, snr=0, linesRV0=None, n_max=50, linecut=1, ewcut=25, width=None, tol=50,\
+def RV(lines, id_star, snr=0, linesRV0=None, n_max=50, linecut=1, ewcut=25, width=None, tol=50,
        func='g', info=False, plot=False):
 
     '''
@@ -567,12 +571,12 @@ def RV(lines, id_star, snr=0, linesRV0=None, n_max=50, linecut=1, ewcut=25, widt
 
     Notes
     -----
-    The tolerance of the initial RV0 calculation is set to 3 times the tolerance
+    The tolerance of the initial RV0 calculation is set to three times the tolerance
     of the individual line fitting.
     '''
 
 
-    '''============================ PARAMETERS =============================='''
+    # PARAMETERS
     if width == None:
         if   lines.startswith('O'):
             width = 20
@@ -594,7 +598,7 @@ def RV(lines, id_star, snr=0, linesRV0=None, n_max=50, linecut=1, ewcut=25, widt
         color = 'g'
 
 
-    '''=============================== SPECTRA =============================='''
+    # SPECTRA
     spectra = findstar(spectra=id_star, snr=snr)
 
     if len(spectra) > n_max:
@@ -626,7 +630,7 @@ def RV(lines, id_star, snr=0, linesRV0=None, n_max=50, linecut=1, ewcut=25, widt
         spectrum = spectrum.split('/')[-1]
 
         print('\n##########################################################')
-        print('Analyzing spectrum: ' + spectrum)
+        msg.info('Analyzing spectrum: ' + spectrum)
 
         if linesRV0 == None:
             RV_0 = 0
@@ -659,11 +663,11 @@ def RV(lines, id_star, snr=0, linesRV0=None, n_max=50, linecut=1, ewcut=25, widt
                     (line,fit['line'],RV_i,fit['EW'],fit['FWHM'],fit['q_fit']))
 
         if RVs == []:
-            print('No lines were found for spectrum: %s\n' % spectrum.filename)
+            msg.warn('No lines were found for spectrum: %s\n' % spectrum.filename)
             continue
 
         if len(RVs) < linecut:
-            print('Only %d line found for: %s\n' % (len(RVs),spectrum.filename))
+            msg.warn('Only %d line found for: %s\n' % (len(RVs),spectrum.filename))
             continue
 
         '''========================= Sigma Clipping ========================='''
@@ -686,7 +690,7 @@ def RV(lines, id_star, snr=0, linesRV0=None, n_max=50, linecut=1, ewcut=25, widt
             (RVs_mean,std,date_obs,len(RVs[0]),spectrum.filename.split('.')[0]))
 
         '''============================== Plot =============================='''
-        ax.errorbar(date_obs, RVs_mean, yerr=std, elinewidth=.4, marker='o', 
+        ax.errorbar(date_obs, RVs_mean, yerr=std, elinewidth=.4, marker='o',
                     color=color, capsize=2, markersize=3)
 
         i = i + 1
