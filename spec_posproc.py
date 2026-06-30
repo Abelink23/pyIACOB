@@ -86,6 +86,8 @@ def gen_ascii(id, orig='IACOB', rv_corr=True, rv_method='fitting', rv_tol=200, e
     Nothing, but the ascii file for the input star is created.
     '''
 
+    msg.info('Generating ascii spectrum for %s' % id)
+
     if rv_corr == True and rv_method == 'fitting' and spt_table is not None:
         spt_table = findtable(spt_table)
         if not 'ID' in spt_table.colnames:
