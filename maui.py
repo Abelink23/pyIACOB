@@ -471,7 +471,7 @@ class solution_maui():
                 if mcmcdata is not None:
                     chain = [mcmcdata.xmin[idx], mcmcdata.xmax[idx]]
 
-            if abs(sol_max - sol_smooth) > 0.10*abs(sol_max):
+            if abs(sol_max - sol_smooth) > 0.10*abs(sol_max) and par_name not in ['vcl','fcl']:
                 msg.warn('max vs smooth values differ by more than 10%% or parameter %s in %s.' % \
                         (par_name, self.filename))
 
@@ -1167,6 +1167,7 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, sigma=1, par_n
 
     plt.style.use('default')
 
+
 def gen_stars_in_grids(input_table, table_results):
 
     '''
@@ -1260,7 +1261,7 @@ def gen_synthetic(output_dir, convolve=True, lwl=3900, rwl=5080):
         Enter the path to the OUTPUT folder where the SOLUTION sub-folder containing the
         *solution*.idl files are. # Note: this could be your "mauidir" variable itself.
 
-    colvolve : boolean, optional
+    convolve : boolean, optional
         If True, the synthetic spectra are convolved with the rotational and macroturbulent
         broadening profiles, plus the instrumental profile. Default is True.
 
@@ -1284,11 +1285,13 @@ def gen_synthetic(output_dir, convolve=True, lwl=3900, rwl=5080):
 
     for file in os.listdir(output_dir + 'SOLUTION/'):
         if not file.startswith('._') and file.endswith('.idl'):
-            star = solution_maui(output_dir + 'SOLUTION/' + file,
-                                 output_dir + 'MARKOV_CHAIN/' + file.replace('emulated_solution_',''))
+            star =  solution_maui(output_dir + 'SOLUTION/' + file,
+                    output_dir + 'MARKOV_CHAIN/' + file.replace('emulated_solution_',''))
 
             #star.filename = star.filename.replace(str(star.resolution),'85000')
             new_star = '%s_red%i.dat' % (star.filename[:-5],dic_maui_grids[star.gridname][2])
+
+            msg.info('Generating synthetic spectrum for %s' % star.filename)
 
             # Check if the file already exists and ask if it should be overwritten
             if os.path.exists(save_dir + new_star):
@@ -1299,19 +1302,20 @@ def gen_synthetic(output_dir, convolve=True, lwl=3900, rwl=5080):
 
             # Save the non-convolved synthetic spectrum in the ASCII folder
             np.savetxt(save_dir + new_star, np.c_[star.synwave,star.synflux],
-                       fmt=('%.4f','%.6f'), header='lambda    flux', comments='')
+                        fmt=('%.4f','%.6f'), header='lambda    flux', comments='')
 
             star_idl = spec(new_star, orig='txt', delimiter=' ')
             star_idl.waveflux(lwl, rwl, delimiter=' ')
             #plt.plot(star_idl.wave, star_idl.flux, 'r', lw=.3) # plot to check
             if convolve == True:
-                star_idl.degrade(resol=star_idl.resolution, profile='rotmac',
-                                 vsini=star.vsini, vmac=star.vmac)
+                star.vmac = None if star.vmac == 0.0 else star.vmac
+                star.vsini = None if star.vsini == 0.0 else star.vsini
+                star_idl.convolution(vsini=star.vsini, vmac=star.vmac, resol=star.resolution)
                 #plt.plot(star_idl.wave, star_idl.flux, 'g', lw=.3) # plot to check
 
             # Save the convolved synthetic spectrum in the ASCII folder
             np.savetxt(save_dir + new_star, np.c_[star_idl.wave,star_idl.flux],
-                       fmt=('%.4f','%.6f'), header='lambda    flux', comments='')
+                        fmt=('%.4f','%.6f'), header='lambda    flux', comments='')
 
 
 def even_plot(n):
