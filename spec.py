@@ -329,7 +329,7 @@ class spec():
             Sets the width in [AA] where the line fits well in. Default is 15.
 
         tol : int, optional
-            Sets the tolerance [km/s] to shifting the spectrum in order to fit the line.
+            Sets the maximum shift applied to the spectrum, in km/s, to find the line.
 
         func : str, optional
             Choose the function to fit the line:
@@ -761,8 +761,8 @@ class spec():
             return int(round(np.nanmean(snr_all)))
 
 
-    def cosmic(self, method='zscore', dmin=0.05, zs_cut=5,
-        ker_splitwave=100, ker_sig=2, ker_iter=3, ker_sig_g=None,
+    def cosmic(self, method='zscore', dmin=0.05, iter=3, zs_cut=5,
+        ker_splitwave=100, ker_sig=2, ker_sig_g=None,
         protect_em_lines=True):
 
         '''
@@ -788,8 +788,11 @@ class spec():
         ker_sig : float, optional
             Sigma clipping value used to remove rays. Default is 2.
 
-        ker_iter : int, optional
+        iter : int, optional
+            If method is 'kernel':
             Number of iterations of the sigma clipping to remove cosmic rays in the kernel method.
+            If method is 'zscore':
+            Number of iterations of the zscore method to remove cosmic rays.
             Default is 3.
 
         ker_sig_g : float, optional
@@ -812,16 +815,17 @@ class spec():
         if method == 'zscore':
             # www.towardsdatascience.com/removing-spikes-from-raman-spectra-8a9fdda0ac22
 
-            # First we calculated (nabla)x(i):
-            delta_flux = np.diff(self.flux)
-            median_int = np.median(delta_flux)
-            mad_int = np.median([np.abs(delta_flux - median_int)])
-            modified_z_scores = 0.6745 * (delta_flux - median_int) / mad_int
-            # The multiplier 0.6745 is the 0.75th quartile of the standard normal
-            # distribution, to which the median absolute deviation converges to.
-            modified_z_scores =  np.concatenate(([0], np.abs(modified_z_scores)))
+            for i in range(iter):
+                # First we calculated (nabla)x(i):
+                delta_flux = np.diff(self.flux)
+                median_int = np.median(delta_flux)
+                mad_int = np.median([np.abs(delta_flux - median_int)])
+                modified_z_scores = 0.6745 * (delta_flux - median_int) / mad_int
+                # The multiplier 0.6745 is the 0.75th quartile of the standard normal
+                # distribution, to which the median absolute deviation converges to.
+                modified_z_scores =  np.concatenate(([0], np.abs(modified_z_scores)))
 
-            flux_clean = np.where(modified_z_scores > zs_cut, np.nan, self.flux)
+                flux_clean = np.where(modified_z_scores > zs_cut, np.nan, self.flux)
 
         elif method == 'kernel':
 
@@ -862,7 +866,7 @@ class spec():
 
                 flux_norm = self.flux[mask]/convoluted
 
-                for i in range(ker_iter):
+                for i in range(iter):
                     std = np.nanstd(flux_norm)
                     flux_norm = np.where(abs(flux_norm - 1) > ker_sig*std, np.nan, flux_norm)
 
@@ -872,16 +876,16 @@ class spec():
         x = lambda z: z.nonzero()[0]
         flux_clean[nans] = np.interp(x(nans), x(~nans), flux_clean[~nans])
 
-        # Recover the original flux in the regions of the spectrum where telluric lines are
+        # Recover the original flux in the regions of the spectrum where telluric lines are only for values below 1.0 (absorption lines)
         flux_clean = np.where(
-              ((self.wave > 3932.5) & (self.wave < 3934.5)) # Not sure if this is exactly telluric line
-            | ((self.wave > 5885.0) & (self.wave < 5900.0))
-            | ((self.wave > 6865.0) & (self.wave < 7035.0))
-            | ((self.wave > 7160.0) & (self.wave < 7340.0))
-            | ((self.wave > 7585.0) & (self.wave < 7700.0))
-            | ((self.wave > 8116.0) & (self.wave < 8380.0))
-            | ((self.wave > 8915.0) & (self.wave < 9220.0))
-               ,self.flux, flux_clean)
+                ( ((self.wave > 3932.5) & (self.wave < 3934.5)) # Not sure if this is exactly telluric line
+                | ((self.wave > 5885.0) & (self.wave < 5900.0))
+                | ((self.wave > 6865.0) & (self.wave < 7035.0))
+                | ((self.wave > 7160.0) & (self.wave < 7340.0))
+                | ((self.wave > 7585.0) & (self.wave < 7700.0))
+                | ((self.wave > 8116.0) & (self.wave < 8380.0))
+                | ((self.wave > 8915.0) & (self.wave < 9220.0))
+                ) & (self.flux < 1.0), self.flux, flux_clean)
 
         # Recover the original flux in the regions of the spectrum where emission lines are
         if protect_em_lines == True:
@@ -890,8 +894,8 @@ class spec():
                 flux_clean[mask] = self.flux[mask]
 
         # Recover the original flux if the difference is lower than dmin value
-        flux_clean = np.where(
-            (self.flux > flux_clean) & (self.flux - flux_clean > dmin), flux_clean, self.flux)
+        flux_clean = np.where((self.flux > flux_clean) & (self.flux - flux_clean > dmin),
+                     flux_clean, self.flux)
 
         self.flux = flux_clean
 
@@ -1700,7 +1704,7 @@ def f_voigtrot(x, A, lam0, sigma, gamma, vsini, y):
     delta = lam0*vsini/(cte.c/1000)
     doppl = 1 - ((x - lam0)/delta)**2
 
-    R = A*(2*(1 - eps)*np.sqrt(doppl) + np.pi*eps/2.*doppl)/(np.pi*delta*(1 - eps/3))
+    R = A*(2*(1 - eps)*np.sqrt(doppl)+np.pi*eps/2.*doppl)/(np.pi*delta*(1 - eps/3))
     R = np.nan_to_num(R)
 
     return 1-convolve(V, R, mode='same')
