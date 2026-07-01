@@ -32,6 +32,8 @@ def gen_ascii(id, orig='IACOB', rv_corr=True, rv_method='fitting', rv_tol=200, e
                     --> See spt_table and spt input parameters too.
         - 'CCF' : Uses a cross-correlation function with a template spectrum.
                     --> See folder_ccf input parameter too.
+                    NOTE: lwl and rwl are parsed to the RV0_cc() function, and thus
+                    are used to limit the wavelength range for the CCF calculation.
 
     rv_tol: int, optional
         If rv_corr is True, and rv_method is 'fitting':
@@ -233,10 +235,11 @@ def gen_ascii(id, orig='IACOB', rv_corr=True, rv_method='fitting', rv_tol=200, e
                     next_rv0 = 'n'
 
         if rv_corr == True and rv_method.lower() == 'ccf':
-            star.rv0, erv0, _,_  = RV0_cc(star.filename, ccf_file[0], orig1=orig, orig2='ascii',
-                                    outside_dir=folder_ccf, method='windows')
+            star.rv0, erv0, _ , _ = RV0_cc(star.filename, ccf_file[0], orig1=orig, orig2='ascii',
+                                    outside_dir=folder_ccf, method='windows', lwl=lwl, rwl=rwl)
             star.wave = star.wave*(1 - 1000*star.rv0/cte.c)
 
+        msg.info('RV0 correction is {:.3f} +/- {:.3f} km/s'.format(star.rv0, erv0))
         plt.close('all')
 
         if export_rv == True:
@@ -246,7 +249,7 @@ def gen_ascii(id, orig='IACOB', rv_corr=True, rv_method='fitting', rv_tol=200, e
 
         # Correct the spectrum form cosmic rays:
         if cosmic == True:
-            next_cosm = 'n'; dmin = 0.05; zs_cut = 5; niter=3; blue_cut = '4000'
+            next_cosm = 'n'; dmin = 0.05; zs_cut = 5; niter=3; blue_cut = 4000
             while next_cosm == 'n':
 
                 print('Current input for cosmic rays correction is zs_cut({})'.format(zs_cut)
@@ -273,11 +276,11 @@ def gen_ascii(id, orig='IACOB', rv_corr=True, rv_method='fitting', rv_tol=200, e
                 tmp_star.cosmic(method='zscore', dmin=dmin, zs_cut=zs_cut, iter=niter)
 
                 # To prevent the noisier blue part of the spectrum to be taken for cosmic removal:
-                try:
-                    blue_cut = float(input('Set initial wavelength from where to apply the removal (now is %s): ' % str(blue_cut)))
-                except:
+                new_blue_cut = input('Set initial wavelength from where to apply the removal (now is %s): ' % str(blue_cut))
+                if new_blue_cut.isnumeric() == False and new_blue_cut != '':
                     print('Only int/float are accepted. Choosing %s... ' % str(blue_cut))
-                    blue_cut = float(blue_cut)
+                elif new_blue_cut != '':
+                    blue_cut = float(new_blue_cut)
 
                 tmp_star.flux = np.concatenate([star.flux[star.wave<blue_cut],tmp_star.flux[star.wave>=blue_cut]])
 
@@ -299,22 +302,18 @@ def gen_ascii(id, orig='IACOB', rv_corr=True, rv_method='fitting', rv_tol=200, e
                     nrows = int(np.ceil(np.sqrt(len(lines))))
                     ncols = round(len(lines)/np.ceil(np.sqrt(len(lines)))+0.4)
 
-                    fig_lines,ax_lines = plt.subplots(nrows, ncols, figsize=(13,8.5))
+                    fig_lines,ax_lines = plt.subplots(nrows, ncols, figsize=(ncols*3,nrows*1.5))
                     fig_lines.suptitle(star.filename, y=0.97, fontsize=8)
 
                     ax_lines = ax_lines.flatten()
                     for ax_i,line,elem in zip(ax_lines,lines,elems):
-
-                        if elem in ['Hdelta','Hgamma','Hbeta','Halpha']:
-                            width = 60
-                        else:
-                            width = 15
+                        width = 60 if elem in ['Hdelta','Hgamma','Hbeta','Halpha'] else 15
 
                         mask = (star.wave >= line-width/2.) & (star.wave <= line+width/2.)
                         ax_i.plot(star.wave[mask], star.flux[mask], c='orange', lw=.7, label='RV corrected')
                         ax_i.plot(star.wave[mask], tmp_star.flux[mask], c='b', lw=.5, label='Cosmic corrected')
-                        ax_i.set_title(elem, fontsize=6, pad=0.55)
-                        ax_i.tick_params(direction='in', top='on', labelsize=5)
+                        ax_i.set_title(elem, pad=0.55)
+                        ax_i.tick_params(direction='in', top='on')
                         ax_i.set_yticks([])
                         if ax_i.get_ylim()[0] > 0.9:
                             ax_i.set_ylim(bottom=0.9)
@@ -326,7 +325,7 @@ def gen_ascii(id, orig='IACOB', rv_corr=True, rv_method='fitting', rv_tol=200, e
 
                     fig_lines.show()
 
-                next_cosm = input("Type 'n' to repeat, hit return to continue. ")
+                next_cosm = input('Type "n" to repeat the cosmic ray removal, hit return to continue. ')
                 if next_cosm not in ['n','']:
                     next_cosm = 'n'
 
@@ -362,7 +361,7 @@ def gen_ascii(id, orig='IACOB', rv_corr=True, rv_method='fitting', rv_tol=200, e
             fig.legend(ncol=3)
             fig.show()
 
-        finish = input('Type "n" to repeat, hit return to move to the next star. ')
+        finish = input('Type "n" to repeat re-do the processing, hit return to move to the next star. ')
         if finish not in ['n','']:
             finish = 'n'
 
