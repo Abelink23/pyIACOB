@@ -101,7 +101,7 @@ def findstar(spectra=None, snr=0, path=None):
         separated by coma, a .txt/.lst file containing the (file)names, or '*'
         if you want to select all the fits files inside the working folder.
 
-    snr : str/int, optional
+    snr : str/decimal, optional
         If 'best' as input, it finds only the best SNR spectrum for each star.
         If 'bestHF' same as 'best' but prioritizing spectra from HERMES/FEROS.
         If specified, it returns all the spectra above the chosen SNR.
@@ -179,8 +179,8 @@ def findstar(spectra=None, snr=0, path=None):
         elif snr == 'bestHF':
             dir_spectra = spec_snr(dir_spectra, get_HF=True)
 
-        elif type(snr) == int:
-            dir_spectra = spec_snr(dir_spectra, snrcut=snr)
+        elif type(snr) == int or type(snr) == float or snr.isnumeric():
+            dir_spectra = spec_snr(dir_spectra, snrcut=float(snr))
 
         else:
             msg.error('SNR keyword not provided properly.\nExiting...')
