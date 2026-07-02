@@ -249,7 +249,7 @@ def gen_ascii(id, orig='IACOB', rv_corr=True, rv_method='fitting', rv_tol=200, e
 
         # Correct the spectrum form cosmic rays:
         if cosmic == True:
-            next_cosm = 'n'; dmin = 0.05; zs_cut = 5; niter=3; blue_cut = 4000
+            next_cosm = 'n'; dmin = 0.1; zs_cut = 3; niter=5; blue_cut = 4000
             while next_cosm == 'n':
 
                 print('Current input for cosmic rays correction is zs_cut({})'.format(zs_cut)
@@ -302,16 +302,20 @@ def gen_ascii(id, orig='IACOB', rv_corr=True, rv_method='fitting', rv_tol=200, e
                     nrows = int(np.ceil(np.sqrt(len(lines))))
                     ncols = round(len(lines)/np.ceil(np.sqrt(len(lines)))+0.4)
 
-                    fig_lines,ax_lines = plt.subplots(nrows, ncols, figsize=(ncols*3,nrows*1.5))
+                    fig_lines,ax_lines = plt.subplots(nrows, ncols, figsize=(ncols*3,nrows*1.8))
                     fig_lines.suptitle(star.filename, y=0.97, fontsize=8)
 
                     ax_lines = ax_lines.flatten()
                     for ax_i,line,elem in zip(ax_lines,lines,elems):
-                        width = 60 if elem in ['Hdelta','Hgamma','Hbeta','Halpha'] else 15
+                        width = 40 if elem.lower() in ['halpha'] else \
+                                25 if elem.lower() in ['hdelta','hgamma','hbeta'] else 15
 
                         mask = (star.wave >= line-width/2.) & (star.wave <= line+width/2.)
-                        ax_i.plot(star.wave[mask], star.flux[mask], c='orange', lw=.7, label='RV corrected')
                         ax_i.plot(star.wave[mask], tmp_star.flux[mask], c='b', lw=.5, label='Cosmic corrected')
+                        ax_i.set_ylim(bottom=ax_i.get_ylim()[0], top=ax_i.get_ylim()[1])
+                        ax_i.plot(star.wave[mask], star.flux[mask], c='orange', lw=.7, label='RV corrected', zorder=0)
+                        ax_i.axvline(line, c='k', lw=.5, ls='--')
+                        ax_i.axhline(1, c='k', lw=.5, ls='--')
                         ax_i.set_title(elem, pad=0.55)
                         ax_i.tick_params(direction='in', top='on')
                         ax_i.set_yticks([])
@@ -384,7 +388,7 @@ def gen_ascii(id, orig='IACOB', rv_corr=True, rv_method='fitting', rv_tol=200, e
     return None
 
 
-def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, cosmic_manual=False, orig='txt'):
+def gen_ascii_ML(input_table, not_do=None, cosmic_manual=False, orig='txt'):
 
     '''
     IN DEVELOPMENT
@@ -396,7 +400,6 @@ def gen_ascii_ML(input_table='OBAs_ML_raw.fits', not_do=None, cosmic_manual=Fals
     ----------
     input_table : str, optional
         Input table from where to take the stars ID and spectral type.
-        Temporal default is 'OBAs_ML_raw.fits'
 
     not_do : list, optional
         List of IDs to skip.
