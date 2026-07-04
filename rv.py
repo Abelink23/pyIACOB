@@ -51,6 +51,9 @@ def RV0_cc(spec1, spec2, orig1='IACOB', orig2='synthetic', outside_dir=None,
 
     method : str, optional
         Options are 'windows', 'simple' and 'mcmc'. Default is 'windows'.
+        Windows: the cross correlation is computed in a set of windows and the result is averaged.
+        Simple: the cross correlation is computed in the whole spectrum.
+        MCMC: NOTE UNDER DEVELOPMENT
 
     lwl, rwl : float, optional
         Left and right wavelength limits of the spectra.
@@ -107,14 +110,14 @@ def RV0_cc(spec1, spec2, orig1='IACOB', orig2='synthetic', outside_dir=None,
     # use the S/N ratio to define the mask where to evaluate the cross-correlation
     if orig1 == 'IACOB' and orig2 != 'IACOB':
         print('The S/N ratio of spectrum 1 is used in spectrum 2 to mask the continuum.')
-        mask = spec2.flux < 1-2*1/snr1
+        mask = spec2.flux < 1 - 2/snr1
     elif orig1 == 'IACOB' and orig2 == 'IACOB':
         if snr1 < snr2:
             print('The S/N ratio of spectrum 1 is used in spectrum 1 to mask the continuum.')
-            mask = spec1.flux < 1-2*1/snr1
+            mask = spec1.flux < 1 - 2/snr1
         else:
             print('The S/N ratio of spectrum 2 is used in spectrum 2 to mask the continuum.')
-            mask = spec2.flux < 1-2*1/snr2
+            mask = spec2.flux < 1 - 2/snr2
     else:
         print('A maximum flux of 0.998 is used in spectrum 2 to mask the continuum.')
         mask = spec2.flux < .998
