@@ -249,7 +249,7 @@ def gen_ascii(id, orig='IACOB', rv_corr=True, rv_method='fitting', rv_tol=200, e
 
         # Correct the spectrum form cosmic rays:
         if cosmic == True:
-            next_cosm = 'n'; dmin = 0.1; zs_cut = 3; niter=5; blue_cut = 4000
+            next_cosm = 'n'; dmin = 0.1; zs_cut = 3; niter=5; blue_cut = 3900
             while next_cosm == 'n':
 
                 print('Current input for cosmic rays correction is zs_cut({})'.format(zs_cut)
