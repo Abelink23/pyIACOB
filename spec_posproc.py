@@ -42,7 +42,7 @@ def gen_ascii(id, orig='IACOB', rv_corr=True, rv_method='fitting', rv_tol=200, e
 
     export_rv : boolean, optional
         If True and rv_corr also True, then the calculated radial velocity is exported
-        as a table named 'gen_ascii_RVs.txt' with columns 'ID, RV0, eRV0'
+        as a table named 'RV0s_gen_ascii.txt' with columns 'ID, RV0, eRV0'
 
     spt : str, optional
         Input spectral type of the star. If 'auto' (default), it takes it from either the
@@ -243,7 +243,7 @@ def gen_ascii(id, orig='IACOB', rv_corr=True, rv_method='fitting', rv_tol=200, e
         plt.close('all')
 
         if export_rv == True:
-            rv_table = open(maindir+'tables/gen_ascii_RVs.txt', 'a+')
+            rv_table = open(maindir+'tables/RV0s_gen_ascii.txt', 'a+')
             rv_table.write('{}, {}, {:.3f}, {:.3f}\n'.format(star.id_star, star.filename, star.rv0, erv0))
             rv_table.close()
 
