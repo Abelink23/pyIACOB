@@ -145,12 +145,12 @@ def maui_input(table, table_IB='IB_results.fits', output_name='MAUI_input',
     output_name : str, optional
         Enter the name for the output table. Default is 'MAUI_input'.
 
-    RV0tol : int, optional
-        Enter the input radial velocity tolerance for the radial velocity correction.
-
     ascii : boolean, optional
         If True, ascii files will be created for each of the input sources.
         Default is False.
+
+    RV0tol : int, optional [only if ascii=True]
+        Enter the input radial velocity tolerance for the radial velocity correction.
 
     spectra_path : str, optional
         Enter the path to the spectra inside the maui folder defined in paths.txt.
@@ -226,8 +226,10 @@ def maui_input(table, table_IB='IB_results.fits', output_name='MAUI_input',
                 % (source, star.filename, match_IB['Ref_file'][0]))
             if ascii == True:
                 do_file = input('Which ascii do you want to create 1 or 2: ')
-                if int(do_file) == 1: star.filename = star.filename
-                elif int(do_file) == 2: star.filename = match_IB['Ref_file'][0]
+                if int(do_file) == 1:
+                    star.filename = star.filename
+                elif int(do_file) == 2:
+                    star.filename = match_IB['Ref_file'][0]
 
         # Checks if the ascii file for the star already exists to not repeat it
         if do_ascii == True and not search(star.filename.split('.')[0]+'_RV.ascii',\
@@ -236,7 +238,6 @@ def maui_input(table, table_IB='IB_results.fits', output_name='MAUI_input',
             do_ascii = False
 
         if do_ascii == True:
-
             gen_ascii(star.filename, db_table=db_table, spt='auto', rv_corr=True, RV0tol=RV0tol,
                 export_rv=True, cosmetic=True, cosmic=True, degrade=None, show_plot=True)
             plt.close('all')
@@ -470,7 +471,7 @@ class solution_maui():
                     chain = [mcmcdata.xmin[idx], mcmcdata.xmax[idx]]
 
             if abs(sol_max - sol_smooth) > 0.10*abs(sol_max) and par_name not in ['vcl','fcl']:
-                msg.warn('max vs smooth values differ by more than 10%% or parameter %s in %s.' % \
+                msg.warn('%s max vs smooth values differ by more than 10%% for %s.' % \
                         (par_name, self.filename))
 
             # logQs is given as logQs-10:
@@ -638,7 +639,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
     # Set the progress bar
     bar = pb.ProgressBar(maxval=len(stars), term_width=80, redirect_stdout=True,
-                         widgets=[pb.Bar('=','[',']'),' ',pb.Percentage(),' ',pb.ETA()])
+                widgets=[pb.Bar('=','[',']'),' ',pb.Percentage(),' ',pb.ETA()])
     bar.start()
 
     # Create pdf file to save the plots of the results
@@ -810,7 +811,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
                     # Plot the observed spectrum
                     if black_theme == True:
-                        axs[j].plot(window_wave, window_flux, color='w', lw=.7)
+                        axs[j].plot(window_wave, window_flux, color='0.8', lw=.7)
                     else:
                         axs[j].plot(window_wave, window_flux, color='k', lw=.7)
 
@@ -838,7 +839,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                         qflag.append(round(1/len(window_wave[~mask_weight]) * \
                             np.sum(((window_flux[~mask_weight]-window_synconv[~mask_weight])*snr)**2),8))
 
-                    axs[j].plot(window_wave, window_synconv*scale, color=c, ls='--', lw=1.5)
+                    axs[j].plot(window_wave, window_synconv*scale, color=c, ls='--', lw=2)
 
                     if axs[j].get_ylim()[0] > 0.875:
                         axs[j].set_ylim(bottom=0.875)
@@ -849,7 +850,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                     ymean = np.asarray(axs[j].get_ylim()).mean()
                     if c == 'g':
                         plot_weight = [None if i==True else ymean for i in mask_weight]
-                        axs[j].plot(window_wave, plot_weight, c='dodgerblue', lw=1, alpha=0.5)
+                        axs[j].plot(window_wave, plot_weight, c='dodgerblue', lw=1.2, alpha=0.7)
                     axs[j].set_title(line_name)
                     axs[j].tick_params(direction='in', top='on', right='on')
                     axs[j].minorticks_on()
@@ -898,7 +899,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
                     weights = np.ones_like(chain)/float(len(chain))
                     axs[j].hist(chain, bins=np.arange(min(chain), max(chain) + fd_bin, fd_bin),
-                        weights=weights, histtype='stepfilled', fc='gray', ec='g', lw=1, alpha=0.6)
+                        weights=weights, histtype='stepfilled', fc='gray', ec='g', lw=1.5, alpha=0.8)
 
                     par_val = getattr(star, parameters[j])
 
