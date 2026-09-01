@@ -2,7 +2,7 @@ from rv import *
 
 import random
 
-def findSB(ID, snr, zone='full', degrade=None, RV0lines='rv_Bs.lst', vspace=0.07, c=None):
+def findSB(ID, snr=0, zone='full', degrade=None, RV0lines='rv_Bs.txt', vspace=0.07, c=None):
 
     '''
     Function to plot all the available spectra from a star in order to visually
@@ -26,7 +26,7 @@ def findSB(ID, snr, zone='full', degrade=None, RV0lines='rv_Bs.lst', vspace=0.07
 
     RV0lines : str, optional
         Input list of lines used to match all the radial velocities.
-        Default is 'rv_Bs.lst'
+        Default is 'rv_Bs.txt'
 
     vspace : int/float, optional
         Vertical space between the spectra. Default is 0.07
