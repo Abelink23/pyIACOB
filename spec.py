@@ -950,7 +950,7 @@ class spec():
         self.flux[mask] = convoluted
 
 
-    def convolution(self, mode='any', vsini=None, beta=1.5, vmac=None, resol=None):
+    def convolution(self, vsini=None, beta=1.5, vmac=None, resol=None):
         '''
         Function to apply convolution to a spectrum.
 
@@ -968,10 +968,6 @@ class spec():
 
         Parameters
         ----------
-        mode : str
-            Type of convolution to apply. Options are 'any', 'all', 'rotation', 'macro', 'instrumental'.
-            Default is 'any', applying all the convolutions for which the parameters are provided.
-            If 'all' is selected, all kernels are convolved before convolving with the flux.
         vsini : int/float, optional
             Rotational velocity in km/s to apply in the 'rotation' mode. Default is None.
         beta : float, optional
@@ -988,11 +984,16 @@ class spec():
 
         t = Time.now()
 
+        # check that at least one of the parameters is provided
+        if vsini is None and vmac is None and resol is None:
+            msg.error('At least one of the parameters vsini, vmac or resol should be provided.')
+            return None
+
         # Raise warning if difference in wavelengh is >100 A
         if not hasattr(convolve, 'warning_len') and max(self.wave) - min(self.wave) > 100:
             msg.warn('The wavelength range is >100 ang. As the broadening functions are')
-            msg.y('dependent of the central wavelength considered, the spectrum will be split')
-            msg.y('in smaller parts and the convolution will be applied separately to each.')
+            msg.bold('y','dependent of the central wavelength considered, the spectrum will be split')
+            msg.bold('y','in smaller parts and the convolution will be applied separately to each.')
             setattr(convolve, 'warning_len', True)
 
         if np.isnan(self.flux[0]) or np.isnan(self.flux[-1]):
@@ -1053,13 +1054,11 @@ class spec():
                     ~np.isnan(flux_ori) for i in range(n_slices)]
             # The mean wavelength of each slice of the spectrum, used as reference for the convolution.
             lam0s = [np.nanmean(self.wave[mask]) for mask in masks]
-            # The distances to the mean wavelength in wavelength space for each slice.
-            dls = [self.wave[mask] - lam0 for mask, lam0 in zip(masks, lam0s)]
 
             # Number of points additionally needed at the edges (purely empirical - 10A)
             n_extension = int(10/self.dlam)
 
-            for mask, lam0, dl in zip(masks, lam0s, dls):
+            for mask, lam0 in zip(masks, lam0s):
                 # Extend the flux array
                 start_idx, end_idx = np.where(mask)[0][0], np.where(mask)[0][-1]
                 front = flux_ori[max(0, start_idx - n_extension) : start_idx]
@@ -1075,60 +1074,38 @@ class spec():
 
                 flux_ext = np.concatenate((front, flux_ori[mask], end))
 
-                if mode == 'all' and vsini is not None and vmac is not None and resol is not None:
-                    # Convolve the flux with the three kernels already convolved together.
-                    # This is the optimal way to apply the convolution if all the parameters are provided.
-                    rot = f_rot(dl, lam0, vsini, beta)
-                    macro = f_macro(dl, lam0, vmac)
-                    sigma = lam0/(2.35482*float(resol))
-                    x = np.arange(-10*sigma, 10*sigma+self.dlam, self.dlam)
-                    gauss = f_gaussian(x, sigma)
-                    rot_macro = convolve(rot/np.sum(rot), macro/np.sum(macro), mode='same')
-                    rot_macro_gauss = convolve(rot_macro, gauss/np.sum(gauss), mode='same')
+                # Generate only the requested kernels on their own dedicated grids
+                active_kernels = []
+                if vsini is not None:
+                    delta = lam0 * vsini / (cte.c / 1000)
+                    n_bins = int(np.ceil(delta / self.dlam))
+                    x_k = np.arange(-n_bins, n_bins + 1) * self.dlam
+                    rot = f_rot(x_k, lam0, vsini, beta)
+                    active_kernels.append(rot / np.sum(rot))
 
-                    flux_ext = convolve(flux_ext, rot_macro_gauss/np.sum(rot_macro_gauss), mode='same')
-                    flux_ori[mask] = flux_ext[len(front) : len(front) + len(flux_ori[mask])]
-                    continue
+                if vmac is not None:
+                    delta = lam0 * vmac / (cte.c / 1000)
+                    n_bins = int(np.ceil(5 * delta / self.dlam))
+                    x_k = np.arange(-n_bins, n_bins + 1) * self.dlam
+                    macro = f_macro(x_k, lam0, vmac)
+                    active_kernels.append(macro / np.sum(macro))
 
-                if mode in ['rotation', 'any'] and vsini is not None:
-                    # Applies the rotational broadening to a spectrum.
-                    # This function applies rotational broadening to a given spectrum using the
-                    # formula in Gray's "The Observation and Analysis of Stellar Photospheres".
+                if resol is not None:
+                    sigma = lam0 / (2.35482 * float(resol))
+                    n_bins = int(np.ceil(10 * sigma / self.dlam))
+                    x_k = np.arange(-n_bins, n_bins + 1) * self.dlam
+                    gauss = f_gaussian(x_k, sigma)
+                    active_kernels.append(gauss / np.sum(gauss))
 
-                    # Create the rotational kernel
-                    rot = f_rot(dl, lam0, vsini, beta)
-                    # Convolve the flux with the kernel
-                    flux_ext = convolve(flux_ext, rot/np.sum(rot), mode='same')
-                    flux_ori[mask] = flux_ext[len(front) : len(front) + len(flux_ori[mask])]
+                # Collapse all active kernels into a single master kernel
+                master_kernel = active_kernels[0]
+                for k in active_kernels[1:]:
+                    # mode='full' ensures the combined kernel maintains its exact symmetry and odd length
+                    master_kernel = convolve(master_kernel, k, mode='full')
 
-                if mode in ['macro', 'any'] and vmac is not None:
-                    # Applies the macroturbulence broadening to a spectrum.
-                    # This function applies macroturbulence broadening to a given spectrum using the
-                    # formula given in Gray's "The Observation and Analysis of Stellar Photospheres".
-                    # It is implemented following Simon-Diaz's thesis.
-
-                    # Create the macroturbulence kernel
-                    macro = f_macro(dl, lam0, vmac)
-                    # Convolve the flux with the kernel
-                    flux_ext = convolve(flux_ext, macro/np.sum(macro), mode='same')
-                    flux_ori[mask] = flux_ext[len(front) : len(front) + len(flux_ori[mask])]
-
-                if mode in ['instrumental', 'inst', 'any'] and resol is not None:
-                    # Applies the instrumental broadening to a spectrum by convolving it with a
-                    # gaussian function with the sigma given by the resolution of the spectrum.
-
-                    # Create the gaussian kernel
-                    sigma = lam0/(2.35482*float(resol)) # 2.35482 = (2 * np.sqrt(2 * np.log(2)))
-                    x = np.arange(-10*sigma, 10*sigma+self.dlam, self.dlam)
-                    gauss = f_gaussian(x, sigma)
-                    # Convolve the flux with the kernel
-                    flux_ext = convolve(flux_ext, gauss/np.sum(gauss), mode='same')
-                    flux_ori[mask] = flux_ext[len(front) : len(front) + len(flux_ori[mask])]
-
-                if mode not in ['rotation', 'macro', 'instrumental', 'any', 'all']:
-                    msg.error('The input mode for convolution is not correct!')
-                    msg.r("Use any of: any, all, rotation, macro, instrumental")
-                    return None
+                # 4. Convolve the flux slice exactly once
+                flux_ext = convolve(flux_ext, master_kernel, mode='same')
+                flux_ori[mask] = flux_ext[len(front) : len(front) + len(flux_ori[mask])]
 
             # Enable the following line to check the convolution in each slice
             #plt.plot(self.wave, flux_ori, c='k', lw=.5)
@@ -1223,7 +1200,7 @@ class spec():
         self.flux = f(self.wave)
 
 
-    def export(self, output_dir=maindir+'tmp/' ,tail='', extension='.ascii'):
+    def export(self, output_dir, tail='', extension='.ascii'):
 
         '''
         Function to export the current wavelength and flux of the spectrum in the class
@@ -1231,6 +1208,9 @@ class spec():
 
         Parameters
         ----------
+        output_dir : str
+            Directory where the ascii file will be saved.
+
         tail : str, optional
             Tail of the file added before the extension for its identification.
             Default is ''.
@@ -1242,6 +1222,9 @@ class spec():
         -------
         Nothing, but the ascii file is exported.
         '''
+
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
 
         filename = self.filename.replace('.fits', '')
         np.savetxt(output_dir + filename + tail + extension,
@@ -1458,8 +1441,7 @@ def f_gaussian(x, sigma):
 
     Returns
     -------
-    array
-        The gaussian profile.
+    array of the gaussian profile.
     '''
 
     G = 1/(np.sqrt(2*np.pi)*sigma)*np.exp(-(x/sigma)**2/2)
@@ -1486,8 +1468,7 @@ def f_gaussian1(x, A, lam0, sigma):
 
     Returns
     -------
-    array
-        The gaussian profile.
+    array of the gaussian profile.
     '''
 
     G = A*np.exp(-(x - lam0)**2/(2*sigma**2)) + 1
@@ -1515,8 +1496,7 @@ def f_lorentzian(x, A, lam0, gamma, y):
 
     Returns
     -------
-    array
-        The lorentzian profile.
+    array of the lorentzian profile.
     '''
 
     L = A*gamma**2/((x - lam0)**2 + gamma**2) + y
@@ -1547,8 +1527,7 @@ def f_voigt(x, A, lam0, sigma, gamma, y):
 
     Returns
     -------
-    array
-        The voigt profile.
+    array of the voigt profile.
     '''
 
     V = A*np.real(wofz((x - lam0 + 1j*gamma)/sigma/np.sqrt(2)))/sigma/np.sqrt(2*np.pi) + y
@@ -1578,8 +1557,7 @@ def f_gaussrot(x, A, lam0, sigma, vsini):
 
     Returns
     -------
-    array
-        The gaussian + rotational profile.
+    array of the gaussian + rotational profile.
     '''
 
     G = A*np.exp(-(x - lam0)**2/(2*sigma**2))
@@ -1597,6 +1575,26 @@ def f_gaussrot(x, A, lam0, sigma, vsini):
 
 
 def f_rot(x, lam0, vsini, beta):
+    '''
+    Calculate the broadening profile due to rotation according to Gray.
+    '''
+    delta = lam0*vsini/(cte.c/1000)
+
+    c_b = 1 / (1 + 2 * beta / 3)
+    c_a = 1 / delta
+    c1 = 2 / np.sqrt(np.pi)
+    c2 = beta / 2
+
+    x_r = x / delta
+    mask = abs(x_r) <= 1
+
+    # Initialize with zeros to strictly preserve the odd-length array!
+    R = np.zeros_like(x)
+    R[mask] = c_b * (c1 * np.sqrt(1 - x_r[mask]**2) + c2 * (1 - x_r[mask]**2)) * c_a
+
+    return R
+
+def f_rot_old(x, lam0, vsini, beta):
 
     '''
     Calculate the broadening profile due to rotation according to Gray.
@@ -1614,8 +1612,7 @@ def f_rot(x, lam0, vsini, beta):
 
     Returns
     -------
-    array
-        The rotational profile.
+    array of the rotational profile.
     '''
 
     delta = lam0*vsini/(cte.c/1000)
@@ -1638,6 +1635,35 @@ def f_rot(x, lam0, vsini, beta):
 
 
 def f_macro(x, lam0, vmac):
+    '''
+    Calculate the broadening profile due to macroturbulence from Gemini.
+
+    Parameters
+    ----------
+    x : array
+        Wavelength array.
+    lam0 : float
+        Reference central wavelength in angstroms.
+    vmac : float
+        Macroturbulence velocity of the star in km/s.
+
+    Returns
+    -------
+    array of the macroturbulence profile
+    '''
+
+    delta = lam0*vmac/(cte.c/1000)
+    A = 2/np.sqrt(np.pi)/delta
+
+    x_d = np.abs(x / delta)
+
+    # Algebraically simplified to avoid division by zero at x=0
+    M = A * (np.exp(-x_d**2) - x_d * np.sqrt(np.pi) * (1 - erf(x_d)))
+
+    return M
+
+
+def f_macro_old(x, lam0, vmac):
 
     '''
     Calculate the broadening profile due to macroturbulence from Gray.
@@ -1653,8 +1679,7 @@ def f_macro(x, lam0, vmac):
 
     Returns
     -------
-    array
-        The macroturbulence profile.
+    array of the macroturbulence profile
     '''
 
     delta = lam0*vmac/(cte.c/1000)
@@ -1694,8 +1719,7 @@ def f_voigtrot(x, A, lam0, sigma, gamma, vsini, y):
 
     Returns
     -------
-    array
-        The voigt + rotational profile.
+    array of the voigt + rotational profile
     '''
 
     V = A*np.real(wofz((x-lam0+1j*gamma)/sigma/np.sqrt(2)))/sigma/np.sqrt(2*np.pi) + y
@@ -1738,8 +1762,7 @@ def f_vrg(x, A, lam0, sigma, gamma, vsini, A2, sigma2, y):
 
     Returns
     -------
-    array
-        The voigt + rotational + gaussian profile.
+    array of the voigt + rotational + gaussian profile
     '''
 
     VG = A*np.real(wofz((x - lam0 + 1j*gamma)/sigma/np.sqrt(2)))/sigma/np.sqrt(2*np.pi) + y \
