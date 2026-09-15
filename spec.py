@@ -1196,6 +1196,8 @@ class spec():
 
         # Interpolate the spectrum to the new delta lambda / step size
         f = interp1d(self.wave, self.flux, kind=method, fill_value='extrapolate')
+        if force_edges:
+            rwl = rwl + dlam
         self.wave =  np.arange(lwl, rwl, dlam)
         self.flux = f(self.wave)
 
