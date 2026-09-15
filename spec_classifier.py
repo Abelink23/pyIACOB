@@ -10,6 +10,7 @@ import pandas as pd
 import tkinter as tk
 from tkinter import filedialog, ttk, scrolledtext
 import joblib
+import xgboost as xgb
 
 # Base path relative to this script's directory
 models_dir = models_dir = os.path.abspath(
@@ -20,7 +21,10 @@ def load_models():
     model1 = joblib.load(os.path.join(models_dir, "M1.joblib"))
     model2 = joblib.load(os.path.join(models_dir, "M2.joblib"))
     model3 = joblib.load(os.path.join(models_dir, "M3.joblib"))
-    model4 = joblib.load(os.path.join(models_dir, "M4.joblib"))
+    #model4 = joblib.load(os.path.join(models_dir, "M4.joblib"))
+    model4 = xgb.XGBClassifier()
+    model4.load_model(os.path.join(models_dir, "M4.json"))
+
 
 def select_file():
     load_models()
@@ -83,8 +87,8 @@ def select_file():
             text_area.insert(tk.END, f"{name}\n")
             M=np.argmax(pred)
             i=0
-            for box,lu, prob in zip(boxes,Lumi, pred[0]):
-                Pp=np.round(np.round(prob,3),3)
+            for box, lu, prob in zip(boxes, Lumi, pred[0]):
+                Pp=str(np.round(prob,3))
                 text_area.insert(tk.END, f"\t\t{box}\t\t{lu} \t\t:\t {Pp}")
                 if i==M:text_area.insert(tk.END, "   ***")
                 text_area.insert(tk.END, "\n")
