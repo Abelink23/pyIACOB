@@ -46,9 +46,7 @@ def select_file():
         spectrum.waveflux(lwl=3780.00, rwl=6849.50)
         spectrum.convolution(resol=4000)
         dlam = spectrum.dlam * len(spectrum.wave)/12279
-        print(len(spectrum.wave), spectrum.wave[0], spectrum.wave[-1], dlam)
         spectrum.resamp(dlam=dlam, lwl=3780.00, rwl=6849.50, force_edges=True)
-        print(len(spectrum.wave), spectrum.wave[0], spectrum.wave[-1], dlam)
 
         text_area.insert(tk.END, [spectrum.wave, spectrum.flux])
 
