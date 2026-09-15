@@ -1,5 +1,3 @@
-from matplotlib.pyplot import bar
-
 from spec_posproc import *
 from scipy.io import readsav
 
@@ -398,10 +396,14 @@ class solution_maui():
         self.synflux = soldata.spec_prim
 
         # The convolved flux of the solution. Combine with self.obswave
+        # NOTE: This one corresponds to the max solution, not the smooth one.
         self.synconv = soldata.sol_conv
 
         # Delta lambda of spectrum
         self.dx = (soldata.xx_mod[-1]-soldata.xx_mod[0])/len(soldata.xx_mod)
+
+        # Weight within each window
+        self.weight = soldata.obsdat.spectrum
 
         # Was local normalization applied to the spectrum?
         if hasattr(soldata.obsdat.spectrum[0], 'do_local_normalization'):
@@ -476,6 +478,8 @@ class solution_maui():
 
             # logQs is given as logQs-10:
             if par_name == 'logQs':
+                sol_max -= 10
+                sol_smooth -= 10
                 sol_final -= 10
                 hpd_up -= 10
                 hpd_dw -= 10
@@ -509,6 +513,10 @@ class solution_maui():
             [setattr(self, par_name+suffix, value) for suffix,value in
                 zip(['','_eUP','_eDW'],[round(sol_final,5),round(err_up,5),round(err_dw,5)])]
 
+            # add the sol_max and sol_smooth values as well for reference
+            setattr(self, par_name+'_max', round(sol_max,5))
+            setattr(self, par_name+'_smooth', round(sol_smooth,5))
+
         # In most cases l_logg should be 'd' but is not due to 70% is not enough
         if 'Teff' in self.parameters and 'lgf' in self.parameters:
             if getattr(self, 'l_Teff') == 'd' or getattr(self, 'l_lgf') == 'd':
@@ -529,7 +537,7 @@ class solution_maui():
 
 def maui_results(input_list, output_dir, check_best=False, last_only=False, solution='max',
     FR=False, do_local_norm=True, do_qflag=False, snr_qflag=90, do_pdf=True, pdflines='diag',
-    grid_only=[], output_table=True, format_table='fits', black_theme=True):
+    grid_only=[], format_table='fits', black_theme=True):
 
     '''
     Function to generate a table with the results from MAUI given an input table
@@ -538,7 +546,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
     Parameters
     ----------
     input_list : str
-        Input star, list of stars, or table contaning the 'ID' or 'filename' to search.
+        Input star(s), list of stars, or table contaning the 'ID' or 'filename' to search.
         E.g. 'HD2905', 'HD2905,HD7902', 'table.txt/fits', '*' (to select all .idl in output_dir)
 
     output_dir : str
@@ -583,9 +591,6 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
     grid_only : list, optional
         List of grid names to limit the output to those results analysed with such grid.
 
-    output_table : boolean, optional
-        If True, the table with the output data will be created. Default is True.
-
     format_table : str, optional
         Enter the output format for the table: 'fits' (default), 'ascii' or 'csv'.
 
@@ -601,6 +606,9 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
     if output_dir[-1] != '/':
         output_dir += '/'
+
+    if output_dir.endswith('SOLUTION/'):
+        output_dir = output_dir.replace('SOLUTION/','')
 
     # Create the input list from a table.
     # NOTE: A column named 'ID' or 'filename' is required. If 'filename' if provided, then
@@ -698,6 +706,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
             # Load the idl class for the file
             star = solution_maui(match, mcmcfile=mcmcfile, solution=solution)
+            sol_bkp = 'smooth' if solution == 'max' else 'max'
 
             # Skip the used grid if not selected from the grid_only keyword
             if grid_only != [] and not star.gridname in grid_only:
@@ -901,25 +910,30 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
                     par_val = getattr(star, parameters[j])
 
-                    # plot the values of sol_max and the hdp intervals
-                    axs[j].axvline(par_val, ls='--', c='r', label='sol_%s + HDP' % solution)
+                    # plot the values adopted as solution (max/smooth) and the hdp intervals
+                    axs[j].axvline(par_val, ls='-', c='r', lw=2, label='sol_%s + HDP' % solution)
 
                     if not 'd' in getattr(star, 'l_'+parameters[j]):
-                        axs[j].axvline(par_val-getattr(star, parameters[j]+'_eDW'), ls=':', lw=2,c='r')
-                        axs[j].axvline(par_val+getattr(star, parameters[j]+'_eUP'), ls=':', lw=2, c='r')
+                        axs[j].axvline(par_val-getattr(star, parameters[j]+'_eDW'), ls=':', lw=1,c='r')
+                        axs[j].axvline(par_val+getattr(star, parameters[j]+'_eUP'), ls=':', lw=1, c='r')
+
+                    # plot the smoothed values if solution='max' and vice versa
+                    axs[j].axvline(getattr(star, parameters[j]+'_'+sol_bkp), ls='--', c='c', lw=2, label='sol_%s + HDP' % sol_bkp)
+                    axs[j].axvline(getattr(star, parameters[j]+'_'+sol_bkp)-getattr(star, parameters[j]+'_eDW'), ls=':', lw=1,c='c')
+                    axs[j].axvline(getattr(star, parameters[j]+'_'+sol_bkp)+getattr(star, parameters[j]+'_eUP'), ls=':', lw=1, c='c')
 
                     # plot the median and the IQR intervals
-                    axs[j].axvline(np.median(chain), ls='--', c='orange', label='median + IQR')
-                    axs[j].axvline(iqr[0], ls=':', c='orange')
-                    axs[j].axvline(iqr[1], ls=':', c='orange')
+                    axs[j].axvline(np.median(chain), ls='--', c='orange', lw=2, label='median + IQR')
+                    axs[j].axvline(iqr[0], ls=':', lw=1, c='orange')
+                    axs[j].axvline(iqr[1], ls=':', lw=1, c='orange')
 
                     # add the legend
                     if j == 0:
-                        fig.legend(fontsize=8, loc='upper left', handlelength=3)
+                        fig.legend(fontsize=8, loc='upper left', handlelength=3, labelspacing=0.2)
 
                     # add parameter in bold  and the sol_ and median to the title
-                    axs[j].set_title(r"$\bf{%s}$ -- sol_%s = %.5f, median = %.5f" % (parameters[j],\
-                        solution, par_val, np.median(chain)), fontsize=8)
+                    axs[j].set_title(r"$\bf{%s}$ -- sol_%s = %.5f, sol_%s = %.5f, median = %.5f" % (parameters[j],\
+                        solution, par_val, sol_bkp, getattr(star, parameters[j]+'_'+sol_bkp), np.median(chain)), fontsize=8)
                     axs[j].tick_params(direction='in', top='on', right='on')
                     axs[j].minorticks_on()
 
@@ -975,7 +989,10 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
         format_table += '.fixed_width_two_line'
         full_path = full_path.replace('.ascii', '.txt')
 
-    if output_table == True and len(output) > 1:
+    save_table = input('Do you want to save the output table to %s? (y/n): ' % full_path)
+    if save_table.lower() != 'y':
+        msg.warn('Output table not saved.')
+    else:
         output.write(full_path, format=format_table, overwrite=True)
 
     # print the results in the terminal if only one star is in the output table
@@ -998,8 +1015,8 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
     return None
 
 
-def compare_results(table_1, table_2, path_t1=None, path_t2=None, sigma=1, par_name='*', exclude=None,
-                    save_plot=False):
+def compare_results(table_1, table_2, path_t1=None, path_t2=None, sigma=1, parameters='*',
+                    join_keys='ID', exclude=None, save_plot=False):
     '''
     Function to compare the results of two tables containing the results of MAUI analyses.
 
@@ -1021,9 +1038,12 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, sigma=1, par_n
         Times sigma where 1-sigma is the typical uncertainty of the parameters defined in
         the hardcoded dictionary. Default is 1.
 
-    par_name : str, optional
+    parameters : str, optional
         Name of the parameter to compare.
         Default is '*' to compare all parameters in common between the two tables.
+
+    join_keys : str, optional
+        Name of the column to join the two tables. Default is 'ID'.
 
     exclude : list, optional
         List of stars to exclude from the comparison. Default is None.
@@ -1043,7 +1063,13 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, sigma=1, par_n
         print('ERROR: Problem loading the tables. Exiting...')
         return None
 
-    t = join(t1, t2, keys='ID', table_names=['t1','t2'], join_type='inner')
+    # Check if the join_keys are in the tables
+    if join_keys not in t1.colnames or join_keys not in t2.colnames:
+        print('ERROR: join_keys %s not found in one of the tables. Exiting...' % join_keys)
+        return None
+    join_keys = 'ID' if join_keys in [None,'ID'] else ['ID']+join_keys.replace(' ','').split(',')
+
+    t = join(t1, t2, keys=join_keys, table_names=['t1','t2'], join_type='inner')
     if len(t) == 0:
         print('ERROR: No common IDs between the two tables. Exiting...')
         return None
@@ -1058,19 +1084,19 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, sigma=1, par_n
         exclude = exclude.split(',')
         t = t[~np.isin(t['ID'], exclude)]
 
-    if par_name == '*':
-        par_name = [i for i in t1.colnames if i in t2.colnames and
+    if parameters == '*':
+        parameters = [i for i in t1.colnames if i in t2.colnames and
                     i not in ['ID','filename','Grid_name'] and
                     (not np.ma.is_masked(t1[i]) and not np.ma.is_masked(t2[i])) and
                     not i.endswith(('_eUP','_eDW')) and not i.startswith('l_')]
-        par_name = [i for i in par_name if i not in ['vsini','vmac']]
+        parameters = [i for i in parameters if i not in ['vsini','vmac']]
     else:
-        par_name = par_name.replace(' ', '').split(',') if ',' in par_name else [par_name]
-        par_name = [i for i in par_name if i in t1.colnames and i in t2.colnames and
+        parameters = parameters.replace(' ', '').split(',') if ',' in parameters else [parameters]
+        parameters = [i for i in parameters if i in t1.colnames and i in t2.colnames and
                     (not np.ma.is_masked(t1[i]) and not np.ma.is_masked(t2[i])) and
                     not i.endswith(('_eUP','_eDW')) and not i.startswith('l_')]
 
-    n_pars = [i for i in par_name if i in t1.colnames and i in t2.colnames]
+    n_pars = [i for i in parameters if i in t1.colnames and i in t2.colnames]
     n_rows, n_cols = even_plot(len(n_pars))
 
     plt.style.use('dark_background')
@@ -1276,17 +1302,27 @@ def gen_synthetic(output_dir, convolution='pyIACOB', lwl=3900, rwl=5080):
 
     save_dir = datadir + 'ASCII/Synthetic_MAUI/'
 
-    if not output_dir.endswith('/'):
+    if output_dir[-1] != '/':
         output_dir += '/'
+
     if output_dir.endswith('SOLUTION/'):
-        output_dir = output_dir[:-9]
+        output_dir = output_dir.replace('SOLUTION/','')
+
+    # check that the MARKOV_CHAIN exist
+    if not os.path.exists(output_dir + 'MARKOV_CHAIN/'):
+        msg.warn('MARKOV_CHAIN directory does not exist.')
+        mcmc_folder = False
+    else:
+        mcmc_folder = True
 
     for file in os.listdir(output_dir + 'SOLUTION/'):
         if not file.startswith('._') and file.endswith('.idl'):
-            star =  solution_maui(output_dir + 'SOLUTION/' + file,
-                    output_dir + 'MARKOV_CHAIN/' + file.replace('emulated_solution_',''))
+            if mcmc_folder:
+                mcmc_file = output_dir + 'MARKOV_CHAIN/' + file.replace('emulated_solution_','')
+            else:
+                mcmc_file = None
+            star =  solution_maui(output_dir + 'SOLUTION/' + file, mcmc_file)
 
-            #star.filename = star.filename.replace(str(star.resolution),'85000')
             new_star = '%s_red%i.dat' % (star.filename[:-5],dic_maui_grids[star.gridname][2])
 
             msg.info('Generating synthetic spectrum for %s' % star.filename)
@@ -1323,6 +1359,52 @@ def gen_synthetic(output_dir, convolution='pyIACOB', lwl=3900, rwl=5080):
                 msg.error('Convolution option not recognized. Please choose between "MAUI" or "pyIACOB".')
 
 
+def check_maui_windows_against_linelist(file_path, query_lines: list[float]):
+    """
+    Reads an ASCII table from a .txt file, checks if query lines fall
+    within columns 2 and 3, and displays active/disabled status.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the ASCII table file.
+    query_lines : list[float]
+        List of query lines to check.
+
+    Return
+    ------
+    dict containing the status of each query line.
+    """
+
+    ranges = []
+    with open(file_path, "r", encoding="utf-8") as f:
+        for raw_line in f:
+            # Remove trailing comments and whitespace
+            line = raw_line.split("#")[0].strip()
+            if not line:
+                continue
+
+            parts = line.split()
+            name = parts[0]
+            start = float(parts[1])
+            end = float(parts[2])
+            is_active = int(parts[-1]) >= 1
+
+            ranges.append(
+                {"name": name,
+                "start": min(start, end),
+                "end": max(start, end),
+                "status": "active" if is_active else "disabled",
+                })
+
+    for q in query_lines:
+        matched = [r for r in ranges if r["start"] <= q <= r["end"]]
+        if not matched:
+            print(f"Line {q:.2f} is NOT in any range.")
+        else:
+            for m in matched:
+                print(f"Line {q:.2f} falls in {m['name']} "
+                    f"[{m['start']:.2f}, {m['end']:.2f}] -> Status: {m['status'].upper()}")
 
 
 def even_plot(n):
