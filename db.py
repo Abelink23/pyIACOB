@@ -17,7 +17,7 @@ from color_msg import msg
 
 msg = msg()
 msg.bold_under('c','\nWelcome to the pyIACOB package! - v1.23')
-msg.c('developed by Abel de Burgos et al. (2026/06/22)\n')
+msg.c('developed by Abel de Burgos et al. (2026/09/15)\n')
 
 
 def load_default_paths(dir_paths_file):
