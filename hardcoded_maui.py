@@ -16,7 +16,8 @@ dic_maui_grids = {
 'astar2013_SOLAR_2_LMC_4_grid_2019-10-24_2019-10-24' :                          ['ASgs_CNOMgSTiFe_Kurucz','purple', 5, '3.900 4.114 4.114 3.900 3.900', '3.142 3.142 4.292 4.292 3.142'],
 'nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1_2021-05-05' :       ['BSg_CNOSiMg',      'DeepPink', 6, '4.146 4.477 4.477 4.146 4.146', '3.392 3.392 4.386 4.386 3.392'],
 'nlte_10.4.7_bsgs_SOLAR_expoclump_n12345o123c234mg2si234djl_v1ehot_2022-01-19' :   ['O9BSg_CNOSiMg',   'turquoise', 7, '4.146 4.543 4.543 4.146 4.146', '3.540 3.540 4.394 4.394 3.540'],
-'nlte_10.4.7_obgiants_SOLAR_noclump_n12345o123c234mg2si234djl_v1ehot_2022-02-21' : ['O9BGs_CNOSiMg',        'lime', 8, '4.204 4.543 4.543 4.204 4.204', '2.937 2.937 3.791 3.791 2.937']
+'nlte_10.4.7_obgiants_SOLAR_noclump_n12345o123c234mg2si234djl_v1ehot_2022-02-21' : ['O9BGs_CNOSiMg',        'lime', 8, '4.204 4.543 4.543 4.204 4.204', '2.937 2.937 3.791 3.791 2.937'],
+'NLTE_10.6.5.1_BSGS_SOLAR_SMOOTH.WIND_A10HHeCnewNOSi_V1_2025-05-06'              : ['O9BGs_CNOSi',          'gold', 9, '4.146 4.543 4.543 4.146 4.146', '3.540 3.540 4.394 4.394 3.540'] # limits assumed = O9BGs_CNOSiMg
 }
 
 ad_hoc_limits = {
