@@ -77,7 +77,8 @@ NOTE: For the actual models needed in models.py to work, drop me an email and
   including the radial velocity correction or the cosmetic defects and cosmic rays removal.
 
 - spec_classifier.py allows the user to obtain the spectral type and luminosity class from
-  a IACOB spectrum following the models developed in J. E. Gonzalez et al. (2026).
+  a IACOB spectrum following the models developed in J. E. Gonzalez et al. (2026). It must
+  be executed from the terminal as: > python spec_classifier.py (instructions will show).
 
 - models.py contains functions to retrieve either evolutionary tracks or isochrones from
   different libraries (MIST, Bonn, Geneva...).
