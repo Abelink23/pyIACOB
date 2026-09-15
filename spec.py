@@ -1119,7 +1119,7 @@ class spec():
         print('Convolution applied in %.3f seconds.' % (Time.now() - t).sec)
 
 
-    def resamp(self, dlam, lwl=None, rwl=None, force_edges=False,method='linear'):
+    def resamp(self, dlam, lwl=None, rwl=None, force_edges=False, method='linear'):
 
         '''
         Function to resample a spectrum into a fixed delta-lambda and wavelength range.
