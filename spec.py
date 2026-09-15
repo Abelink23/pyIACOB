@@ -290,7 +290,7 @@ class spec():
 
         # Cut the spectrum to the desired wavelength range given by lwl and rwl
         if lwl != None and rwl != None:
-            if wave[0] > lwl+dlam or wave[-1] < rwl-dlam:
+            if lwl < wave[0] or wave[-1] < rwl:
                 msg.warn('Wavelength limits outside spectrum wavelength range.')
             flux = flux[(wave >= lwl-width/2) & (wave <= rwl+width/2)]
             wave = wave[(wave >= lwl-width/2) & (wave <= rwl+width/2)]
@@ -432,7 +432,7 @@ class spec():
         elif func == 'r':
             fitfunc = f_gaussrot
             bounds  = ([.0,line-tol_aa,0. ,  1],
-                       [.3,line+tol_aa,2.5,410])
+                       [.3,line+tol_aa,2.5,350])
 
         # Fitting function: Voigt x Rotational profile | A,lam0,sigma,gamma,vsini,y
         elif func == 'vr_H':
@@ -990,11 +990,11 @@ class spec():
             return None
 
         # Raise warning if difference in wavelengh is >100 A
-        if not hasattr(convolve, 'warning_len') and max(self.wave) - min(self.wave) > 100:
+        if not hasattr(self, 'warning_len') and max(self.wave) - min(self.wave) > 100:
             msg.warn('The wavelength range is >100 ang. As the broadening functions are')
             msg.bold('y','dependent of the central wavelength considered, the spectrum will be split')
             msg.bold('y','in smaller parts and the convolution will be applied separately to each.')
-            setattr(convolve, 'warning_len', True)
+            setattr(self, 'warning_len', True)
 
         if np.isnan(self.flux[0]) or np.isnan(self.flux[-1]):
             msg.warn('The flux at the edges of the spectrum a nan value.')
@@ -1002,13 +1002,13 @@ class spec():
 
         # Check whether the current wavelength array is evenly spaced
         dlam = self.wave[1::] - self.wave[0:-1]
-        if not hasattr(convolve, 'warning_dlam1') and abs(max(dlam) - min(dlam)) > 1e-6:
+        if not hasattr(self, 'warning_dlam1') and abs(max(dlam) - min(dlam)) > 1e-6:
             msg.warn('Input wavelength array is not evenly spaced. Please, use evenly spaced input array.')
-            setattr(convolve, 'warning_dlam1', True)
+            setattr(self, 'warning_dlam1', True)
         # Compare the current dlam with the original value in the class
-        if not hasattr(convolve, 'warning_dlam2') and abs(np.mean(dlam) - self.dlam) > 1e-6:
-            msg.warn('Input wavelength array has an average dlam different from the dlam in the class.')
-            setattr(convolve, 'warning_dlam2', True)
+        if not hasattr(self, 'warning_dlam2') and abs(np.mean(dlam) - self.dlam) > 1e-6:
+            msg.warn('Input wavelength array has an average dlam (%f) different from the dlam in the class (%f).' % (np.mean(dlam), self.dlam))
+            setattr(self, 'warning_dlam2', True)
 
         # Check if beta is within the correct range
         if beta is not None and (beta < 0 or beta > 1.5):
