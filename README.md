@@ -1,4 +1,4 @@
-# Introduction to pyIACOB (v1.20 - 2026/05/05):
+# Introduction to pyIACOB (v1.23 - 2026/09/15):
 
 This package has been created mainly to manipulate data from the IACOB spectroscopic
 database (see Simón-Díaz et al. 2011), which currently gathers high-resolution spectra
@@ -17,7 +17,7 @@ creating summary tables with their results. The current list of supported progra
 
 - IACOB-Broad (S. Simón-Díaz & A. Herrero 2013)
 - MAUI (M.A. Urbaneja 2026)
-- Spectral classification tool (J. E. Gonzale et al. 2026)
+- Spectral classification tool (J. E. Gonzales et al. 2026)
 
 Created by: Abel de Burgos
 
@@ -103,5 +103,6 @@ NOTE: For the actual models needed in models.py to work, drop me an email and
 
 # Acknowledgments:
 
-Sergio Simón-Díaz, Gonzalo Holgado, Alba Casabuenas, Carlos Martinez-Sebastian, Jose Ever Gonzalez
+Sergio Simón-Díaz, Gonzalo Holgado, Alba Casabuenas, Carlos Martinez-Sebastian, Jose Ever Gonzales.
+Instituto de Astrofísica de Canarias; Universidad Nacional Autónoma de Honduras.
 
