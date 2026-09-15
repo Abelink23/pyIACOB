@@ -6,9 +6,11 @@ from tkinter import filedialog, ttk, scrolledtext
 import joblib
 
 # print instructions message:
-msg.info('The results of the selected models will be displayed in a few seconds.')
-msg.info('The *** symbol highlights the class with the highest certainty obtained by the model.')
-msg.info('This project is the result of the paper "Advanced ensemble techniques for the spectral classification of massive OB-type stars". For any inquiries, please contact jgonzaleze@unah.edu.hn')
+msg.info('The results of the selected models will be displayed in a few seconds.\n\
+      The *** symbol highlights the class with the highest certainty obtained by the model.\n\
+      This project is the result of the paper "Advanced ensemble techniques for the \n\
+      spectral classification of massive OB-type stars". For any inquiries, please \n\
+      contact: jgonzaleze@unah.edu.hn')
 
 # Base path relative to this script's directory
 models_dir = models_dir = os.path.abspath(
