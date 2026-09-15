@@ -5,16 +5,20 @@ import tkinter as tk
 from tkinter import filedialog, ttk, scrolledtext
 import joblib
 
+# print instructions message:
+msg.info('The results of the selected models will be displayed in a few seconds.')
+msg.info('The *** symbol highlights the class with the highest certainty obtained by the model.')
+msg.info('This project is the result of the paper "Advanced ensemble techniques for the spectral classification of massive OB-type stars". For any inquiries, please contact jgonzaleze@unah.edu.hn')
+
 # Base path relative to this script's directory
 models_dir = models_dir = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "ML-models"))
 
 def load_models():
-    global model1, model2, model3, model4
+    global model1, model2, model3
     model1 = joblib.load(os.path.join(models_dir, "M1.joblib"))
     model2 = joblib.load(os.path.join(models_dir, "M2.joblib"))
     model3 = joblib.load(os.path.join(models_dir, "M3.joblib"))
-    model4 = joblib.load(os.path.join(models_dir, "M4.joblib"))
 
 def select_file():
     load_models()
@@ -48,13 +52,11 @@ def select_file():
 
         models = []
         if xgb_var.get() == 1:
-            models.append(model4)
+            models.append(model3)
         if rf_var.get() == 1:
             models.append(model1)
-        if cb_var.get() == 1:
-            models.append(model2)
         if Ex_var.get() == 1:
-            models.append(model3)
+            models.append(model2)
 
         predictions = []
         if len(spectrum.flux)<12279:
@@ -121,7 +123,6 @@ def run():
 
     ttk.Checkbutton(frame_models, text="XGB", variable=xgb_var).pack(side=tk.LEFT, padx=10)
     ttk.Checkbutton(frame_models, text="Random Forest", variable=rf_var).pack(side=tk.LEFT, padx=10)
-    ttk.Checkbutton(frame_models, text="CatBoost", variable=cb_var).pack(side=tk.LEFT, padx=10)
     ttk.Checkbutton(frame_models, text="ExtraTree", variable=Ex_var).pack(side=tk.LEFT, padx=10)
 
     btn_select_file = ttk.Button(tab_menu, text="Select file", command=select_file)
