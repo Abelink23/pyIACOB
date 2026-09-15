@@ -4,7 +4,6 @@ import pandas as pd
 import tkinter as tk
 from tkinter import filedialog, ttk, scrolledtext
 import joblib
-import xgboost as xgb
 
 # Base path relative to this script's directory
 models_dir = models_dir = os.path.abspath(
@@ -15,10 +14,7 @@ def load_models():
     model1 = joblib.load(os.path.join(models_dir, "M1.joblib"))
     model2 = joblib.load(os.path.join(models_dir, "M2.joblib"))
     model3 = joblib.load(os.path.join(models_dir, "M3.joblib"))
-    #model4 = joblib.load(os.path.join(models_dir, "M4.joblib"))
-    model4 = xgb.XGBClassifier()
-    model4.load_model(os.path.join(models_dir, "M4.json"))
-
+    model4 = joblib.load(os.path.join(models_dir, "M4.joblib"))
 
 def select_file():
     load_models()
@@ -41,9 +37,12 @@ def select_file():
         else:
             spectrum = spec(filename, orig='ascii')
 
+        spectrum.waveflux(lwl=3780.00, rwl=6849.50)
         spectrum.convolution(resol=4000)
-        dlam = (spectrum.wave[-1] - spectrum.wave[0])/12279
-        spectrum.resamp(dlam=dlam, lwl=3780, rwl=6849.5)
+        dlam = spectrum.dlam * len(spectrum.wave)/12279
+        print(len(spectrum.wave), spectrum.wave[0], spectrum.wave[-1], dlam)
+        spectrum.resamp(dlam=dlam, lwl=3780.00, rwl=6849.50, force_edges=True)
+        print(len(spectrum.wave), spectrum.wave[0], spectrum.wave[-1], dlam)
 
         text_area.insert(tk.END, [spectrum.wave, spectrum.flux])
 
