@@ -405,6 +405,12 @@ class solution_maui():
         # Weight within each window
         self.weight = soldata.obsdat.spectrum
 
+        # Weight of each pixel in the spectrum and sorting permutation
+        if hasattr(soldata.obsdat.spectrum[0], 'PIXL_WEIGHT'):
+            self.pixl_weight = soldata.obsdat.spectrum[0].PIXL_WEIGHT[0]
+            sort_idx = np.argsort(soldata.obsdat.spectrum[0].X[0])
+            self.pixl_weight = self.pixl_weight[sort_idx]
+
         # Was local normalization applied to the spectrum?
         if hasattr(soldata.obsdat.spectrum[0], 'do_local_normalization'):
             self.do_local_norm = True if soldata.obsdat.spectrum[0].do_local_normalization[0] == 1 else False
@@ -820,13 +826,17 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                     else:
                         axs[j].plot(window_wave, window_flux, color='k', lw=.7)
 
-                    mask_weight = np.zeros(window_wave.shape, dtype=bool)
-                    if FR == False:
-                        for lmin, lmax in mask_maui_SR:
-                            mask_weight |= (window_wave >= lmin) & (window_wave <= lmax)
-                    elif FR == True:
-                        for lmin, lmax in mask_maui_FR:
-                            mask_weight |= (window_wave >= lmin) & (window_wave <= lmax)
+                    # Turn the weight of the window into a bolean array
+                    if hasattr(star, 'pixl_weight'):
+                        window_weight = star.pixl_weight[mask_window] == 0
+                    else:
+                        window_weight = np.zeros(window_wave.shape, dtype=bool)
+                        if FR == False:
+                            for lmin, lmax in mask_maui_SR:
+                                window_weight |= (window_wave >= lmin) & (window_wave <= lmax)
+                        elif FR == True:
+                            for lmin, lmax in mask_maui_FR:
+                                window_weight |= (window_wave >= lmin) & (window_wave <= lmax)
 
                     # This is a visual trick to place the synthetic spectra where it really is if the
                     # normalization option is used, as this is not stored in the solution*.idl file
@@ -835,14 +845,14 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                         if hasattr(star, 'do_local_norm') and star.do_local_norm == False:
                             msg.error('do_local_norm is set to True, but it was not applied to the spectrum according to the solution file. Consider changing it to False.')
                         # Convert the True/False (TF) mask to 0/1
-                        mask_weight01 = np.where(mask_weight, 0, 1).tolist()
-                        scale = np.sum(window_flux*window_synconv*mask_weight01)/ \
-                                np.sum(window_synconv*window_synconv*mask_weight01)
+                        window_weight01 = np.where(window_weight, 0, 1).tolist()
+                        scale = np.sum(window_flux*window_synconv*window_weight01)/ \
+                                np.sum(window_synconv*window_synconv*window_weight01)
 
                     if do_qflag == True and c == 'g':
                         snr = snr_qflag if star.snr > snr_qflag else star.snr
-                        qflag.append(round(1/len(window_wave[~mask_weight]) * \
-                            np.sum(((window_flux[~mask_weight]-window_synconv[~mask_weight])*snr)**2),8))
+                        qflag.append(round(1/len(window_wave[~window_weight]) * \
+                            np.sum(((window_flux[~window_weight]-window_synconv[~window_weight])*snr)**2),8))
 
                     axs[j].plot(window_wave, window_synconv*scale, color=c, ls='--', lw=2)
 
@@ -854,8 +864,8 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
                     # Plot the region with weight = 1
                     ymean = np.asarray(axs[j].get_ylim()).mean()
                     if c == 'g':
-                        plot_weight = [None if i==True else ymean for i in mask_weight]
-                        axs[j].plot(window_wave, plot_weight, c='dodgerblue', lw=1.2, alpha=0.7)
+                        window_weight = [None if i==True else ymean for i in window_weight]
+                        axs[j].plot(window_wave, window_weight, c='dodgerblue', lw=1.2, alpha=0.7)
                     axs[j].set_title(line_name)
                     axs[j].tick_params(direction='in', top='on', right='on')
                     axs[j].minorticks_on()
