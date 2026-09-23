@@ -48,9 +48,9 @@ def load_default_paths(dir_paths_file):
             for key, val in [line.split('=', 1)]
             }
 
-    return dirs['main'], dirs['data'], dirs['ib'], dirs['maui'], dirs['models'], dirs['tess']
+    return dirs['main'], dirs['data'], dirs['ib'], dirs['maui'], dirs['tracks'], dirs['tess']
 
-maindir, datadir, ibdir, mauidir, modeldir, tessdir = load_default_paths('paths.txt')
+maindir, datadir, ibdir, mauidir, tracksdir, tessdir = load_default_paths('paths.txt')
 
 
 def search(myfile, path, silent_search=False):
