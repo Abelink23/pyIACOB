@@ -166,7 +166,7 @@ def cleanupMIST(source_dir: str, metallicity='014', vinivcrit='04', av='00', out
 def cleanupGene26(source_dir: str, output_subdir: str="processed_tracks"):
 
     columns = {
-        1: 'model', 2: 'age', 3: 'M_sun', 4: 'logL', 5: 'logTeff', 6: 'sH1', 7: 'sHe4',
+        1: 'model', 2: 'age', 3: 'mass', 4: 'logL', 5: 'logTeff', 6: 'sH1', 7: 'sHe4',
         8: 'sHe3', 9: 'sC12', 10: 'sC13', 11: 'sN14', 12: 'sO16', 13: 'sO17', 14: 'sO18',
         17: 'Mcc', 19: 'logMdot', 20: 'loggc', 21: 'logTc', 22: 'cH1', 23: 'cHe4', 24: 'cHe3',
         25: 'cC12', 26: 'cC13', 27: 'cN14', 28: 'cO16', 29: 'cO17', 30: 'cO18', 39: 'Vsurf/Vcrit',
@@ -197,8 +197,7 @@ def cleanupGene26(source_dir: str, output_subdir: str="processed_tracks"):
         if len(raw_table.colnames) <= max_needed_idx:
             print(
                 f"Skipping {item.name}: expected at least {max_needed_idx + 1} columns, "
-                f"found {len(raw_table.colnames)}"
-            )
+                f"found {len(raw_table.colnames)}")
             continue
 
         # Select only desired columns by their positional names ('col1', 'col2', etc.)
