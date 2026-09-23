@@ -1,7 +1,24 @@
 import re
 from pathlib import Path
 from astropy.table import Table
+import astropy.units as u
 
+UNIT_MAP = {
+    "-": None,
+    "--": None,
+    "---": None,
+    "yr": u.yr,
+    "Msun": u.M_sun,
+    "Lsun": u.L_sun,
+    "K": u.K,
+    "mass frac.": u.dimensionless_unscaled,
+    "Ms/yr": u.M_sun / u.yr,
+    "g/cm3": u.g / (u.cm**3),
+    "s-1": u.s**-1,
+    "km/s": u.km / u.s,
+    "Msun/yr": u.M_sun / u.yr,
+    "10^53 g cm2/s": 1e53 * u.g * (u.cm**2) / u.s,
+}
 
 def clean_unit(unit_val):
     """Strips brackets, replaces Msun with M_sun, and drops dashes."""
@@ -26,7 +43,7 @@ def keep_columns(table, columns):
     return table
 
 
-def cleanupBrott11(source_dir: str, metallicity='014', output_subdir: str="processed_tracks"):
+def cleanup_Brott11(source_dir: str, metallicity='014', output_subdir: str="processed_tracks"):
 
     columns =  ['t','Mass','Teff','logL','R','log(Mdot)','logg','Vsurf','Prot','Vcrit',
                 'Ge','eps(H)','eps(He)','eps(C)','eps(N)','eps(O)','eps(F)','eps(Si)',
@@ -73,7 +90,7 @@ def cleanupBrott11(source_dir: str, metallicity='014', output_subdir: str="proce
 
 
 
-def cleanupMIST(source_dir: str, metallicity='014', vinivcrit='04', av='00', output_subdir: str="processed_tracks"):
+def cleanup_MIST(source_dir: str, metallicity='14', vinivcrit='04', av='00', output_subdir: str="processed_tracks"):
     '''
     Parameters
     ----------
@@ -82,7 +99,7 @@ def cleanupMIST(source_dir: str, metallicity='014', vinivcrit='04', av='00', out
 
     metallicity : str, optional
         Metallicity string identifier to include in the output filenames.
-        Use only three digits. Default is '014'.
+        Use only three digits. Default is '14' (z=0.014).
 
     vinivcrit : str, optional
         Initial rotation rate (v/vcrit) string identifier to include in the
@@ -163,7 +180,8 @@ def cleanupMIST(source_dir: str, metallicity='014', vinivcrit='04', av='00', out
         print(f"Processed and saved: {out_file.name}")
 
 
-def cleanupGene26(source_dir: str, output_subdir: str="processed_tracks"):
+
+def cleanup_Sciarini26a(source_dir: str, output_subdir: str="processed_tracks"):
 
     columns = {
         1: 'model', 2: 'age', 3: 'mass', 4: 'logL', 5: 'logTeff', 6: 'sH1', 7: 'sHe4',
@@ -220,4 +238,131 @@ def cleanupGene26(source_dir: str, output_subdir: str="processed_tracks"):
         # Save to FITS
         out_file = output_path / out_name
         filtered_table.write(out_file, format="fits", overwrite=True)
+        print(f"Processed: {item.name} -> {out_file.name}")
+
+
+
+def cleanup_Gene12(source_dir: str, output_subdir: str="processed_tracks"):
+
+    remove_columns = ['20Ne_surf','22Ne_surf','26Al_surf','20Ne_cen','22Ne_cen','26Al_cen']
+
+    source_path = Path(source_dir)
+    output_path = source_path / output_subdir
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    for item in source_path.glob("*.dat"):
+        if item.name.startswith("."):
+            continue
+
+        # 1. Read header and units
+        with open(item, "r") as f:
+            header_line = f.readline().rstrip("\n")
+            units_line = f.readline().rstrip("\n")
+
+        # 2. Fix duplicated column names
+        raw_names = header_line.split()
+        seen = {}
+        unique_names = []
+        for name in raw_names:
+            if name in seen:
+                seen[name] += 1
+                unique_names.append(f"{name}_{seen[name]}")
+            else:
+                seen[name] = 0
+                unique_names.append(name)
+
+        # 3. Split units
+        pattern = r"10\^53\s+g\s+cm2/s|mass\s+frac\.|\S+"
+        raw_units = re.findall(pattern, units_line)
+
+        try:
+            # Read headerless whitespace-delimited ASCII file
+            table = Table.read(item,format="ascii",names=unique_names,data_start=2,guess=False,)
+        except Exception as e:
+            print(f"Skipping {item.name}: failed to read ({e})")
+            continue
+
+        # Remove unwanted columns
+        table.remove_columns([i for i in remove_columns if i in table.colnames])
+
+        # 5. Asignar las unidades a cada columna
+        for col_name, u_str in zip(table.colnames, raw_units):
+            if u_str in UNIT_MAP:
+                table[col_name].unit = UNIT_MAP[u_str]
+            else:
+                try:
+                    table[col_name].unit = u.Unit(u_str)
+                except ValueError:
+                    table[col_name].unit = None
+
+        # Save to FITS
+        out_file = output_path / f"{item.stem}.fits"
+        table.write(out_file, format="fits", overwrite=True)
+        print(f"Processed: {item.name} -> {out_file.name}")
+
+
+
+def cleanup_Gene26(source_dir: str, output_subdir: str="processed_tracks"):
+
+    remove_columns = ['20Ne_surf','22Ne_surf','26Al_surf','20Ne_cen','22Ne_cen','26Al_cen']
+
+    source_path = Path(source_dir)
+    output_path = source_path / output_subdir
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    for item in source_path.glob("*.dat"):
+        if item.name.startswith("."):
+            continue
+
+        # 1. Read header and units
+        with open(item, "r") as f:
+            header_line = f.readline().rstrip("\n")
+            units_line = f.readline().rstrip("\n")
+
+        # 2. Fix duplicated column names
+        raw_names = header_line.split()
+        seen = {}
+        unique_names = []
+        for name in raw_names:
+            if name in seen:
+                seen[name] += 1
+                unique_names.append(f"{name}_{seen[name]}")
+            else:
+                seen[name] = 0
+                unique_names.append(name)
+
+        # 3. Split units
+        pattern = r"10\^53\s+g\s+cm2/s|mass\s+frac\.|\S+"
+        raw_units = re.findall(pattern, units_line)
+
+        try:
+            # Read headerless whitespace-delimited ASCII file
+            table = Table.read(item,format="ascii",names=unique_names,data_start=2,guess=False,)
+        except Exception as e:
+            print(f"Skipping {item.name}: failed to read ({e})")
+            continue
+
+        # Remove unwanted columns
+        table.remove_columns([i for i in remove_columns if i in table.colnames])
+
+        # 5. Asignar las unidades a cada columna
+        for col_name, u_str in zip(table.colnames, raw_units):
+            if u_str in UNIT_MAP:
+                table[col_name].unit = UNIT_MAP[u_str]
+            else:
+                try:
+                    table[col_name].unit = u.Unit(u_str)
+                except ValueError:
+                    table[col_name].unit = None
+
+        # Replace V4 by V04Av00 and V0 by V00Av00
+        out_name = f"{item.stem}.fits"
+        if '_hydro' in out_name:
+            out_name = out_name.replace('_hydro','Av00_hydro')
+        elif '_magn' in out_name:
+            out_name = out_name.replace('_magn','Av00_magn')
+
+        # Save to FITS
+        out_file = output_path / out_name
+        table.write(out_file, format="fits", overwrite=True)
         print(f"Processed: {item.name} -> {out_file.name}")
