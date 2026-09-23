@@ -24,7 +24,7 @@ while True:
 # Obtain the paths to the optional directories.
 maui_dir   = input('Please provide the path to the MAUI directory: ').strip()
 ib_dir     = input('Please provide the path to the IACOB-Broad directory: ').strip()
-models_dir = input('Please provide the path to the models directory: ').strip()
+tracks_dir = input('Please provide the path to the ev. tracks directory: ').strip()
 tess_dir   = input('Please provide the path to the TESS directory: ').strip()
 
 # Create the file 'paths.txt' which contains the paths to the directories.
@@ -33,7 +33,7 @@ with open('paths.txt', 'w') as f:
     f.write('data=' + data_dir + '\n')
     f.write('maui=' + maui_dir + '\n')
     f.write('ib=' + ib_dir + '\n')
-    f.write('models=' + models_dir + '\n')
+    f.write('tracks=' + tracks_dir + '\n')
     f.write('tess=' + tess_dir + '\n')
 
 # Create the subfolders inside the main_dir directory
@@ -63,13 +63,17 @@ shutil.copytree('atlas_lines', os.path.join(main_dir, 'lists', 'lines', 'atlas_l
 
 # List of packages to check/install
 packages = [
-    'python>=3.12.2',
-    'numpy==2.4.4',
+    'python>=3.11.14',
+    'numpy==2.4.6',
     'matplotlib==3.10.8',
     'scipy==1.14.1',
     'astropy==7.2',
     'astroquery==0.4.11',
     'progressbar2==4.5.0',
+    'joblib==1.5.3',
+    'scikit-learn=1.9.0',
+    'catboost=1.2.10',
+    'xgboost=3.2.0'
     ]
 
 # Loop through packages and check if they are installed
