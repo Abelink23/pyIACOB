@@ -63,11 +63,11 @@ def trackmist(mass=None, av=0.0, vini_vcrit=0.4):
         mass = str(float(mass)).replace('.',''); digit = 4-len(mass)
         mass = '0'*digit+mass
 
-        trk_mist = Table.read(modeldir + 'MIST/TRACKS/TRAC_FeH0_Av%s_V%s/TRAC_FeH0_%sMsol_Av%s_V%s.fits' % \
+        trk_mist = Table.read(tracksdir + 'MIST/TRAC_FeH0_Av%s_V%s/TRAC_FeH0_%sMsol_Av%s_V%s.fits' % \
             (Av,vini_vcrit,mass,Av,vini_vcrit), format='fits')
 
     else:
-        trk_mist = Table.read(modeldir + 'MIST/TRACKS/TRAC_FeH0_Av%s_V%s/TRAC_FeH0_08-120_Av%s_V%s.fits' % \
+        trk_mist = Table.read(tracksdir + 'MIST/TRAC_FeH0_Av%s_V%s/TRAC_FeH0_08-120_Av%s_V%s.fits' % \
             (Av,vini_vcrit,Av,vini_vcrit))
 
     return trk_mist
@@ -140,7 +140,7 @@ def trackgene12(mass=None, vini_vcrit=0.4):
     digit = 3-len(mass)
     mass = '0'*digit+mass
 
-    trk_geneva = Table.read(modeldir + 'GENEVA/M%sZ14V%s.dat' % (mass,vini_vcrit), format='ascii', data_start=2, delimiter=' ')
+    trk_geneva = Table.read(tracksdir + 'GENEVA/M%sZ14V%s.dat' % (mass,vini_vcrit), format='ascii', data_start=2, delimiter=' ')
 
     # FROM Gonzalo
     trk_geneva.rename_columns(['lg(Teff)','lg(L)'],['log_Teff','log_L'])
@@ -153,7 +153,7 @@ def trackgene12(mass=None, vini_vcrit=0.4):
 
     # missing to implement a table with everything
     #else:
-    #    trk_geneva = Table.read(modeldir + 'MIST/TRACKS/TRAC_FeH0_Av%s_V%s/TRAC_FeH0_08-120_Av%s_V%s.fits' % \
+    #    trk_geneva = Table.read(tracksdir + 'MIST/TRACKS/TRAC_FeH0_Av%s_V%s/TRAC_FeH0_08-120_Av%s_V%s.fits' % \
     #        (Av,vini_vcrit,Av,vini_vcrit))
 
     return trk_geneva
@@ -227,7 +227,7 @@ def trackgene26(mass=None, vini_vcrit=0.4):
     digit = 3-len(mass)
     mass = '0'*digit+mass
 
-    trk_geneva = Table.read(modeldir + 'GENEVA/M%sZ14V%s.dat' % (mass,vini_vcrit), format='ascii', data_start=2, delimiter=' ')
+    trk_geneva = Table.read(tracksdir + 'GENEVA/M%sZ14V%s.dat' % (mass,vini_vcrit), format='ascii', data_start=2, delimiter=' ')
 
     # FROM Gonzalo
     trk_geneva.rename_columns(['lg(Teff)','lg(L)'],['log_Teff','log_L'])
@@ -240,7 +240,7 @@ def trackgene26(mass=None, vini_vcrit=0.4):
 
     # missing to implement a table with everything
     #else:
-    #    trk_geneva = Table.read(modeldir + 'MIST/TRACKS/TRAC_FeH0_Av%s_V%s/TRAC_FeH0_08-120_Av%s_V%s.fits' % \
+    #    trk_geneva = Table.read(tracksdir + 'MIST/TRACKS/TRAC_FeH0_Av%s_V%s/TRAC_FeH0_08-120_Av%s_V%s.fits' % \
     #        (Av,vini_vcrit,Av,vini_vcrit))
 
     return trk_geneva
@@ -278,13 +278,13 @@ def trackbonn(mass=None, vini_vcrit=0.0):
         mass = int(input('Pick a new mass: '))
 
     # find all models starting with f+mass
-    path = modeldir + 'BONN/'
+    path = tracksdir + 'BONN/'
     models = [f for f in os.listdir(path) if f.startswith('f'+str(mass))]
 
     # find the vini for each model
     vini_list = [int(m.split('-')[1].split('.mw.fits')[0]) for m in models]
     # calculate the vini/vcrit for each vini
-    vcrit_list = [Table.read(modeldir+'BONN/f%s-%s.mw.fits' % (mass,v), format='fits')['Vcrit'][0] for v in vini_list]
+    vcrit_list = [Table.read(tracksdir+'BONN/f%s-%s.mw.fits' % (mass,v), format='fits')['Vcrit'][0] for v in vini_list]
 
     # pick the vini to achieve the nearest v/vcrit
     vini = min(vini_list, key=lambda x:abs(x-vini_vcrit*vcrit_list[vini_list.index(x)]))
@@ -292,7 +292,7 @@ def trackbonn(mass=None, vini_vcrit=0.0):
         print('WARNING: The closest vini is more than 20 km/s away from the desired v/vcrit')
     print('Closest v/v_crit is', round(vini/vcrit_list[vini_list.index(vini)],2), 'for vini =', vini, 'km/s')
 
-    trk_brott = Table.read(modeldir+'BONN/f%s-%s.mw.fits' % (mass,vini), format='fits')
+    trk_brott = Table.read(tracksdir+'BONN/f%s-%s.mw.fits' % (mass,vini), format='fits')
 
     # log(X/H) + 12
     for elem in ['He','C','N','O','Mg','Si']:
