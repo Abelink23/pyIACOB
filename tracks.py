@@ -108,7 +108,6 @@ def trackmist(mass=None, metallicity=0.014, vini_vcrit=0.4, av=0.0):
         av = min(av_list, key=lambda x:abs(x-av))
         msg.info('Choosing %s as the closest value.' % av)
     if av < 1.0:
-        print(av)
         Av = str(av).replace('.','')
     else:
         Av = int(av*10)
