@@ -1,4 +1,4 @@
-# Introduction to pyIACOB (v1.23 - 2026/09/15):
+# Introduction to pyIACOB (v1.20 - 2026/05/05):
 
 This package has been created mainly to manipulate data from the IACOB spectroscopic
 database (see Simón-Díaz et al. 2011), which currently gathers high-resolution spectra
@@ -17,23 +17,18 @@ creating summary tables with their results. The current list of supported progra
 
 - IACOB-Broad (S. Simón-Díaz & A. Herrero 2013)
 - MAUI (M.A. Urbaneja 2026)
-- Spectral classification tool (J. E. Gonzales et al. 2026)
 
 Created by: Abel de Burgos
 
 # Python Requirements (installed automatically - see below):
 
-- Python 3.11.14
-- numpy 1.26.4
+- Python 3.12.2
+- numpy 2.4.4
 - scipy 1.17.1
 - astropy 7.2.0
 - astroquery 0.4.11
 - matplotlib 3.10.8
 - progressbar 4.5
-- joblib==1.5.3
-- scikit-learn=1.2.0
-- catboost=1.2.10
-- xgboost=3.2.0
 
 # Other Requirements:
 
@@ -76,10 +71,6 @@ NOTE: For the actual models needed in models.py to work, drop me an email and
 - spec_posproc.py allows the user to perform a post-processing of the input spectra,
   including the radial velocity correction or the cosmetic defects and cosmic rays removal.
 
-- spec_classifier.py allows the user to obtain the spectral type and luminosity class from
-  a IACOB spectrum following the models developed in J. E. Gonzalez et al. (2026). It must
-  be executed from the terminal as: > python spec_classifier.py (instructions will show).
-
 - models.py contains functions to retrieve either evolutionary tracks or isochrones from
   different libraries (MIST, Bonn, Geneva...).
 
@@ -104,6 +95,5 @@ NOTE: For the actual models needed in models.py to work, drop me an email and
 
 # Acknowledgments:
 
-Sergio Simón-Díaz, Gonzalo Holgado, Alba Casabuenas, Carlos Martinez-Sebastian, Jose Ever Gonzales.
-Instituto de Astrofísica de Canarias; Universidad Nacional Autónoma de Honduras.
+Sergio Simón-Díaz, Gonzalo Holgado, Alba Casabuenas, and Carlos Martinez-Sebastian
 
