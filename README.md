@@ -21,14 +21,13 @@ creating summary tables with their results. The current list of supported progra
 Created by: Abel de Burgos
 
 # Python Requirements (installed automatically - see below):
-
-- Python 3.12.2
-- numpy 2.4.4
-- scipy 1.17.1
-- astropy 7.2.0
+- Python 3.14.9
+- numpy 2.5.4
+- scipy 1.18.1
+- astropy 8.0.2
 - astroquery 0.4.11
-- matplotlib 3.10.8
-- progressbar 4.5
+- matplotlib 3.11.2
+- progressbar 4.6.0
 
 # Other Requirements:
 
@@ -37,14 +36,11 @@ database can be downloaded from http://research.iac.es/proyecto/iacob/iacobcat/
 
 # Installation:
 
-Run the following command in the terminal in python 3.12.2 or above:
+Run the following command in the terminal in python 3:
 
       python setup.py
 
 The required folders will be created and the package will be installed.
-
-NOTE: For the actual models needed in models.py to work, drop me an email and
-      I will send you the needed files (~700mb).
 
       If you plan to use spectra in ascii format, you will need to put this files
       inside *data*/ASCII/
@@ -71,7 +67,7 @@ NOTE: For the actual models needed in models.py to work, drop me an email and
 - spec_posproc.py allows the user to perform a post-processing of the input spectra,
   including the radial velocity correction or the cosmetic defects and cosmic rays removal.
 
-- models.py contains functions to retrieve either evolutionary tracks or isochrones from
+- tracks.py contains functions to retrieve either evolutionary tracks or isochrones from
   different libraries (MIST, Bonn, Geneva...).
 
 - IACOBroad.py contains functions which helps the user to generate output and input
