@@ -63,18 +63,19 @@ shutil.copytree('atlas_lines', os.path.join(main_dir, 'lists', 'lines', 'atlas_l
 
 # List of packages to check/install
 packages = [
-    'python>=3.11.14',
-    'numpy==2.4.6',
-    'matplotlib==3.10.8',
-    'scipy==1.14.1',
-    'astropy==7.2',
+    'python=3.14.9',
+    'numpy==2.5.4',
+    'matplotlib==3.11.2',
+    'scipy==1.18.1',
+    'astropy==8.0.2',
     'astroquery==0.4.11',
-    'progressbar2==4.5.0',
-    'joblib==1.5.3',
-    'scikit-learn=1.9.0',
-    'catboost=1.2.10',
-    'xgboost=3.2.0'
+    'progressbar2==4.6.0',
     ]
+
+# Mapping of distribution package name -> Python import name
+IMPORT_MAP = {
+    'progressbar2': 'progressbar',
+}
 
 # Loop through packages and check if they are installed
 print("Checking if all packages are installed...")
@@ -88,14 +89,18 @@ for package in packages:
     else:
         package_name = re.split(r'[=><]+', package)[0]
 
+    # Use the custom module name if it differs, otherwise use the package name
+    module_to_import = IMPORT_MAP.get(package_name, package_name)
+
     try:
         if package_name != 'python':
-            __import__(package_name)
+            __import__(module_to_import)
             print(f"{package_name} is already installed.")
         else:
             raise ImportError
     except ImportError:
         print(f"{package_name} is not installed.")
+
         if input_conda == '':
             input_conda = input("Do you want to install the missing packages using conda? (y/n): ")
         if input_conda.lower() == 'y':
