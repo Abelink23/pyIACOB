@@ -1,5 +1,4 @@
 # Introduction to pyIACOB (v1.24 - 2026/11/10):
-
 This package has been created mainly to reduce, review, modify, and analyze spectra from the IACOB spectroscopic database (see Simón-Díaz et al. 2020) within a python environment. The IACOB database currently gathers high-resolution spectra (R~25000-85000) of Galactic OBA stars. These spectra are taken with the FIES@NOT2.5m and HERMES@MERCATOR1.2m instruments at the Roque de los Muchachos Observatory, and the FEROS@MPG2.2m instrument at La Silla Observatory.
 
 The main scientific goal pursued by the IACOB project is to perform single snap-shot and multi-epoch quantitative spectroscopic analyses providing a complete empirical overview of the physical properties of these stars.
@@ -8,10 +7,15 @@ Additionally, this package facilitates the use of MAUI (M.A. Urbaneja 2026), a t
 
 This project is developed by Abel de Burgos Sierra since 2019, and has continuesly evolved with different contributions from Sergio Simón-Díaz, Alba Casabuenas, Daniel Galan, Gonzalo Holgado, and Carlos Martinez-Sebastian, who are all members of the IACOB project. The package is currently maintained by Abel de Burgos Sierra.
 
-# Python version required:
-- **Python 3.11 or higher.**
+# Installation
+Clone the repository from GitHub:
 
-It is recommended to install it via Conda or venv to avoid conflicts with other packages:
+      git clone https://github.com/Abelink23/pyIACOB/
+
+Or download the zip file from GitHub and extract it in your preferred location.
+
+## Python version:
+pyIACOB requires **Python 3.11 or higher.**. It is recommended to install a python environment via Conda or venv to avoid conflicts with other packages:
 
 For Conda (or Miniconda) users:
 
@@ -24,9 +28,15 @@ For venv users, go to the main folder of the package and run:
       source pyIACOB/bin/activate  (Linux/MacOS)
       pyIACOB\Scripts\activate     (Windows)
 
+## Installation script:
+Run the following command in the terminal from the main folder of the package:
 
-# Python dependences:
-Note: checked and installed automatically when running the setup.py script (see below).
+      python setup.py
+
+The required folders will be created and the package and its dependencies will be installed (see below).
+
+## Python dependences:
+Note: checked and installed automatically when running the setup.py script (see above).
 - astropy 8.0.2
 - astroquery 0.4.11
 - matplotlib 3.11.2
@@ -34,22 +44,13 @@ Note: checked and installed automatically when running the setup.py script (see 
 - progressbar 4.6.0
 - scipy 1.17.1
 
-# Other Requirements:
-
+## Downloading the IACOB spectra:
 Spectra from the IACOB spectroscopic database stored locally. IACOB spectra can be downloaded from: https://research.iac.es/proyecto/iacob/iacobcat/
-
-# Installation:
-
-Run the following command in the terminal from the main folder of the package:
-
-      python setup.py
-
-The required folders will be created and the package will be installed.
 
 If you plan to use spectra in ascii format, you will need to put this files inside *data*/ASCII/
 
-# Overview of the main modules:
 
+# Overview of the main modules:
 - binarity.py contains functions review multi-epoch spectra and perform a preliminary analysis of the binary nature of the target.
 
 - color_msg.py contains functions to print colored messages in the terminal.
