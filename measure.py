@@ -118,8 +118,7 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
 
         from matplotlib.backends.backend_pdf import PdfPages
 
-        if not os.path.exists(maindir + 'plots/measure/'):
-            os.makedirs(maindir + 'plots/measure/')
+        Path(maindir / 'plots' / 'measure').mkdir(parents=True, exist_ok=True)
 
         pdf_fitting = PdfPages(maindir + 'plots/measure/measure_lines_%s.pdf' % time.strftime('%Y%m%d_%H%M%S'))
 
@@ -296,10 +295,9 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
         pdf_fitting.close()
 
     # Save the output table
-    output.write(maindir+'tables/'+output_table, format='fits', overwrite=True)
+    output.write(maindir / 'tables' / output_table, format='fits', overwrite=True)
     # delete the temporary file
-    if os.path.exists(maindir+'tables/'+output_table+'_tmp'):
-        os.remove(maindir+'tables/'+output_table+'_tmp')
+    Path(maindir / 'tables' / (output_table + '_tmp')).unlink(missing_ok=True)
 
     return 'DONE'
 
