@@ -309,7 +309,7 @@ def findlist(list_name, path=None):
     return list_name.replace(' ', '').split(',')
 
 
-def findtable(table, path=None, format=None, delimiter=',', header_start=None,
+def findtable(table, path=None, format=None, delimiter=',', header_start=0,
     fits_strip_end=True, fix_missing=False, guess=False, quicklook=False,
     silent_search=False):
     '''
@@ -333,7 +333,7 @@ def findtable(table, path=None, format=None, delimiter=',', header_start=None,
         The string used to separate values. Default is a comma ','.
 
     header_start : int, optional
-        Index of the row which contains the header. Default is None.
+        Index of the row which contains the header. Default is 0.
 
     fits_strip_end : boolean, optional
         If 'True' it strips all strings within the data of a fits table.
