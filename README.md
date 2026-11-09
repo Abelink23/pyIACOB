@@ -15,14 +15,14 @@ Clone the repository from GitHub:
 Or download the zip file from GitHub and extract it in your preferred location.
 
 ## Python version:
-pyIACOB requires **Python 3.11 or higher.**. It is recommended to install a python environment via Conda or venv to avoid conflicts with other packages:
+pyIACOB requires **Python 3.11 or higher**. It is recommended to install a python environment via Conda or venv to avoid conflicts with other packages:
 
 For Conda (or Miniconda) users:
 
       conda create -n pyIACOB python=3.11
       conda activate pyIACOB
 
-For venv users, go to the main folder of the package and run:
+For venv users with python >3.11 installed, go to the main folder of the package and run:
 
       python -m venv pyIACOB
       source pyIACOB/bin/activate  (Linux/MacOS)
