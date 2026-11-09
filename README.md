@@ -90,6 +90,11 @@ To use the package, simply import everything from the pyIACOB module you need to
       from spec import *
       s = spec('path/to/spectrum.fits')
       s.plotspec()
+      s.fitline(4552.622, plot=True)
+
+Note: You can use ascii spectra not coming from the IACOB database (e.g. synthetic spectra), but you will need to provide the wavelength and flux arrays in the correct format (see spec.py for details).
+
+      s = spec('path/to/syn/spectrum.ascii', orig='ascii', outside_dir='path/to/syn')
 
 
 # Sending corrections / comments:
