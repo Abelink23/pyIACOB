@@ -26,7 +26,10 @@ def get_feros(fname, radius=2, program=None, limit=9999):
 
     limit : int, optional
         Maximum number of datasets to download per source. Default is 9999.
-    Returns: None (but it downloads the fits files).
+
+    Returns
+    -------
+    None (but it downloads the fits files).
     '''
 
     if fname.endswith('.lst') or fname.endswith('.txt'):
@@ -37,11 +40,17 @@ def get_feros(fname, radius=2, program=None, limit=9999):
             return print('Column name not found in the table. Check the column names and try again.')
         sources = findtable(fname)[colname]
 
+    # create the FEROS/raw directory if it does not exist
+    if not Path(datadir).joinpath('FEROS/raw').exists():
+        Path(datadir).joinpath('FEROS/raw').mkdir(parents=True, exist_ok=True)
+
+    db = open(datadir.joinpath('FEROS/raw/downloaded_sources.txt'), 'a')
+
+    msg.info(f'Files will be downloaded to {datadir}/FEROS/raw/')
+
     bar = pb.ProgressBar(maxval=len(sources), term_width=80, redirect_stdout=True,
             widgets=[pb.Bar('=','[',']'),' ',pb.Percentage()])
     bar.start()
-
-    db = open(datadir+'FEROS/raw/downloaded_sources.txt','a')
 
     i = 0
     for source in sources:
@@ -49,7 +58,7 @@ def get_feros(fname, radius=2, program=None, limit=9999):
         bar.update(i)
         i += 1
 
-        if type(source) != str:
+        if type(source) is not str:
             name = str(source)
 
         name = source.strip()
@@ -61,7 +70,7 @@ def get_feros(fname, radius=2, program=None, limit=9999):
             db.write(name+', 0, 0, Query returned no results.\n')
             continue
 
-        if program != None and 'Run/Program ID' in query.colnames:
+        if program is not None and 'Run/Program ID' in query.colnames:
             query = query[query['Run/Program ID'] == program]
 
         simbad = query_Simbad(name)
@@ -72,7 +81,6 @@ def get_feros(fname, radius=2, program=None, limit=9999):
         coords_S = SkyCoord(simbad['ra'], simbad['dec'], unit=(u.hourangle,u.deg), frame='icrs')
 
         datasets = []
-        print(query)
         for entry in query:
             try:
                 if re.sub('[ /_/]','',str(entry['Object'])).replace('HD-','HD') == name:
@@ -100,39 +108,40 @@ def get_feros(fname, radius=2, program=None, limit=9999):
             miliseconds = '%.3f' % miliseconds
             dataset_f = dataset[:22] + miliseconds
 
-            #if os.path.exists(datadir+dataset_f) == True: continue
-
-            try:
-                print('Files will be downloaded to %s' % datadir+'FEROS/raw/')
-                data_files = eso.retrieve_data(dataset_f, destination=datadir+'FEROS/raw/')
-                print(data_files)
-            except:
-                db.write('ERROR: Dataset %s could not be retrieved.\n' %dataset_f)
+            print(dataset_f, dataset)
+            # check if the dataset has already been downloaded
+            if datadir.joinpath('FEROS/raw', dataset_f+'.fits').exists():
+                db.write(f'Dataset {dataset_f} already exists. Skipping download.\n')
+                spectra += 1
                 continue
 
             try:
-                os.remove(datadir+'FEROS/raw/'+dataset_f+'.xml')
+                data_files = eso.retrieve_data(dataset_f, destination=datadir.joinpath('FEROS/raw/'))
+            except:
+                db.write(f'ERROR: Dataset {dataset_f} could not be retrieved.\n')
+                continue
+
+            try:
+                datadir.joinpath('FEROS/raw', dataset_f+'.xml').unlink()
             except:
                 None
 
-            folder_name = datadir+'FEROS/raw/'+dataset_f
+            folder_name = datadir.joinpath('FEROS/raw', dataset_f)
 
-            try:
-                tar = tarfile.open(folder_name+'.tgz')
-                tar.extractall(folder_name)
-                tar.close()
-                os.remove(folder_name+'.tgz')
-            except:
-                db.write('Tar file for %s had problems during download. Denied access?\n' % name)
-                continue
+            # Extract the tar file and move the fits files to the FEROS/raw directory
+            tar = tarfile.open(str(folder_name)+'.tgz')
+            tar.extractall(folder_name)
+            tar.close()
+            Path(str(folder_name)+'.tgz').unlink()
 
-            fits_files = [file for file in os.listdir(folder_name) if file.endswith('.fits')]
+            fits_files = [file.name for file in Path(folder_name).iterdir() if file.is_file() and file.suffix == '.fits']
             for fit_file in fits_files:
                 if not fit_file.endswith('1081.fits'):
-                    os.remove(folder_name+'/'+fit_file)
+                    Path(folder_name).joinpath(fit_file).unlink()
                 else:
                     spectra = spectra + 1
-                    shutil.move(folder_name+'/'+fit_file,datadir+'FEROS/raw/'+fit_file)
+                    print(f'Found a valid spectrum: {fit_file}')
+                    shutil.move(folder_name.joinpath(fit_file), datadir.joinpath('FEROS/raw/'+fit_file))
 
             shutil.rmtree(folder_name)
 
@@ -142,4 +151,4 @@ def get_feros(fname, radius=2, program=None, limit=9999):
 
     db.close()
 
-    return print('\n Data retrieval completed. Check the folder.')
+    return msg.g('\n Data retrieval completed. Check the folder.')
