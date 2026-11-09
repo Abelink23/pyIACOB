@@ -3,7 +3,7 @@ from scipy.io import readsav
 
 from hardcoded_maui import *
 
-def gen_gridlimits(models_dir=mauidir+'MODELS/'):
+def gen_gridlimits(models_dir=mauidir / 'MODELS/'):
 
     '''
     Function to generate a fit table containing for each MAUI grid, the boundaries of
@@ -55,11 +55,13 @@ def gen_gridlimits(models_dir=mauidir+'MODELS/'):
     }
 
     data_rows = []
-    for file in os.listdir(models_dir):
-        if not file.startswith('.') and file.endswith('.idl'):
-            soldata = readsav(models_dir+file)
+    for file in models_dir.glob('*.idl'):
+        if not file.name.startswith('.') and file.suffix == '.idl':
+            # Read the IDL file
+            soldata = readsav(models_dir / file)
 
-            data_row = []; data_row.extend([file.split('.idl')[0]])
+            data_row = []
+            data_row.extend([file.stem]) # grid name
             parameters = [i.decode() for i in soldata.param_labl]
 
             # Obtain indices of the Teff and logg parameters
@@ -116,13 +118,13 @@ def gen_gridlimits(models_dir=mauidir+'MODELS/'):
             for param, value in limits.items():
                 output[param][output['Grid_name']==grid_key] = value
 
-    output.write(maindir + 'tables/MAUI_grid_limits.fits', format='fits', overwrite=True)
+    output.write(maindir / 'tables' / 'MAUI_grid_limits.fits', format='fits', overwrite=True)
 
     return 'DONE'
 
 
 def maui_input(table, table_IB='IB_results.fits', output_name='MAUI_input',
-    RV0tol=200, ascii=False, spectra_path=mauidir+'/SPECTRA/', orig='IACOB'):
+    RV0tol=200, ascii=False, spectra_path=mauidir / 'SPECTRA/', orig='IACOB'):
 
     '''
     Function to generate the input table for MAUI given an input table with the
@@ -182,7 +184,7 @@ def maui_input(table, table_IB='IB_results.fits', output_name='MAUI_input',
 
     table_IB = findtable(table_IB)
 
-    maui_txt = open(maindir + 'lists/%s.txt' % output_name,'a')
+    maui_txt = open(maindir / 'lists' / '%s.txt' % output_name,'a')
     maui_txt.write(
         "{:<40}".format('fullname')+"{:<48}".format('filename')+"{:<6}".format('vrad')+\
         "{:<6}".format('vsini')+"{:<7}".format('evsini')+"{:<5}".format('vmac')+\
@@ -610,11 +612,11 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
     timenow = time.strftime('%Y%m%d_%H%M%S')
 
-    if output_dir[-1] != '/':
-        output_dir += '/'
+    output_dir = Path(output_dir)
 
-    if output_dir.endswith('SOLUTION/'):
-        output_dir = output_dir.replace('SOLUTION/','')
+    # remove the SOLUTION folder from the path (if included)
+    if output_dir.parts[-1] == 'SOLUTION':
+        output_dir = output_dir.parent
 
     # Create the input list from a table.
     # NOTE: A column named 'ID' or 'filename' is required. If 'filename' if provided, then
@@ -632,8 +634,8 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
 
     # Get the input list by the .idl files in the chosen SOLUTION folder
     elif input_list == '*':
-        stars = [file.split('_sqexp_mat1_')[1].split('.idl')[0][0:-11] for file in \
-            os.listdir(output_dir + 'SOLUTION/') if file.endswith('.idl')]
+        stars = [file.stem.split('_sqexp_mat1_')[1].split('.idl')[0][0:-11] for file in \
+            Path(output_dir / 'SOLUTION').glob('*.idl') if file.is_file()]
         stars = list(set(stars)) # To avoid duplicates if same file had several analyses
 
     # Create the input list from a string with one ID or IDs separated by coma
@@ -659,8 +661,7 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
         if black_theme == True:
             plt.style.use('dark_background')
 
-        if not os.path.exists(output_dir + 'plots/'):
-            os.makedirs(output_dir + 'plots/')
+        Path(output_dir / 'plots').mkdir(parents=True, exist_ok=True)
 
         pdf_solution = PdfPages(output_dir + 'plots/MAUI_results_lines_%s.pdf' % timenow)
         pdf_makchain = PdfPages(output_dir + 'plots/MAUI_results_chain_%s.pdf' % timenow)
@@ -678,16 +679,16 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
         name = stars[i]
 
         matches = []
-        for file in os.listdir(output_dir + 'SOLUTION/'):
-            if file.endswith('.idl'):
+        for file in Path(output_dir / 'SOLUTION').glob('*.idl'):
+            if file.is_file():
 
                 # If input list contain the filename then this is used
                 if '.ascii' in name and file.split('_sqexp_mat1_')[1][:-14] + 'RV.ascii' == name:
-                    matches.append(output_dir + 'SOLUTION/' + file)
+                    matches.append(output_dir / 'SOLUTION/' / file)
 
                 # while if the ID of the star is used, it is still contained as _ID_ in the file
                 elif '_' + name + '_' in file.split('_sqexp_mat1')[1][:-14]:
-                    matches.append(output_dir + 'SOLUTION/' + file)
+                    matches.append(output_dir / 'SOLUTION/' / file)
 
         if len(matches) == 0:
             msg.warn('No solution*.idl file found for %s. Continuing...' % name)
@@ -700,15 +701,15 @@ def maui_results(input_list, output_dir, check_best=False, last_only=False, solu
             # Search for the corresponding markov chain file
             mcmcfile = match.split('emulated_solution_')[1]
             # if the MARKOV_CHAIN folder does not exist it will continue but without the mcmc information
-            if not 'MARKOV_CHAIN' in os.listdir(output_dir):
+            if not (output_dir / 'MARKOV_CHAIN').exists():
                 msg.warn('MARKOV_CHAIN/ folder not found in output directory. Continuing without mcmc information...')
                 mcmcfile = None
             # if the MARKOV_CHAIN folder exists but the specific mcmc file does not exist, the file is skipped
-            if mcmcfile is not None and mcmcfile not in os.listdir(output_dir + 'MARKOV_CHAIN/'):
+            if mcmcfile is not None and not (output_dir / 'MARKOV_CHAIN' / mcmcfile).exists():
                 msg.warn('Associated mcmc file for %s not found in MARKOV_CHAIN/ folder...' % match.split('SOLUTION/')[1])
                 continue
             elif mcmcfile is not None:
-                mcmcfile = output_dir + 'MARKOV_CHAIN/' + mcmcfile
+                mcmcfile = output_dir / 'MARKOV_CHAIN' / mcmcfile
 
             # Load the idl class for the file
             star = solution_maui(match, mcmcfile=mcmcfile, solution=solution)
@@ -1195,8 +1196,8 @@ def compare_results(table_1, table_2, path_t1=None, path_t2=None, sigma=1, param
 
     if save_plot == True:
         tail_name = (table_1.split('_')[-1].replace('.fits', ''), table_2.split('_')[-1].replace('.fits', ''))
-        fig1.savefig(maindir + 'plots/MAUI/comparison_%s_vs_%s.pdf' % tail_name, format='pdf')
-        fig2.savefig(maindir + 'plots/MAUI/comparison_deltas_%s_vs_%s.pdf' % tail_name, format='pdf')
+        fig1.savefig(maindir / 'plots/MAUI/comparison_%s_vs_%s.pdf' % tail_name, format='pdf')
+        fig2.savefig(maindir / 'plots/MAUI/comparison_deltas_%s_vs_%s.pdf' % tail_name, format='pdf')
 
     plt.style.use('default')
 
@@ -1279,7 +1280,7 @@ def phot_table(input_table):
     table['vcl'] = [('%.0f') % i+'.' if i != 'nan' else 100 for i in table['vcl']]
 
     table = table['ID','Teff','logf','He','mic','logQ+10','beta','C','N','O','Mg','Si','fcl','vcl','Grid_name']
-    table.write(maindir+'tables/%s_phot.txt' % input_table.split('.')[0], format='ascii.fixed_width_two_line')
+    table.write(maindir / 'tables' / '%s_phot.txt' % input_table.split('.')[0], format='ascii.fixed_width_two_line')
 
 
 def gen_synthetic(output_dir, convolution='pyIACOB', lwl=3900, rwl=5080):
@@ -1310,35 +1311,35 @@ def gen_synthetic(output_dir, convolution='pyIACOB', lwl=3900, rwl=5080):
     Nothing but the ascii .dat files are generated.
     '''
 
-    save_dir = datadir + 'ASCII/Synthetic_MAUI/'
+    save_dir = datadir / 'ASCII/Synthetic_MAUI/'
 
-    if output_dir[-1] != '/':
-        output_dir += '/'
+    output_dir = Path(output_dir)
 
-    if output_dir.endswith('SOLUTION/'):
-        output_dir = output_dir.replace('SOLUTION/','')
+    # remove the SOLUTION folder from the path (if included)
+    if output_dir.parts[-1] == 'SOLUTION':
+        output_dir = output_dir.parent
 
     # check that the MARKOV_CHAIN exist
-    if not os.path.exists(output_dir + 'MARKOV_CHAIN/'):
+    if not (output_dir / 'MARKOV_CHAIN').exists():
         msg.warn('MARKOV_CHAIN directory does not exist.')
         mcmc_folder = False
     else:
         mcmc_folder = True
 
-    for file in os.listdir(output_dir + 'SOLUTION/'):
-        if not file.startswith('._') and file.endswith('.idl'):
+    for file in Path(output_dir / 'SOLUTION').iterdir():
+        if not file.name.startswith('._') and file.name.endswith('.idl'):
             if mcmc_folder:
-                mcmc_file = output_dir + 'MARKOV_CHAIN/' + file.replace('emulated_solution_','')
+                mcmc_file = output_dir / 'MARKOV_CHAIN' / file.name.replace('emulated_solution_','')
             else:
                 mcmc_file = None
-            star =  solution_maui(output_dir + 'SOLUTION/' + file, mcmc_file)
+            star =  solution_maui(output_dir / 'SOLUTION' / file, mcmc_file)
 
             new_star = '%s_red%i.dat' % (star.filename[:-5],dic_maui_grids[star.gridname][2])
 
             msg.info('Generating synthetic spectrum for %s' % star.filename)
 
             # Check if the file already exists and ask if it should be overwritten
-            if os.path.exists(save_dir + new_star):
+            if Path(save_dir + new_star).exists():
                 print('File %s already exists. Overwrite? (y/n)' % new_star)
                 answer = input()
                 if answer == 'n':
