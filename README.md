@@ -9,7 +9,7 @@ Additionally, this package facilitates the use of MAUI (M.A. Urbaneja 2026), a t
 This project is developed by Abel de Burgos Sierra since 2019, and has continuesly evolved with different contributions from Sergio Simón-Díaz, Alba Casabuenas, Daniel Galan, Gonzalo Holgado, and Carlos Martinez-Sebastian, who are all members of the IACOB project. The package is currently maintained by Abel de Burgos Sierra.
 
 # Python version required:
-- Python 3.11 or higher.
+- **Python 3.11 or higher.**
 
 It is recommended to install it via Conda or venv to avoid conflicts with other packages:
 
@@ -36,8 +36,7 @@ Note: checked and installed automatically when running the setup.py script (see 
 
 # Other Requirements:
 
-Access to the spectroscopic data stored locally. Available spectra from the IACOB
-database can be downloaded from https://research.iac.es/proyecto/iacob/iacobcat/
+Spectra from the IACOB spectroscopic database stored locally. IACOB spectra can be downloaded from: https://research.iac.es/proyecto/iacob/iacobcat/
 
 # Installation:
 
@@ -75,7 +74,7 @@ If you plan to use spectra in ascii format, you will need to put this files insi
 
 - setup.py contains the code to install the package, the dependencies, and create the required folders.
 
-- spec.py contains functions that manipulate an input spectrum (in FITS or ASCII format), plot it, make different measurements, and eventually export the new spectrum into a file.
+- spec.py contains functions that manipulate an input spectrum (in FITS or ASCII format), plot it, make different measurements, and eventually export the new spectrum into a file. See also fitline_diagram.txt and fitline_readme.txt for a description of the line fitting procedure.
 
 - spec_posproc.py allows the user to perform a post-processing of the input spectra, including the radial velocity correction or the cosmetic defects and cosmic rays removal.
 
