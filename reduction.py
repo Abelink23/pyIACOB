@@ -38,12 +38,11 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False)
     Nothing, but the files are reduced and saved in the IACOB format.
     '''
 
-    spectra = [os.path.join(path_to_spectra, i) for i in os.listdir(path_to_spectra)
-                if i.endswith('.fits') and not i.startswith('.')]
+    spectra = [p for p in Path(path_to_spectra).glob('*.fits')
+               if not p.name.startswith('.') and p.is_file()]
 
-    save_path = os.path.join(path_to_spectra, 'reduced')
-    if not os.path.exists(save_path):
-        os.makedirs(save_path)
+    if not Path(maindir / 'reduced').exists():
+        Path(maindir / 'reduced').mkdir(parents=True, exist_ok=True)
 
     for spectrum in spectra:
 
@@ -53,7 +52,7 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False)
         header = hdu0.header    # Read the values of the headers
 
         if 'I-pyIB' in header and len(hdu0.data) == 2:
-            print('File ' + spectrum.split(os.sep)[-1] + ' already in IACOB format. Skipping...')
+            print('File ' + spectrum.name + ' already in IACOB format. Skipping...')
             continue
 
         object = header['OBJECT'].replace(' ','').upper()
@@ -170,11 +169,11 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False)
         new_name = object + '_' + date + '_' + time + telcode + RESOL + end
 
         # save the fits file with the new name in the same folder
-        print(spectrum.split(os.sep)[-1],'->',new_name,'| SNR(4500A)=',snr4500)
-        if os.path.exists(os.path.join(save_path, new_name)):
+        print(spectrum.name,'->',new_name,'| SNR(4500A)=',snr4500)
+        if Path(maindir / 'reduced' / new_name).exists():
             print(f"Warning: File '{new_name}' already exists. Skipping...")
             continue
-        hdu.writeto(os.path.join(save_path, new_name))
+        hdu.writeto(maindir / 'reduced' / new_name, overwrite=False)
         hdu.close()
 
     return None
@@ -595,7 +594,8 @@ def degrade_spec(path_to_spectra, output_dir, resol=5000, lwl=None, rwl=None, st
     None, but the degraded and/or resampled input spectra are stored in the output_dir.
     """
 
-    spectra = [os.path.join(path_to_spectra, i) for i in os.listdir(path_to_spectra) if i.endswith('.fits')]
+    spectra = [p for p in Path(path_to_spectra).glob('*.fits')
+               if not p.name.startswith('.') and p.is_file()]
 
     for spectrum in spectra:
 
@@ -614,11 +614,11 @@ def degrade_spec(path_to_spectra, output_dir, resol=5000, lwl=None, rwl=None, st
         if 'I-VBAR' in header0:
             vbar = header0['I-VBAR']    # Barycentric velocity correction
         else:
-            print('No barycentric correction applied to' + spectrum.split(os.sep)[-1])
+            print('No barycentric correction applied to' + spectrum.name)
             vbar = 0
 
         # Correct Mercator CRVAL1 20101018-19:
-        if any(bad in spectrum for bad in ['_20101018_','_20101019_']) and lam0 == 3763.9375:
+        if any(bad in spectrum.name for bad in ['_20101018_','_20101019_']) and lam0 == 3763.9375:
             lam0 = 3763.61
 
         # Make lists with wavelenght and flux for each spectrum
@@ -646,7 +646,7 @@ def degrade_spec(path_to_spectra, output_dir, resol=5000, lwl=None, rwl=None, st
             wave = wave[(wave >= lwl) & (wave <= rwl)]
 
         # Recalculate the delta lambda if the spectrum is in log
-        if '_log' in spectrum.split(os.sep)[-1]:
+        if '_log' in spectrum.name:
             dlam = (wave[-1]-wave[0])/(len(wave)-1)
 
         # Degradation of the spectum
@@ -692,13 +692,13 @@ def degrade_spec(path_to_spectra, output_dir, resol=5000, lwl=None, rwl=None, st
 
         # Save the spectrum
         if output_name == 'fullname':
-            filename = spectrum.split(os.sep)[-1].replace('.fits', '')
+            filename = spectrum.name.replace('.fits', '')
         elif output_name == 'name':
-            filename = spectrum.split(os.sep)[-1].split('_')[0]
+            filename = spectrum.name.split('_')[0]
 
         # If directory "degraded" inside output_dir does not exist, it is created
-        if not os.path.exists(output_dir+'degraded/'):
-            os.makedirs(output_dir+'degraded/')
+        if not Path(output_dir+'degraded/').exists():
+            Path(output_dir+'degraded/').mkdir(parents=True, exist_ok=True)
 
         # Save the spectrum
         if extension in ['ascii', 'txt', 'csv']:
@@ -726,7 +726,8 @@ def fix_edges(path_to_spectra):
     None
     """
 
-    spectra = [os.path.join(path_to_spectra, i) for i in os.listdir(path_to_spectra) if i.endswith('.fits')]
+    spectra = [p for p in Path(path_to_spectra).glob('*.fits')
+               if not p.name.startswith('.') and p.is_file()]
 
     for spectrum in spectra:
 

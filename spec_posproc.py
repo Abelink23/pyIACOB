@@ -126,17 +126,17 @@ def gen_ascii(id, orig='IACOB', rv_corr=True, rv_method='fitting', rv_tol=200, e
         if folder_ccf is None:
             msg.error('Input folder for CCF templates is not set. Exiting...\n')
             return None
-        elif folder_ccf is not None and not os.path.exists(folder_ccf):
+        elif folder_ccf is not None and not Path(folder_ccf).exists():
             msg.error('Input folder for CCF templates does not exist. Exiting...\n')
             return None
 
         # find a template file for the CCF with the ID in the filename:
-        ccf_file = [ccf for ccf in os.listdir(folder_ccf) if id.split('_')[0] in ccf]
+        ccf_file = [ccf for ccf in Path(folder_ccf).iterdir() if id.split('_')[0] in ccf]
         while len(ccf_file) == 0 or len(ccf_file) > 1:
             for ccf in ccf_file:
                 print('  - %s' % ccf)
             ccf_input = input('Please type a file to use as template for the CCF: ')
-            ccf_file = [ccf for ccf in os.listdir(folder_ccf) if ccf_input in ccf]
+            ccf_file = [ccf for ccf in Path(folder_ccf).iterdir() if ccf_input in ccf]
 
         msg.info('Using %s as template for the CCF.' % ccf_file[0])
 
@@ -243,7 +243,7 @@ def gen_ascii(id, orig='IACOB', rv_corr=True, rv_method='fitting', rv_tol=200, e
         plt.close('all')
 
         if export_rv == True:
-            rv_table = open(maindir+'tables/RV0s_gen_ascii.txt', 'a+')
+            rv_table = open(maindir / 'tables' / 'RV0s_gen_ascii.txt', 'a+')
             rv_table.write('{}, {}, {:.3f}, {:.3f}\n'.format(star.id_star, star.filename, star.rv0, erv0))
             rv_table.close()
 
@@ -380,10 +380,10 @@ def gen_ascii(id, orig='IACOB', rv_corr=True, rv_method='fitting', rv_tol=200, e
         star.flux = star.flux[mask]
 
     # Create the output ascii file:
-    if not os.path.exists(datadir+'ASCII/POSPROC/NEW/'):
-        os.makedirs(datadir+'ASCII/POSPROC/NEW/')
+    if not Path(datadir / 'ASCII/POSPROC/NEW/').exists():
+        Path(datadir / 'ASCII/POSPROC/NEW/').mkdir(parents=True, exist_ok=True)
 
-    star.export(output_dir=datadir+'ASCII/POSPROC/NEW/', tail='_RV', extension='.ascii')
+    star.export(output_dir=datadir / 'ASCII/POSPROC/NEW/', tail='_RV', extension='.ascii')
 
     return None
 
@@ -415,8 +415,8 @@ def gen_ascii_ML(input_table, not_do=None, cosmic_manual=False, orig='txt'):
     if type(table) is type(Table()): pass # In case the input table is already a table
     else: table = findtable(table) # file where star names and quality flags are
 
-    output = open(maindir + 'tmp/results_ML.txt', 'a')
-    pp = PdfPages(maindir + 'tmp_plots/ML_results.pdf')
+    output = open(maindir / 'tmp' / 'results_ML.txt', 'a')
+    pp = PdfPages(maindir / 'tmp_plots' / 'ML_results.pdf')
 
     l_wl = 3950
     r_wl = 6850
@@ -495,7 +495,7 @@ def gen_ascii_ML(input_table, not_do=None, cosmic_manual=False, orig='txt'):
             goodspec = random.sample(goodspec, 10)
 
         for j,n in zip(goodspec, range(len(goodspec))):
-            star = spec(j.split(os.sep)[-1], orig=orig)
+            star = spec(j.parts[-1], orig=orig)
             star.waveflux(l_wl-1, r_wl+1, cut_edges=True)
 
             # Create the plot:
@@ -611,10 +611,10 @@ def gen_ascii_ML(input_table, not_do=None, cosmic_manual=False, orig='txt'):
 
     output.close()
     pp.close()
-    np.savetxt(maindir + 'tmp/wavelenghtML.ascii', np.c_[star.wave], fmt=('%.4f'))
+    np.savetxt(maindir / 'tmp' / 'wavelenghtML.ascii', np.c_[star.wave], fmt=('%.4f'))
 
 
-def remove_wave(path=maindir+'tmp/', only_list='to_correct.txt'):
+def remove_wave(path=maindir / 'tmp', only_list='to_correct.txt'):
 
     '''
     To remove the wavelenght columns from the ascii files containing the spectrum.
@@ -626,8 +626,8 @@ def remove_wave(path=maindir+'tmp/', only_list='to_correct.txt'):
     if only_list != None:
         table = findtable(only_list, delimiter=' ')
 
-    for file in os.listdir(path):
-        if file.endswith('.ascii'):
+    for file in Path(path).iterdir():
+        if file.is_file() and file.name.endswith('.ascii'):
 
             if only_list != None and not file in table['File']:
                 continue
@@ -644,7 +644,7 @@ def remove_wave(path=maindir+'tmp/', only_list='to_correct.txt'):
                     plt.close()
                 if min(data['col2']) < 0: print(file,'<0',min(data['col2']))
                 data.remove_columns(['col1'])
-                data.write(maindir + 'tmp/new/' + file, format='ascii.no_header')
+                data.write(maindir / 'tmp' / 'new' / file, format='ascii.no_header')
             except:
                 print(file)
 

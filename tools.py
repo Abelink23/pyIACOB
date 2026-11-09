@@ -35,8 +35,6 @@ def table_zp_edr3(table, ra, dec, search_radius=0.5):
     Table containing the output query of Gaia eDR3 including the corrected parallax offset.
     '''
 
-    import sys
-    sys.path.append(os.path.expanduser('~')+'/MEGA/PhD/programs/python/edr3_zp')
     from edr3_zp import zpt
     zpt.load_tables()
     from astroquery.gaia import Gaia

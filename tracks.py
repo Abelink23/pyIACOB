@@ -36,7 +36,7 @@ def trackbonn11(mass=None, vini_vcrit=0.0):
 
     # find all models starting with f+mass
     path = tracksdir + 'Brott11/'
-    tracks = [f for f in os.listdir(path) if f.startswith('M'+str(mass))]
+    tracks = [f for f in Path(path).iterdir() if f.is_file() and f.startswith('M'+str(mass))]
 
     # find the vini for each model
     vini_list = [m.split('V')[1].split('Av')[0] for m in tracks]

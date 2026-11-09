@@ -1,76 +1,141 @@
-import os
-import sys
 import re
+import sys
 import shutil
 import subprocess
+from pathlib import Path
 
 print('\033[96m\033[1m\033[4mWelcome to the pyIACOB package!\033[0m\n')
+print('\033[96mDeveloped by Abel de Burgos and the IACOB team.\033[0m\n')
+print('\033[96mThis setup script will help you configure the pyIACOB package and its dependencies.\033[0m\n')
 
-# Obtain the paths to the main and the data mandatoy directories.
+# Obtain the paths to the main and data mandatory directories.
 while True:
-    main_dir = input('Please provide the path to the main directory: ').strip()
-    if main_dir == '':
+    raw_input = input('Please provide the path to the main directory: ').strip()
+    if not raw_input:
         print('The main directory is mandatory, please provide the path to the main directory.')
+        continue
+
+    path_candidate = Path(raw_input).expanduser()
+    if not path_candidate.exists():
+        create = input('The main directory does not exist, do you want to create it? (y/n): ')
+        if create.lower() == 'y':
+            path_candidate.mkdir(parents=True, exist_ok=True)
+            main_dir = path_candidate
+            break
+        else:
+            print('Please provide a valid path to the main directory.')
     else:
+        main_dir = path_candidate
         break
 
 while True:
-    data_dir = input('Please provide the path to the data directory: ').strip()
-    if data_dir == '':
+    raw_input = input('Please provide the path to the data directory: ').strip()
+    if not raw_input:
         print('The data directory is mandatory, please provide the path to the data directory.')
+        continue
+
+    path_candidate = Path(raw_input).expanduser()
+    if not path_candidate.exists():
+        create = input('The data directory does not exist, do you want to create it? (y/n): ')
+        if create.lower() == 'y':
+            path_candidate.mkdir(parents=True, exist_ok=True)
+            data_dir = path_candidate
+            break
+        else:
+            print('Please provide a valid path to the data directory.')
     else:
+        data_dir = path_candidate
         break
 
 # Obtain the paths to the optional directories.
-maui_dir   = input('Please provide the path to the MAUI directory: ').strip()
-ib_dir     = input('Please provide the path to the IACOB-Broad directory: ').strip()
-tracks_dir = input('Please provide the path to the ev. tracks directory: ').strip()
-tess_dir   = input('Please provide the path to the TESS directory: ').strip()
+print('\nThe following directories are optional, you can leave them empty if you do not want to use them.')
+maui_dir   = input('Please provide the path where MAUI is installed: ').strip()
+
+# Inform the user about the location of the evolutionary tracks and broadening data.
+print('\nThe evolutionary tracks are located in pyIACOB/tracks')
+print(f'\nThe broadening data is located in {main_dir / "broadening"}')
 
 # Create the file 'paths.txt' which contains the paths to the directories.
 with open('paths.txt', 'w') as f:
-    f.write('main=' + main_dir + '\n')
-    f.write('data=' + data_dir + '\n')
+    f.write('main=' + str(main_dir) + '\n')
+    f.write('data=' + str(data_dir) + '\n')
     f.write('maui=' + maui_dir + '\n')
-    f.write('ib=' + ib_dir + '\n')
-    f.write('tracks=' + tracks_dir + '\n')
-    f.write('tess=' + tess_dir + '\n')
 
 # Create the subfolders inside the main_dir directory
-print('Creating the subfolders inside the main directory...\n')
-subfolders = ['lists', 'lists/lines', 'plots', 'tables', 'tmp']
+print('\nCreating the subfolders inside the main directory...\n')
+subfolders = ['broadening', 'lists', 'lists/lines', 'plots', 'tables', 'tmp']
 for subfolder in subfolders:
-    if not os.path.exists(os.path.join(main_dir, subfolder)):
+    target_folder = main_dir / subfolder
+    if not target_folder.exists():
         print(f"Creating {subfolder} directory...")
-        os.mkdir(os.path.join(main_dir, subfolder))
+        target_folder.mkdir(parents=True, exist_ok=True)
 
 # Create a subfolder 'ASCII' inside the data_dir directory if it does not exist.
-if not os.path.exists(os.path.join(data_dir, 'ASCII')):
+ascii_dir = data_dir / 'ASCII'
+if not ascii_dir.exists():
     print("Creating ASCII directory...")
-    os.mkdir(os.path.join(data_dir, 'ASCII'))
-    # move the files in test_data to the data_dir directory
+    ascii_dir.mkdir(parents=True, exist_ok=True)
+    # Move the files in test_data to the data_dir directory
     print("Moving the FITS files in test_data to the data directory...")
-    for file in os.listdir('test_data'):
-        shutil.move(os.path.join('test_data', file), os.path.join(data_dir, file))
+    if Path('test_data').exists():
+        for file in Path('test_data').iterdir():
+            if file.is_file():
+                shutil.move(str(file), str(data_dir / file.name))
 
 # Copy the file 'snr_gaps.txt' to the main_dir/lists directory.
-print('Copying the file snr_gaps.txt to the main/lists directory...\n')
-shutil.copyfile('snr_gaps.txt', os.path.join(main_dir, 'lists', 'snr_gaps.txt'))
+print('Copying the file snr_gaps.txt to the main/lists directory...')
+shutil.copyfile('snr_gaps.txt', str(main_dir / 'lists' / 'snr_gaps.txt'))
 
 # Copy the 'atlas_lines' folder to the main_dir/lists/lines/ directory.
-print('Copying the folder atlas_lines to the main/lists/lines directory...\n')
-shutil.copytree('atlas_lines', os.path.join(main_dir, 'lists', 'lines', 'atlas_lines'), dirs_exist_ok=True)
+print('Copying the folder atlas_lines to the main/lists/lines directory...')
+shutil.copytree('atlas_lines', str(main_dir / 'lists' / 'lines' / 'atlas_lines'), dirs_exist_ok=True)
+
+# --- Environment Activation Confirmation & Manager Selection ---
+print('\n' + '=' * 60)
+print('DEPENDENCY INSTALLATION SETUP')
+print('=' * 60)
+
+# Acknowledge active environment
+while True:
+    ack = input(
+        '\nHave you already activated the target environment where you want to install pyIACOB dependencies? (y/n): '
+    ).strip().lower()
+    if ack in ('y', 'yes'):
+        break
+    elif ack in ('n', 'no'):
+        print('\nPlease activate your target virtual environment (Conda or venv) and re-run this setup script.')
+        sys.exit(0)
+    else:
+        print("Please answer with 'y' or 'n'.")
+
+# Choose environment manager
+while True:
+    env_choice = input(
+        'Which environment manager are you using? (Enter "conda" or "venv"): '
+    ).strip().lower()
+    if env_choice in ('conda', 'venv'):
+        break
+    print("Invalid choice. Please enter either 'conda' or 'venv'.")
+
+# Python version check
+required_py = '3.11'
+req_major, req_minor = map(int, required_py.split('.'))
+if sys.version_info < (req_major, req_minor):
+    print(f"\nError: Python >={required_py} is required, but you are running {sys.version.split()[0]}.")
+    print("Please activate an environment with the required Python version and try again.")
+    sys.exit(1)
+else:
+    print(f"\nPython >={required_py} requirement satisfied.")
 
 # List of packages to check/install
 packages = [
-    'python=3.14.9',
-    'numpy==2.5.4',
+    'numpy==2.4.6',
     'matplotlib==3.11.2',
-    'scipy==1.18.1',
+    'scipy==1.17.1',
     'astropy==8.0.2',
     'astroquery==0.4.11',
     'progressbar2==4.6.0',
-    ]
+]
 
 # Mapping of distribution package name -> Python import name
 IMPORT_MAP = {
@@ -78,39 +143,35 @@ IMPORT_MAP = {
 }
 
 # Loop through packages and check if they are installed
-print("Checking if all packages are installed...")
-input_conda = ''
+print("\nChecking if all packages are installed...")
 for package in packages:
-    if package.startswith('python'):
-        if sys.version_info >= (3, 12):
-            print("python is already installed.")
-            continue
-        package_name = 'python'
-    else:
-        package_name = re.split(r'[=><]+', package)[0]
-
-    # Use the custom module name if it differs, otherwise use the package name
+    package_name = re.split(r'[=><]+', package)[0]
     module_to_import = IMPORT_MAP.get(package_name, package_name)
 
     try:
-        if package_name != 'python':
-            __import__(module_to_import)
-            print(f"{package_name} is already installed.")
-        else:
-            raise ImportError
+        __import__(module_to_import)
+        print(f"✓ {package_name} is already installed.")
     except ImportError:
-        print(f"{package_name} is not installed.")
+        print(f"✗ {package_name} is not installed.")
 
-        if input_conda == '':
-            input_conda = input("Do you want to install the missing packages using conda? (y/n): ")
-        if input_conda.lower() == 'y':
-            try:
-                subprocess.check_call(['conda', 'install', '-y', package])
-            except subprocess.CalledProcessError:
-                print(f"Failed to install {package_name} from default channels. Trying conda-forge...")
-                subprocess.check_call(['conda', 'install', '-c', 'conda-forge', '-y', package])
-        else:
-            print(f"Please install {package_name} manually and run this setup script again.")
-            exit()
+        confirm = input(f"Do you want to install {package} using {env_choice}? (y/n): ").strip().lower()
+        if confirm not in ('y', 'yes'):
+            print(f"Please install {package} manually and re-run the setup script.")
+            sys.exit(1)
 
-print("\nAll packages are installed!")
+        print(f"Installing {package} using {env_choice}...")
+        try:
+            if env_choice == 'conda':
+                try:
+                    subprocess.check_call(['conda', 'install', '-y', package])
+                except subprocess.CalledProcessError:
+                    print(f"Failed to install {package_name} from default channels. Trying conda-forge...")
+                    subprocess.check_call(['conda', 'install', '-c', 'conda-forge', '-y', package])
+            else:  # venv
+                # Using sys.executable guarantees package installation into the active Python interpreter
+                subprocess.check_call([sys.executable, '-m', 'pip', 'install', package])
+        except subprocess.CalledProcessError as err:
+            print(f"Failed to install {package}: {err}")
+            sys.exit(1)
+
+print("\n\033[1m\033[4m\033[96mAll packages are installed!\033[0m")

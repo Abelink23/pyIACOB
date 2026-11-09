@@ -35,14 +35,15 @@ except Exception as e:
 
 #^ findlines from the database module
 print("Creating a temporary file in the lists/lines and reading it using findlines from the db module.")
+tmp_file_path = maindir / 'lists/lines/_temp_.txt'
 try:
-    with open(maindir+'lists/lines/_temp_.txt', 'w') as f:
+    with open(tmp_file_path, 'w') as f:
         f.write('4387.929, He I\n')
         f.write('5875.62,  He I\n')
         f.write('4552.622, Si III\n')
     lines = findlines('_temp_.txt')
     print(f'\033[92mLines found: {lines}\033[0m')
-    os.remove(maindir+'lists/lines/_temp_.txt')
+    tmp_file_path.unlink()
 except Exception as e:
     print(f'\033[91mError finding lines: {e}\033[0m')
 
@@ -50,10 +51,10 @@ except Exception as e:
 print("Trying to find the table 'stars' using findtable from the db module.")
 # copy the file all.txt to the main_dir/tables directory
 try:
-    shutil.copyfile(maindir+'lists/lines/atlas_lines/all.txt', os.path.join(maindir, 'tables', '_ALL_all_.txt'))
+    shutil.copyfile(maindir/'lists/lines/atlas_lines/all.txt', maindir/'tables'/'_ALL_all_.txt')
     table = findtable('_ALL_all_.txt')
     print(f'\033[92mTable found:\n {table[:10]}\n...\033[0m')
-    os.remove(os.path.join(maindir, 'tables', '_ALL_all_.txt'))
+    Path(maindir / 'tables' / '_ALL_all_.txt').unlink()
 except Exception as e:
     print(f'\033[91mError finding table: {e}\033[0m')
 
@@ -80,7 +81,7 @@ try:
                     spt='O', snrcut=50, spccode=True, bmag='>1', gaia='DR3')
     print(f'\033[92mTable for star HD 37022:\n {table[:10]}\n...\033[0m')
     findtable('tablestars.fits')
-    os.remove('tablestars.fits')
+    Path(maindir / 'tables' / 'tablestars.fits').unlink()
 except Exception as e:
     print(f'\033[91mError making table: {e}\033[0m')
 

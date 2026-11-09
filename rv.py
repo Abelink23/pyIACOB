@@ -315,11 +315,9 @@ def RV_cc(id_star, snr=0, n_max=50, orig='IACOB', method='windows', lwl=3800, rw
             print('Plotting %i random spectra...' % n_max)
             spectra = random.sample(spectra, n_max)
 
-    synthetic = []
-    for root, dirs, files in os.walk(datadir+'ASCII/Synthetic_MAUI/'):
-        for file in files:
-            if id_star+'_' in file:
-                synthetic.append(os.path.join(root, file))
+    synthetic_dir = Path(datadir).expanduser() / 'ASCII' / 'Synthetic_MAUI'
+    synthetic = [str(p) for p in synthetic_dir.rglob(f"{id_star}_*")
+                if p.is_file() and not p.name.startswith('._')]
 
     if len(synthetic) == 0:
         print('No synthetic files found for %s.\n' % id_star)
@@ -334,7 +332,9 @@ def RV_cc(id_star, snr=0, n_max=50, orig='IACOB', method='windows', lwl=3800, rw
 
     synthetic = synthetic.split('/')[-1]
 
-    if not os.path.isfile(maindir+'radial_velocity/summary.txt'):
+    # join maindir and radial_velocity to create the path for the output files
+    # maindir is a Path object and so
+    if not Path(maindir/'radial_velocity/summary.txt').exists():
         out_f0 = open(maindir+'radial_velocity/summary.txt', 'a')
         out_f0.write('ID, RV_all, RV_all_std, RV_p2p, RV_p2p_err, Tspan, Nspec\n')
     else:
@@ -416,7 +416,7 @@ def RV_cc(id_star, snr=0, n_max=50, orig='IACOB', method='windows', lwl=3800, rw
     ax.set_ylabel('V$_{r}$ [km/s]',size=10)
     ax.tick_params(direction='in',top='on')
 
-    completeName = os.path.join(maindir+'tmp_plots/', 'RVcc_'+id_star+'.png')
+    completeName = Path(maindir/'tmp_plots/')/f'RVcc_{id_star}.png'
     fig.savefig(completeName, format='png', dpi=200, bbox_inches='tight')
 
     plt.show(block=False)
@@ -614,7 +614,7 @@ def RV(lines, id_star, snr=0, linesRV0=None, n_max=50, linecut=1, ewcut=25, widt
 
     lines,elements,_ = findlines(lines)
 
-    if not os.path.isfile(maindir+'radial_velocity/summary.txt'):
+    if not Path(maindir/'radial_velocity/summary.txt').exists():
         out_f0 = open(maindir+'radial_velocity/summary.txt', 'a')
         out_f0.write('ID, RV_all, RV_all_std, RV_p2p, RV_p2p_err, Tspan, Nlines, Nspec\n')
     else:
@@ -740,7 +740,7 @@ def RV(lines, id_star, snr=0, linesRV0=None, n_max=50, linecut=1, ewcut=25, widt
     ax.set_ylabel('V$_{r}$ [km/s]',size=10)
     ax.tick_params(direction='in',top='on')
 
-    completeName = os.path.join(maindir+'tmp_plots/', 'RV_'+id_star+'.png')
+    completeName = Path(maindir/'tmp_plots/')/f'RV_{id_star}.png'
     fig.savefig(completeName, format='png', dpi=200, bbox_inches='tight')
 
     plt.show(block=False)

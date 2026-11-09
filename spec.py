@@ -19,20 +19,18 @@ plt.rc('xtick', direction='in', top=True)
 plt.rc('ytick', direction='in', right=True)
 
 
-#_* Spec module version 2.00 (2026-06-22)
+#_* Spec module version 2.01 (2026-11-09)
 
 class spec():
     def __init__(self, spectrum, snr=0, rv0=0, offset=0, cut_edges=False, orig='IACOB', delimiter=' ',
                  outside_dir=''):
-
         '''
         Parameters
         ----------
 
         spectrum : str
-            Enter the input spectrum, either name(s) of the star(s), the fits files
-            separated by coma, a .txt/.lst file containing the filenames, or '*'
-            if you want to select all the fits files inside the working folder.
+            Filename of the input spectrum, or name of the star together with the snr.
+            The filename must be unique.
 
         snr : str, optional
             If 'best' as input, it finds the best SNR spectrum for the given name.
@@ -60,59 +58,64 @@ class spec():
             Delimiter used in the txt file to separate lambda/wavelength and flux.
             This is valid only if orig='txt'. Default is ' '.
 
-        outside_dir : str, optional
+        outside_dir : str
             If the spectrum is outside the datadir, enter the path to the folder where
             the spectrum is located. Default is '' (i.e., "disabled").
         '''
 
-        if type(spectrum) == list:
+        if isinstance(spectrum, list):
             if len(spectrum) > 1:
-                print(msg.error('Problem in spec(): More than one spectrum found.\nExiting...'))
+                msg.error('Problem in spec(): More than one spectrum found.\nExiting...')
                 return None
-            else: spectrum = spectrum[0]
+            spectrum = spectrum[0]
 
-        if orig in ['IACOB','iacob']:
+        # Normalize origin type
+        orig_lower = orig.lower()
+        if orig_lower in ('iacob',):
             self.orig = 'IACOB'
-        elif orig in ['txt','TXT','ascii','ASCII']:
+        elif orig_lower in ('txt', 'ascii'):
             self.orig = 'ascii'
-        elif orig in ['syn','SYN','synthetic','SYNTHETIC']:
+        elif orig_lower in ('syn', 'synthetic'):
             self.orig = 'synthetic'
+        else:
+            msg.error(f"Problem in spec(): Unknown origin '{orig}'.\nExiting...")
+            return None
 
+        # Resolve spectrum path
         if self.orig == 'IACOB':
             self.fullpath = findstar(spectrum, snr=snr)
-        elif self.orig == 'ascii' or self.orig == 'synthetic':
-            if outside_dir == '':
-                #! So far the search function only returns the first match
-                self.fullpath = search(spectrum, datadir + 'ASCII' + os.sep)
-            else:
-                self.fullpath = search(spectrum, outside_dir)
+        else:
+            search_path = Path(outside_dir) if outside_dir else Path(datadir) / 'ASCII'
+            self.fullpath = search(spectrum, search_path)
 
-        if self.fullpath is None:
-            print(msg.error('Problem in spec(): No spectrum found.\nExiting...'))
+        if not self.fullpath:
+            msg.error('Problem in spec(): No spectrum found.\nExiting...')
             return None
 
         if self.orig == 'IACOB':
             if len(self.fullpath) > 1:
-                print(msg.error('Problem in spec(): More than one spectrum for %s found. Exiting...' % spectrum))
+                msg.error(f'Problem in spec(): More than one spectrum for {spectrum} found. Exiting...')
                 return None
-            else:
-                self.fullpath = self.fullpath[0]
+            self.fullpath = self.fullpath[0]
 
-        self.filename = self.fullpath.split(os.sep)[-1]
-        self.id_star = self.fullpath.split(os.sep)[-1].split('_')[0]
+        # Keep path helpers while storing self.fullpath as str
+        path_obj = Path(self.fullpath)
+        self.fullpath = str(self.fullpath)
+        self.filename = path_obj.name
+        self.id_star = path_obj.stem.split('_')[0]
 
-        if self.orig == 'IACOB' or \
-            (self.orig in ['ascii','synthetic'] and any([i in self.filename for i in ['_V','_R']])):
-            self.resolution = int(re.split(r'(\d*\d+)',self.filename)[-2])
+        # Extract spectral resolution from filename
+        if self.orig == 'IACOB' or (self.orig in ('ascii', 'synthetic') and
+                                    any(k in self.filename for k in ('_V', '_R'))):
+            self.resolution = int(re.split(r'(\d*\d+)', self.filename)[-2])
         else:
             self.resolution = np.nan
             msg.warn('Resolution not found in filename. Set to NaN.')
 
-        self.offset = offset # Note, run self.waveflux to apply offset.
+        self.offset = offset  # Note: run self.waveflux to apply offset.
+        self.rv0 = rv0        # Note: run self.waveflux to apply the correction.
+        self.SpC = ''         # Spectral classification
 
-        self.rv0 = rv0 # Note, run self.waveflux to apply the correction.
-
-        self.SpC = '' # Spectral classification
         self.waveflux(cut_edges=cut_edges, delimiter=delimiter)
 
 
@@ -137,7 +140,6 @@ class spec():
 
 
     def waveflux(self, lwl=None, rwl=None, width=0, helcorr='hel', cut_edges=False, delimiter=' '):
-
         '''
         Function to load or update the wavelength and flux vectors and optionally apply
         an offset or a radial velocity correction if they are different from 0 in the
@@ -289,7 +291,7 @@ class spec():
             flux = flux[l_cut:r_cut]
 
         # Cut the spectrum to the desired wavelength range given by lwl and rwl
-        if lwl != None and rwl != None:
+        if lwl is not None and rwl is not None:
             if lwl < wave[0] or wave[-1] < rwl:
                 msg.warn('Wavelength limits outside spectrum wavelength range.')
             flux = flux[(wave >= lwl-width/2) & (wave <= rwl+width/2)]
@@ -313,7 +315,6 @@ class spec():
 
     def fitline(self, line, width=15, tol=150., func='g', iter=3, fw3414=False, info=False,
         outfit=False, plot=False):
-
         '''
         Function to fit a spectral line to a function. Different functions account for
         different lines depending on their natural profile (e.g. metallic lines should be
@@ -643,7 +644,7 @@ class spec():
 
             fig, ax = plt.subplots()
 
-            if fw3414 is True and FW34_14 != np.nan:
+            if fw3414 is True and FW34_14 is not np.nan:
                 ax.plot([wave[medpos[0][0]],wave[medpos[0][1]]],[lowval,lowval],'gray',linestyle='--',lw=.5)
                 ax.plot([wave[medpos[1][0]],wave[medpos[1][1]]],[uppval,uppval],'gray',linestyle='--',lw=.5)
 
@@ -691,7 +692,6 @@ class spec():
 
 
     def snrcalc(self, zone='B'):
-
         '''
         Function to calculate the Signal to Noise Ratio in different regions of the
         spectra if available.
@@ -764,7 +764,6 @@ class spec():
     def cosmic(self, method='zscore', dmin=0.05, iter=3, zs_cut=5,
         ker_splitwave=100, ker_sig=2, ker_sig_g=None,
         protect_em_lines=True):
-
         '''
         Function to remove cosmic rays in the spectra by different approaches.
 
@@ -903,7 +902,6 @@ class spec():
 
 
     def cosmetic():
-
         '''
         IN DEVELOPMENT - Function to remove cosmetic defects recurrently found in the
         spectra.
@@ -915,7 +913,6 @@ class spec():
 
 
     def degrade(self, resol):
-
         '''
         #! [DEPRECATED - to be removed in future versions as it is in convolution()]
         Function to degrade a spectrum to a certain resolution by convolving it to a
@@ -1120,7 +1117,6 @@ class spec():
 
 
     def resamp(self, dlam, lwl=None, rwl=None, force_edges=False, method='linear'):
-
         '''
         Function to resample a spectrum into a fixed delta-lambda and wavelength range.
         Note: the last point of the output wavelength may not match rwl if the difference
@@ -1203,35 +1199,47 @@ class spec():
 
 
     def export(self, output_dir, tail='', extension='.ascii'):
-
         '''
         Function to export the current wavelength and flux of the spectrum in the class
         into an ascii file.
 
         Parameters
         ----------
-        output_dir : str
-            Directory where the ascii file will be saved.
+        output_dir : str | Path
+            Directory where the ascii file will be saved. Supports '~'.
 
         tail : str, optional
             Tail of the file added before the extension for its identification.
             Default is ''.
 
         extension : str, optional
-            Extenstion of the output file. Default is '.ascii'.
+            Extension of the output file. Default is '.ascii'.
 
         Returns
         -------
-        Nothing, but the ascii file is exported.
+        Path
+            The Path of the exported ascii file.
         '''
+        # Expand user paths (~/...) and resolve the Path object
+        output_dir = Path(output_dir).expanduser()
+        if not output_dir.exists():
+            msg.info('Output directory does not exist. Creating it.')
+            output_dir.mkdir(parents=True, exist_ok=True)
 
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        # Normalize the extension to always have a leading '.'
+        if extension and not extension.startswith('.'):
+            extension = f".{extension}"
 
-        filename = self.filename.replace('.fits', '')
-        np.savetxt(output_dir + filename + tail + extension,
-            np.c_[self.wave,self.flux], fmt=('%.4f','%.6f'),
-            header='lambda    flux', comments='')
+        # Path(self.filename).stem strips .fits (or any other extension) cleanly
+        base_name = Path(self.filename).stem
+        out_file = output_dir / f"{base_name}{tail}{extension}"
+
+        np.savetxt(
+            out_file,
+            np.c_[self.wave, self.flux],
+            fmt=('%.4f', '%.6f'),
+            header='lambda    flux',
+            comments='')
 
         return None
 
@@ -1341,7 +1349,7 @@ class spec():
         Nothing, but the plots are generated.
         '''
 
-        if self.orig == 'IACOB' and self.SpC == '':
+        if self.orig != 'IACOB' and self.SpC == '':
             self.get_spc()
 
         if lwl < min(self.wave):
@@ -1663,7 +1671,6 @@ def f_macro(x, lam0, vmac):
     M = A * (np.exp(-x_d**2) - x_d * np.sqrt(np.pi) * (1 - erf(x_d)))
 
     return M
-
 
 def f_macro_old(x, lam0, vmac):
 
