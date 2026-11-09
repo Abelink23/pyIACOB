@@ -47,58 +47,41 @@ Run the following command in the terminal from the main folder of the package:
 
 The required folders will be created and the package will be installed.
 
-      If you plan to use spectra in ascii format, you will need to put this files
-      inside *data*/ASCII/
+If you plan to use spectra in ascii format, you will need to put this files inside *data*/ASCII/
 
 # Overview of the main modules:
 
-- binarity.py contains functions review multi-epoch spectra and perform a preliminary
-  analysis of the binary nature of the target.
+- binarity.py contains functions review multi-epoch spectra and perform a preliminary analysis of the binary nature of the target.
 
 - color_msg.py contains functions to print colored messages in the terminal.
 
-- db.py contains functions to search spectra or create master tables within the IACOB
-  database, to search tables and lists and make queries in Simbad.
+- db.py is the main module of the package, which loads the default paths, and provides functions to search for lists, tables, files, spectra (by, e.g. S/N); generate master tables; make queries in Simbad or Gaia; check the integrity of the fits files; and other functions to interact with the IACOB database.
 
-- get_feros.py contains functions to download FEROS spectra from the ESO archive.
+- get_feros.py contains functions to download FEROS datasets from the ESO archive and only keep the files that contain the reduced spectra of the target star.
 
-- hardcoded_maui.py contains hardcoded values, parameters, or masks used in the MAUI analysis.
+- hardcoded_maui.py contains hardcoded values, parameters, or masks used in the MAUI module.
 
-- iacob_broad.py contains the function to perform the line-broadening analysis of OB-type
-  stars using the IACOB-BROAD tool. This module is a Python implementation of the original
-  IDL tool developed by Simón-Díaz, S. & Herrero, A. (2014), and later translated to Python
-  by D. Galán (PhD, IAC) together with the sub-modules included in the broadening/ folder.
+- iacob_broad.py contains the function to perform the line-broadening analysis of OB-type stars using the IACOB-BROAD tool. This module is a Python implementation of the original IDL tool developed by Simón-Díaz, S. & Herrero, A. (2014), and later translated to Python by D. Galán (PhD, IAC) together with the sub-modules included in the broadening/ folder.
 
-- isocrones.py contains functions to retrieve isochrones from different libraries.
-  [IN DEVELOPMENT].
+- isocrones.py contains functions to retrieve isochrones from different libraries [IN DEVELOPMENT].
 
-- maui.py contains functions which helps the user to generate output and input tables for
-  MAUI (Urbaneja 2026), with some additional features regarding the preparation of the
-  analysis and the review of the results.
+- maui.py contains functions which helps the user to generate output and input tables for MAUI (Urbaneja 2026), with some additional features regarding the preparation of the analysis and the review or visualization of the results.
 
-- measure.py contains functions to interactively or automatically obtain equivalent
-  widths, full widths, full widths at 3/4 and 1/4 of the line depth, or radial velocities
-  for a given input of stars and spectral lines.
+- measure.py contains functions to interactively or automatically obtain equivalent widths, full widths, full widths at 3/4 and 1/4 of the line depth, or radial velocities or a given input of stars and spectral lines.
 
-- reduction.py contains functions to perform the reduction of the spectra, including
-  the data extraction, normalization, and formatting to match the IACOB database format.
+- reduction.py contains functions to perform the reduction of the spectra, including the data extraction, normalization, and formatting to match the IACOB database format.
 
-- rv.py contains functions to calculate the radial velocity offset via cross-correlation
-  or via input list of lines. It also allows to create RV curves.
+- rv.py contains functions to calculate the radial velocity offset via cross-correlation or via input list of lines. It also allows to create RV curves.
 
-- setup.py contains the code to install the package and create the required folders.
+- setup.py contains the code to install the package, the dependencies, and create the required folders.
 
-- spec.py contains functions that manipulate an input spectrum (in FITS or ASCII format),
-  plot it, make different measurements, and eventually export the new spectrum into a file.
+- spec.py contains functions that manipulate an input spectrum (in FITS or ASCII format), plot it, make different measurements, and eventually export the new spectrum into a file.
 
-- spec_posproc.py allows the user to perform a post-processing of the input spectra,
-  including the radial velocity correction or the cosmetic defects and cosmic rays removal.
+- spec_posproc.py allows the user to perform a post-processing of the input spectra, including the radial velocity correction or the cosmetic defects and cosmic rays removal.
 
-- tools.py contains utility functions which could also be interested while using
-  spectroscopic data.
+- tools.py contains utility functions which could also be interested while using spectroscopic data.
 
-- tracks.py contains functions to retrieve either evolutionary tracks or isochrones from
-  different libraries (MIST, Bonn, Geneva...).
+- tracks.py contains functions to use evolutionary tracks from different sources inclued in the tracks/ folder. Currently it includes the tracks from Brott et al. (2011) and Ekström et al. (2012), Sciarini et al. (2026), and the MIST tracks.
 
 # Usage:
 
