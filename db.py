@@ -1,7 +1,7 @@
 # Python Standard Library packages:
 import re
-import os
 import time
+from pathlib import Path
 
 # Other main packages
 import numpy as np
@@ -9,87 +9,91 @@ import progressbar as pb
 
 # Astro-packages
 import astropy.units as u
-from astropy.io import fits, ascii
+from astropy.io import ascii, fits
 from astropy.table import Table, join, vstack, hstack
 from astropy.coordinates import SkyCoord
 
 from color_msg import msg
 
 msg = msg()
-msg.bold_under('c','\nWelcome to the pyIACOB package! - v1.23')
-msg.c('developed by Abel de Burgos et al. (2026/09/15)\n')
+msg.bold_under('c', '\nWelcome to the pyIACOB package! - v1.24')
+msg.c('developed by Abel de Burgos et al. (2026/11/09)\n')
 
 
-def load_default_paths(dir_paths_file):
-
+def load_default_paths(dir_paths_file='paths.txt'):
     '''
     Function to load the default paths for the pyIACOB package from a text file.
 
     Parameters
     ----------
-    paths.txt : str
+    dir_paths_file : str | Path, optional
         Name of the text file containing the paths. It must be in the same path
         where the package is being run. If not found, it will ask for the full
         path to the file.
 
     Returns
     -------
-    Paths for the main directories.
+    tuple[Path, Path, Path, Path, Path, Path]
+        Paths for the main directories (main, data, ib, maui, tracks, tess).
     '''
-    while not os.path.isfile(dir_paths_file):
-        msg.error(f"File '{dir_paths_file}' not found...")
-        dir_paths_file = input("Please provide the full path to the file: ")
+    paths_file = Path(dir_paths_file)
+    while not paths_file.is_file():
+        msg.error(f"File '{paths_file}' not found...")
+        paths_file = Path(input("Please provide the full path to the file: ").strip())
 
-    with open(dir_paths_file, 'r') as f:
+    with paths_file.open('r') as f:
         dirs = {
-            key.strip(): (val.strip() if val.strip().endswith('/') else val.strip() + '/')
+            key.strip(): Path(val.strip()).expanduser()
             for line in f
             if line.strip() and not line.startswith('#') and '=' in line
             for key, val in [line.split('=', 1)]
             }
 
-    return dirs['main'], dirs['data'], dirs['ib'], dirs['maui'], dirs['tracks'], dirs['tess']
+    return dirs['main'], dirs['data'], dirs['maui']
 
-maindir, datadir, ibdir, mauidir, tracksdir, tessdir = load_default_paths('paths.txt')
+
+maindir, datadir, mauidir = load_default_paths('paths.txt')
 
 
 def search(myfile, path, silent_search=False):
+    '''
+    Function to search a file within a directory.
 
-        '''
-        Function to search a file within a directory.
+    Parameters
+    ----------
+    myfile : str
+        Name of the file to search.
+    path : str | Path
+        Path where to search for the file.
+    silent_search : bool, optional
+        If True, suppresses warning and error messages.
 
-        Parameters
-        ----------
-        myfile : str
-            Name of the file to search.
+    Returns
+    -------
+    Path | None
+        Path to the searched file, or None if not found.
+    '''
 
-        path : str
-            Path where to search for the file.
+    search_path = Path(path).expanduser()
+    if not search_path.is_dir():
+        if not silent_search:
+            msg.error(f"Directory '{search_path}' not found.\n")
+        return None
 
-        Returns
-        -------
-        Path to the searched file.
-        '''
+    matches = [p for p in search_path.rglob(str(myfile)) if p.is_file() and not p.name.startswith('._')]
 
-        f_dir = []
-        for root, dirs, files in os.walk(path):
-            for file in files:
-                if file == myfile:
-                    f_dir.append(os.path.join(root, file))
+    if not matches:
+        if not silent_search:
+            msg.error(f"File '{myfile}' not found.\n")
+        return None
 
-        if f_dir == []:
-            if not silent_search:
-                msg.error('File %s not found.\n' % myfile)
-            return None
+    if len(matches) > 1 and not silent_search:
+        msg.warn(f"More than one file found, selecting the first one: {matches[0]}")
 
-        elif len(f_dir) > 1 and not silent_search:
-            msg.warn('More than one file found, selecting the first one: %s' % f_dir[0])
-
-        return f_dir[0]
+    return matches[0]
 
 
 def findstar(spectra=None, snr=0, path=None):
-
     '''
     Function to get the paths of the searched spectra allowing to limitate the
     results by a minimum SNR if provided in the header, or the one with best SNR.
@@ -107,95 +111,88 @@ def findstar(spectra=None, snr=0, path=None):
         If specified, it returns all the spectra above the chosen SNR.
         If not specified it will search for all the available spectra with SNR > 0.
 
+    path : str, optional
+        Path where to search for the spectra. If not specified, it will search
+        in the default data directory.
+
     Returns
     -------
-    Paths to the files found.
+    list[Path]
+        Paths to the files found.
     '''
 
-    if spectra == None:
-        while spectra == '':
+    if spectra is None:
+        while not spectra:
             print('No file/files were selected.\n')
-            spectra = input('Enter the input spectra (name(s), *, *.fits, *.txt/.lst): ')
+            spectra = input('Enter the input spectra (name(s), *, *.fits, *.txt/.lst): ').strip()
 
     if spectra == '*':
         list_spectra = ['*']
-
     elif '.lst' in spectra or '.txt' in spectra:
-        print('\nSearching file in %s... \n' % (maindir))
+        print(f"\nSearching file in {maindir}... \n")
+        list_file = search(spectra, maindir)
+        if list_file is None:
+            return []
 
-        list_dir = search(spectra, maindir)
-        list_spectra = []
+        with open(list_file, 'r') as f:
+            raw_lines = f.read().splitlines()
 
-        with open(list_dir, 'r') as spectra:
-            list_spectra = spectra.read().splitlines()
-
-        if len(list_spectra) == 0:
+        if not raw_lines:
             msg.error('No spectra in list found.\nExiting...')
-            return None
+            return []
 
-        list_spectra = [spectrum.split()[0] for spectrum in list_spectra \
-                        if not spectrum.startswith('#') and not spectrum == '']
-
+        list_spectra = [line.split()[0] for line in raw_lines if not line.startswith('#') and line.strip()]
     elif 'fits' in spectra:
-        list_spectra = spectra.split(',')
-
+        list_spectra = [s.strip() for s in spectra.split(',')]
     else:
-        list_spectra = spectra.replace(' ', '').split(',') # This catches 'HDXXXX, HDYYYY'
+        list_spectra = spectra.replace(' ', '').split(',')
+
+    search_path = Path(path if path else datadir).expanduser()
+    all_files = [p for p in search_path.rglob('*') if p.is_file() and not p.name.startswith('._')]
 
     dir_spectra = []
     for spectrum in list_spectra:
-        match = 0
-        for root, dirs, files in os.walk(path if path else datadir):
-            for file in files:
+        match = False
+        for p in all_files:
+            file_name = p.name
+            if spectrum == '*' and p.suffix == '.fits':
+                dir_spectra.append(p)
+                match = True
+            elif file_name == spectrum:
+                dir_spectra.append(p)
+                match = True
+            elif f"{spectrum}_" in file_name and p.suffix == '.fits':
+                dir_spectra.append(p)
+                match = True
 
-                if file.startswith('._'): continue
+        if not match:
+            msg.error(f"File/source {spectrum} not found.\n")
 
-                elif spectrum == '*' and file.endswith('.fits'):
-                    dir_spectra.append(os.path.join(root, file))
-                    match = 1
+    if not dir_spectra:
+        return []
 
-                elif file == spectrum:
-                    dir_spectra.append(os.path.join(root, file))
-                    match = 1
-
-                elif spectrum + '_' in file and file.endswith('.fits'):
-                    dir_spectra.append(os.path.join(root, file))
-                    match = 1
-
-        if not match == 1:
-            msg.error('File/source %s not found.\n' % spectrum)
-
-    if len(dir_spectra) == 0:
-        return dir_spectra
-
-    # Spectra selection based on selected SNR.
-    if any(['ascii' in spectrum for spectrum in list_spectra]) and snr != None:
+    # Spectra selection based on selected SNR
+    if any('ascii' in str(s) for s in list_spectra) and snr is not None:
         msg.warn('SNR for ascii files not available, ignoring SNR keyword.')
-
     else:
         if snr == 'best' or snr is None:
             dir_spectra = spec_snr(dir_spectra)
-
         elif snr == 'bestHF':
             dir_spectra = spec_snr(dir_spectra, get_HF=True)
-
-        elif type(snr) == int or type(snr) == float or snr.isnumeric():
+        elif isinstance(snr, (int, float)) or (isinstance(snr, str) and snr.isnumeric()):
             dir_spectra = spec_snr(dir_spectra, snrcut=float(snr))
-
         else:
             msg.error('SNR keyword not provided properly.\nExiting...')
-            return None
+            return []
 
-    # Order all spectra from a single target by date.
+    # Order all spectra from a single target by date
     if len(list_spectra) == 1:
-        dir_spectra = sorted(dir_spectra, key = lambda path: \
-        path.split(os.sep)[-1].split('_')[1] + path.split(os.sep)[-1].split('_')[2])
+        dir_spectra = sorted(dir_spectra, key=lambda p: Path(p).name.split('_')[1] + Path(p).name.split('_')[2])
 
     return dir_spectra
 
 
 def searchlines(line, tol=1):
-
     '''
     IN DEVELOPMENT - this is to easily find spectral lines in a future included list of
     spectral lines developed within the IACOB team.
@@ -215,23 +212,21 @@ def searchlines(line, tol=1):
 
     line = float(line.replace('?', ''))
     linesdb = findlines('synt_lines_OB.lst')
-    indexes = [linesdb[0].index(i) for i in linesdb[0] if i > line-tol and i < line+tol]
+    indexes = [linesdb[0].index(i) for i in linesdb[0] if line - tol < i < line + tol]
     print('Nearest lines are:')
-    [print(linesdb[0][idx],linesdb[1][idx],linesdb[2][idx]) for idx in indexes]
-    line = input('Choose a line from the list: ')
+    for idx in indexes:
+        print(linesdb[0][idx], linesdb[1][idx], linesdb[2][idx])
+    return input('Choose a line from the list: ')
 
-    return line
 
-
-def findlines(list):
-
+def findlines(list_lines):
     '''
     Function to extract atomic lines from a list containing their information or
     provide output format for a given wavelength.
 
     Parameters
     ----------
-    list : str/float
+    list_lines : str/float
         Enter the list of lines to fit in .txt/.lst, or coma-separated string
         with wavelengths, or single float/int wavelength.
 
@@ -240,59 +235,51 @@ def findlines(list):
     List of wavelengths, element names, and loggf.
     '''
 
-    path = maindir+'lists/lines'
+    path = maindir / 'lists' / 'lines'
+    elements = loggf = []
 
-    lines = []
+    if isinstance(list_lines, (float, int)):
+        return [float(list_lines)], [None], [None]
 
-    # Single input in float or int format without quotation marks:
-    if type(list) == float or type(list) == int:
-        lines.append(float(list))
-        elements = loggf = [None]
+    if isinstance(list_lines, str) and ('.lst' in list_lines or '.txt' in list_lines):
+        list_file = search(list_lines, path)
+        if list_file is None:
+            return [], [], []
 
-    # Lines in a lst/txt file with more information on each line:
-    elif '.lst' in list or '.txt' in list:
-        list_dir = search(list, path)
-        with open(list_dir, 'r') as file_lines:
-            lines = file_lines.read().splitlines()
+        with open(list_file, 'r') as f:
+            raw_lines = f.read().splitlines()
 
-        rows = [line.split(',') for line in lines if not line.startswith('#') and not line == '']
-        lines = [float(line[0]) for line in rows]
-
-        try:
-            elements = [line[1].strip() for line in rows]
-        except:
-            elements = [None]*len(lines)
+        rows = [line.split(',') for line in raw_lines if not line.startswith('#') and line.strip()]
+        lines = [float(row[0]) for row in rows]
 
         try:
-            loggf = [float(line[2].strip()) for line in rows]
-        except:
-            loggf = [None]*len(lines)
+            elements = [row[1].strip() for row in rows]
+        except IndexError:
+            elements = [None] * len(lines)
 
-    # String of lines separated by coma:
-    else:
-        lines = list.split(',')
-        elements = loggf = [None]*len(lines)
+        try:
+            loggf = [float(row[2].strip()) for row in rows]
+        except IndexError:
+            loggf = [None] * len(lines)
 
-        lines_f = []
-        for n in range(len(lines)):
-            if '?' in lines[n]:
-                lines_f.append(searchlines(lines[n]))
-            else:
-                lines_f.append(lines[n])
+        return lines, elements, loggf
 
-        lines = [float(line) for line in lines_f]
+    # Comma-separated string
+    raw_entries = list_lines.split(',')
+    elements = loggf = [None] * len(raw_entries)
+    lines_f = [searchlines(entry) if '?' in entry else entry for entry in raw_entries]
+    lines = [float(line) for line in lines_f]
 
     return lines, elements, loggf
 
 
-def findlist(list, path=None):
-
+def findlist(list_name, path=None):
     '''
     Function to extract items in a txt/lst file.
 
     Parameters
     ----------
-    list : str
+    list_name : str
         Enter the list of items in .txt/.lst.
 
     path : str, optional
@@ -303,32 +290,28 @@ def findlist(list, path=None):
     Items contained in the input list.
     '''
 
-    if path == None:
-        path = maindir + 'lists'
+    search_path = Path(path) if path is not None else maindir / 'lists'
 
-    # To catch wrong int/float inputs:
-    if type(list) == float or type(list) == int:
+    if isinstance(list_name, (float, int)):
         msg.error('Input cannot be int or float format. \n Exiting...')
         return None
 
-    # Lines in a lst/txt file with more information on each line:
-    elif '.lst' in list or '.txt' in list:
-        list_dir = search(list, path)
-        with open(list_dir, 'r') as file_list:
-            list = file_list.read().splitlines()
+    if isinstance(list_name, str) and ('.lst' in list_name or '.txt' in list_name):
+        list_file = search(list_name, search_path)
+        if list_file is None:
+            return []
 
-        items = [row.split(',')[0] for row in list if not row.startswith('#') and not row == '']
+        with open(list_file, 'r') as f:
+            raw_lines = f.read().splitlines()
 
-    else:
-        items = list.replace(' ', '').split(',') # This catches 'HDXXXX, HDYYYY'
+        return [row.split(',')[0].strip() for row in raw_lines if not row.startswith('#') and row.strip()]
 
-    return items
+    return list_name.replace(' ', '').split(',')
 
 
 def findtable(table, path=None, format=None, delimiter=',', header_start=None,
     fits_strip_end=True, fix_missing=False, guess=False, quicklook=False,
     silent_search=False):
-
     '''
     Function to get the data from a table with different formats.
     See https://docs.astropy.org/en/stable/io/ascii/read.html for more details
@@ -373,52 +356,38 @@ def findtable(table, path=None, format=None, delimiter=',', header_start=None,
     Data in table, in table format.
     '''
 
-    if path == None:
-        path = maindir + 'tables'
+    search_path = Path(path) if path is not None else maindir / 'tables'
+    table_file = search(table, search_path, silent_search=silent_search)
 
-    else:
-        if os.name == 'nt':
-            path = path.replace('/', '\\')
-        elif os.name == 'posix':
-            path = path.replace('\\', '/')
-
-    table_dir = search(table, path, silent_search=silent_search)
-
-    if table_dir == None:
+    if table_file is None:
         return None
 
-    if '.fits' in table or format == 'fits':
-        #with fits.open(table_dir, mode='readonly') as hdu_list:
-        #   data = Table.read(hdu_list[1].data, format='fits')
+    table_path = Path(table_file)
 
-        data = Table.read(table_dir, format='fits')
-        if fits_strip_end == True:
-            to_strip = [i for i in data.colnames if data.dtype[i].type in [np.str_,np.bytes_]]
+    if '.fits' in table_path.name or format == 'fits':
+        data = Table.read(table_path, format='fits')
+        if fits_strip_end:
+            to_strip = [col for col in data.colnames if data.dtype[col].type in (np.str_, np.bytes_)]
             for col in to_strip:
-                data[col] = [i.strip() if np.ma.is_masked(i) == False else i for i in data[col]]
-
-    elif header_start != None:
-        data = ascii.read(table_dir, header_start=header_start, format=format, delimiter=delimiter, guess=guess)
-
+                data[col] = [val.strip() if not np.ma.is_masked(val) else val for val in data[col]]
     else:
-        data = ascii.read(table_dir, format=format, delimiter=delimiter, guess=guess)
+        data = ascii.read(table_path, header_start=header_start, format=format, delimiter=delimiter, guess=guess)
 
-    if fix_missing == True:
-        for j in [i for i in data.colnames if data.dtype[i].type in [np.str_,np.bytes_]]:
-            data[j].fill_value = ''
-        for j in [i for i in data.colnames if data.dtype[i].type in [np.float64]]:
-            data[j].fill_value = np.nan
+    if fix_missing:
+        for col in [c for c in data.colnames if data.dtype[c].type in (np.str_, np.bytes_)]:
+            data[col].fill_value = ''
+        for col in [c for c in data.colnames if data.dtype[c].type == np.float64]:
+            data[col].fill_value = np.nan
         data = data.filled()
 
-    if quicklook == True:
+    if quicklook:
         data.show_in_browser(jsviewer=True)
 
     return data
 
 
 def xmatch_table(table1, table2, match_col=None, output_cols=None,
-    output_name='xmatch_table', format='fits'):
-
+                 output_name='xmatch_table', format='fits'):
     '''
     Function to generate xmatched tables with selected output columns and format.
 
@@ -451,55 +420,54 @@ def xmatch_table(table1, table2, match_col=None, output_cols=None,
     same path where the two input tables are located.
     '''
 
-    table1 = findtable(table1)
-    table2 = findtable(table2)
+    t1 = findtable(table1)
+    t2 = findtable(table2)
+    if t1 is None or t2 is None:
+        return None
 
     # Cross-match column:
-    same_cols = [i for i in table1.colnames if i in table2.colnames]
-    if match_col == None:
-
-        if same_cols == []:
+    same_cols = [col for col in t1.colnames if col in t2.colnames]
+    if match_col is None:
+        if not same_cols:
             print('No columns found with the same name in both tables. Exiting... \n')
             return None
+        msg.info(f"Columns {', '.join(same_cols)} with the same name found in both tables.")
+        match_col = input('Select one of the above column names for the cross-match: ').strip()
 
-        else:
-            msg.info('Columns %s with the same name found in both tables.' % ', '.join(same_cols))
-            match_col = input('Select one of the above column names for the cross-match: ')
 
     # Remove extra columns:
     if len(same_cols) > 1:
         msg.info('More than one column has the same name.')
         msg.info('Output table will contain *_1, *_2 for them.')
-
-        rm = input('Remove repeated columns from second table? [y/n]: ')
+        rm = input('Remove repeated columns from second table? [y/n]: ').strip().lower()
         if rm == 'y':
-            table2.remove_columns(
-            [i for i in table2.colnames if i in table1.colnames and not i == match_col])
+            t2.remove_columns([c for c in t2.colnames if c in t1.colnames and c != match_col])
 
     # Cross-match:
-    if table1[match_col].dtype.char == 'S':
-        table1[match_col] = [i.strip() for i in table1[match_col]]
-        table2[match_col] = [i.strip() for i in table2[match_col]]
+    if t1[match_col].dtype.char == 'S':
+        t1[match_col] = [val.strip() for val in t1[match_col]]
+        t2[match_col] = [val.strip() for val in t2[match_col]]
 
-    table = join(table1, table2, keys=match_col)
-    if len(table) == 0:
+    matched = join(t1, t2, keys=match_col)
+    if len(matched) == 0:
         msg.error('No matches for the joined tables. Exiting... \n')
         return None
 
     # Output columns:
-    if output_cols != None:
-        output_cols = output_cols.split(',')
-        table.remove_columns([i for i in table.colnames if not i in output_cols])
+    if output_cols is not None:
+        cols_to_keep = [c.strip() for c in output_cols.split(',')]
+        matched.remove_columns([c for c in matched.colnames if c not in cols_to_keep])
 
     # Saving the file:
-    full_path = maindir + 'tables/' + output_name + '.' + format
-    if format == 'ascii':
-        format += '.fixed_width_two_line'
-    table.write(full_path, format=format, overwrite=True)
+    out_dir = maindir / 'tables'
+    out_dir.mkdir(parents=True, exist_ok=True)
+    full_path = out_dir / f"{output_name}.{format}"
+
+    out_format = format + '.fixed_width_two_line' if format == 'ascii' else format
+    matched.write(full_path, format=out_format, overwrite=True)
 
 
 def spec_snr(spectra, snrcut=None, get_HF=None):
-
     '''
     Function to provide the spectrum with best signal to noise ratio, or all the
     spectra above a given value of signal to noise ratio, taken from the header.
@@ -518,12 +486,17 @@ def spec_snr(spectra, snrcut=None, get_HF=None):
 
     Returns
     -------
-    Paths to filtered spectrum/spectra.
+    Paths to filtered spectrum/spectra
     '''
 
     names_stars = []
     for spectrum in spectra:
-        id_star = spectrum.split(os.sep)[-1].split('_')[0]
+        # Check that the spectrum is a valid file
+        if not Path(spectrum).is_file():
+            msg.error(f"File '{spectrum}' not found. Skipping...")
+            continue
+
+        id_star = Path(spectrum).name.split('_')[0]
         if id_star not in names_stars:
             names_stars.append(id_star)
 
@@ -531,52 +504,55 @@ def spec_snr(spectra, snrcut=None, get_HF=None):
     for star in names_stars:
         SNR_best = 0
         SNR_best_HF = 0
+        best_spec = None
+        best_spec_date = 0
+        best_spec_inst = ''
+        best_spec_MF = None
+
         for spectrum in spectra:
-            filename = spectrum.split(os.sep)[-1].split('_')
+            filename = Path(spectrum).name.split('_')
             id_star = filename[0]
-            date = int(filename[1]+filename[2])
+            date = int(filename[1] + filename[2])
             instr = filename[3]
 
             if star != id_star:
                 continue
 
-            else:
-                # Retrieve the key values fron the fits header
-                hdu = fits.open(spectrum)# Open the fits image file
-                hdu0 = hdu[0]            # Load the header list of primary header
-                header = hdu0.header    # Read the values of the headers
-                SNR = float(header['I-SNR'])  # Estimated Signal to Noise Ratio
+            with fits.open(Path(spectrum)) as hdu:
+                # Read the values of the headers
+                header = hdu[0].header
+                SNR = float(header['I-SNR'])
 
-                if snrcut == None:
-                    # Date is used for spectra with same SNR choosing the newest one.
-                    # Instr is used for when get_HF is enabled.
-                    if SNR > SNR_best or (SNR == SNR_best and SNR != 0 and date > best_spec_date):
-                        SNR_best = SNR
-                        best_spec = spectrum
-                        best_spec_date = date
-                        best_spec_inst = instr
+            if snrcut is None:
+                # Date is used for spectra with same SNR choosing the newest one.
+                # Instr is used for when get_HF is enabled.
+                if SNR > SNR_best or (SNR == SNR_best and SNR != 0 and date > best_spec_date):
+                    SNR_best = SNR
+                    best_spec = spectrum
+                    best_spec_date = date
+                    best_spec_inst = instr
 
-                    if get_HF == True and instr in ['M','F'] and SNR > SNR_best_HF:
-                        SNR_best_HF = SNR; best_spec_MF = spectrum
+                if get_HF is True and instr in ('M', 'F') and SNR > SNR_best_HF:
+                    SNR_best_HF = SNR
+                    best_spec_MF = spectrum
+            elif SNR > float(snrcut):
+                best_spectra.append(spectrum)
 
-                elif SNR > int(snrcut):
-                    best_spectra.append(spectrum)
-
-        if snrcut == None:
-            if get_HF == True and best_spec_inst=='N' and (0.80*SNR_best<SNR_best_HF \
-                or (0.65*SNR_best<SNR_best_HF and SNR_best_HF>100)):
-                 best_spec = best_spec_MF
+        if snrcut is None and best_spec is not None:
+            if get_HF is True and best_spec_inst == 'N' and (
+                0.80 * SNR_best < SNR_best_HF or (0.65 * SNR_best < SNR_best_HF and SNR_best_HF > 100)
+            ):
+                best_spec = best_spec_MF
             best_spectra.append(best_spec)
 
-        elif len(best_spectra) == 0:
-            print('No spectra found with SNR higher than %s.' % snrcut)
+    if snrcut is not None and not best_spectra:
+        msg.error(f"No spectra found with SNR higher than {snrcut}.")
 
     return best_spectra
 
 
-def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None,
-    snrcut=None, spccode=False, bmag=None, vmag=None, gaia=False, radius=1, skip=None):
-
+def table_db(list_name, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None,
+             snrcut=None, spccode=False, bmag=None, vmag=None, gaia=False, radius=1, skip=None):
     '''
     Function to generate a FITS table with information about sources coming from
     IACOB/FEROS database, a list of names or coordinates, allowing to limit
@@ -584,7 +560,7 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
 
     Parameters
     ----------
-    list : str
+    list_name : str
         Enter the input list, either name(s)/FITS of the source(s) separated by coma,
         or a .txt/.lst file containing the source names or coordinates.
         (Coordinates must be provided as h:m:s +-d:m:s or d +-d without comas)
@@ -642,95 +618,77 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
     '''
 
     if db == 'IACOB':
-        lst_sources_all = findstar(spectra=list, snr=snrcut)
+        lst_sources_all = findstar(spectra=list_name, snr=snrcut)
         # For each source, the best available SNR is picked
         lst_sources_f = spec_snr(lst_sources_all, get_HF=True)
         type_list = 'names'
-
     elif db == 'Simbad':
-        lst_sources_f = findlist(list)
-        type_list = input('The list contains names or coordinates? [names/coords]: ')
-        if not type_list in ['names','coords']:
+        lst_sources_f = findlist(list_name)
+        type_list = input('The list contains names or coordinates? [names/coords]: ').strip()
+        if type_list not in ('names', 'coords'):
             msg.error('Input answer is not valid. Exiting... \n')
             return None
-
     else:
         msg.error('Database not recognised. Exiting... \n')
         return None
 
     # Tuning the format of the input variables
-    if limdist != None:
+    if limdist is not None:
         RADEC = limdist[0]
         dist = float(limdist[1])
 
-    if spt != None: spt = re.split(' |,', spt)
+    if spt is not None:
+        spt = re.split(' |,', spt)
+    if lc is not None:
+        lc = re.split(' |,', lc)
 
-    if lc != None: lc = re.split(' |,', lc)
-
-    #===========================================================================
     #=============================== Query Gaia ================================
-    if gaia == 'DR2':
-        gaia_columns = ['BPmag','e_BPmag','+Gmag','e_Gmag','RPmag','e_RPmag',\
-                        'pmRA','e_pmRA','pmDE','e_pmDE','Plx','e_Plx']
-        gaia_columns.extend(['astrometric_n_good_obs_al','astrometric_chi2_al'])
-        table_u0 = findtable('table_u0_g_col.txt', delimiter=',')
-        offset = input('Apply +0.03 mas offset to parallax? [y/n]: ')
-
+    if gaia in ('DR2', 'DR3'):
         # Vizier - Only used to query in Gaia
         from astroquery.vizier import Vizier
-
-        v = Vizier(columns=gaia_columns)
+        if gaia == 'DR2':
+            gaia_columns = ['BPmag', 'e_BPmag', '+Gmag', 'e_Gmag', 'RPmag', 'e_RPmag',
+                            'pmRA', 'e_pmRA', 'pmDE', 'e_pmDE', 'Plx', 'e_Plx',
+                            'astrometric_n_good_obs_al', 'astrometric_chi2_al']
+            table_u0 = findtable('table_u0_g_col.txt', delimiter=',')
+            offset = input('Apply +0.03 mas offset to parallax? [y/n]: ').strip().lower()
+            v = Vizier(columns=gaia_columns)
+        else:
+            v = Vizier()
         v.ROW_LIMIT = 1
 
-    elif gaia == 'DR3':
-        # Vizier - Only used to query in Gaia
-        from astroquery.vizier import Vizier
-
-        v = Vizier()
-        v.ROW_LIMIT = 1
-
-    #===========================================================================
-    #============================== Progress Bar ===============================
+    # Progress Bar
     bar = pb.ProgressBar(maxval=len(lst_sources_f),
         widgets=[pb.Bar('=', '[', ']'), ' ', pb.Percentage(), ' ', pb.ETA()])
     bar.start()
 
-    #===========================================================================
     #================================= Sources =================================
-    for source,i in zip(lst_sources_f, range(len(lst_sources_f))):
+    table = None
+    for i, source in enumerate(lst_sources_f):
         row = Table()
-        #=======================================================================
-        #============= Retrieve the key values fron the fits header ============
+        #============= Retrieve the key values from the fits header ============
         OBJRA = OBJDEC = None
+
         if db == 'IACOB':
-            hdu = fits.open(source)  # Open the fits image file
-            hdu0 = hdu.verify('fix') # Fix header keywords
-            hdu0 = hdu[0]            # Load the header list of primary header
-            header = hdu0.header     # Read the values of the headers
+            source_path = Path(source)
+            filename = source_path.name
+            id_star = filename.split('_')[0]
 
-            row['ID'] = [source.split(os.sep)[-1].split('_')[0]]
+            with fits.open(source_path) as hdu:
+                hdu.verify('fix')       # Fix header keywords
+                header = hdu[0].header  # Read the values of the headers
 
+            row['ID'] = [id_star]
             # Official name (not implemented yet)
-            try:
-                row['Name'] = header['I-Name']
-            except:
-                row['Name'] = row['ID'] # '-'
-
-            # Reference spectrum (added at the end)
-            filename = source.split(os.sep)[-1]
+            row['Name'] = [header.get('I-Name', id_star)]
 
             # Gather the coordinates:
             if '_M_' in filename:
-                try:
-                    OBJRA = header['OBJ_RA']
-                    OBJDEC = header['OBJ_DEC']
-                except:
-                    pass # Only new fits include it
-
+                OBJRA = header.get('OBJ_RA')
+                OBJDEC = header.get('OBJ_DEC')
             elif '_N_' in filename:
-                OBJRA = header['OBJRA']*360/24
+                OBJRA = header['OBJRA'] * 360 / 24
                 OBJDEC = header['OBJDEC']
-
             elif '_F_' in filename:
                 OBJRA = header['RA']
                 OBJDEC = header['DEC']
@@ -739,316 +697,209 @@ def table_db(list, db, coords=None, limdist=None, lim_lb=None, spt=None, lc=None
 
         elif db == 'Simbad':
             row['ID'] = [source]
+            source = row['ID'][0]
 
-        #=======================================================================
         #=========================== Skip bad sources ==========================
         if db == 'IACOB' and any(bad in source[:3] for bad in ['DO2']):
             continue
 
-        if skip != None and any(bad in source for bad in skip.split(',')):
+        if skip is not None and any(bad in source for bad in skip.split(',')):
             continue
 
-        #=======================================================================
         #=============== Simbad query by object name/coordinates ===============
         if type_list == 'names':
             simbad = query_Simbad(source, OBJRA, OBJDEC)
-            if len(simbad) == 0:
+            if simbad is None or len(simbad) == 0:
                 continue
-
-        elif type_list == 'coords':
-            if ':' in source:
-                c = SkyCoord(source, unit=(u.hour,u.deg))
-            else:
-                c = SkyCoord(source, unit=u.deg)
-
+        else:
+            c = SkyCoord(source, unit=(u.hour, u.deg) if ':' in source else u.deg)
             try: # The actual query
-                simbad = query_Simbad(c.ra.deg, c.dec.deg, radius=radius*u.arcsec)
-            except: # Retry after 2 seconds
+                simbad = query_Simbad(c.ra.deg, c.dec.deg, radius=radius * u.arcsec)
+            except Exception: # Retry after 2 seconds if the query fails (e.g. timeout)
                 time.sleep(2)
-                print('Trying with a larger radius (%i arcsec)' % 2*radius)
-                simbad = query_Simbad(c.ra.deg, c.dec.deg, radius=2*radius*u.arcsec)
+                msg.info(f'Trying using a larger radius of {2 * radius} arcsec')
+                simbad = query_Simbad(c.ra.deg, c.dec.deg, radius=2 * radius * u.arcsec)
 
-            try: # For more than one result, takes the first one
-                if len(simbad) > 1: simbad = Table(simbad[0])
-            except:
-                msg.warn('Source %s not found in Simbad' % source)
+            if simbad is None or len(simbad) == 0:
+                msg.warn(f"Source {source} not found in Simbad")
                 continue
+            if len(simbad) > 1:
+                simbad = Table(simbad[0])
 
             source = simbad['MAIN_ID'][0]
 
             row['ID'] = row['Name'] = [source]
 
-        #=======================================================================
         #========================= Get the coordinates =========================
         if coords == 'header':
-            RADEC_0 = SkyCoord(ra=header['RA'], dec=header['DEC'], unit=(u.deg)) # Why no [0] here?
+            RADEC_0 = SkyCoord(ra=header['RA'], dec=header['DEC'], unit=u.deg)
         else:
-            RADEC_0 = SkyCoord(ra=simbad['ra'], dec=simbad['dec'], unit=(u.hour,u.deg))[0]
+            RADEC_0 = SkyCoord(ra=simbad['ra'], dec=simbad['dec'], unit=(u.hour, u.deg))[0]
 
-        row['RA_J2000']  = RADEC_0.ra.to_string(unit=u.hour, sep=':', pad=True, alwayssign=True)
+        row['RA_J2000'] = RADEC_0.ra.to_string(unit=u.hour, sep=':', pad=True, alwayssign=True)
         row['DEC_J2000'] = RADEC_0.dec.to_string(unit=u.deg, sep=':', pad=True, alwayssign=True)
-        row['RAdeg_J2000']  = round(RADEC_0.ra.deg, 6)
+        row['RAdeg_J2000'] = round(RADEC_0.ra.deg, 6)
         row['RAdeg_J2000'].unit = u.deg
         row['DECdeg_J2000'] = round(RADEC_0.dec.deg, 6)
         row['DECdeg_J2000'].unit = u.deg
 
-        #=======================================================================
         #========================= Limit by distance ===========================
-        if limdist != None:
-            if any([j in RADEC for j in [':','h']]):
-                RADEC_f = SkyCoord(RADEC, unit=(u.hour,u.deg))
-            else:
-                RADEC_f = SkyCoord(RADEC, unit=u.deg)
-
-            if RADEC_0.separation(RADEC_f).deg > dist: continue
-
-        #=======================================================================
-        #============================ Limit by l,b =============================
-        if lim_lb != None:
-            l_0 = RADEC_0.galactic.l.deg
-            b_0 = RADEC_0.galactic.b.deg
-            lim_lb=[float(i) for i in lim_lb]
-            if not (lim_lb[0] < l_0 and lim_lb[1] > l_0 and lim_lb[2] < b_0 and lim_lb[3] > b_0):
+        if limdist is not None:
+            RADEC_f = SkyCoord(RADEC, unit=(u.hour, u.deg) if any(j in RADEC for j in (':', 'h')) else u.deg)
+            if RADEC_0.separation(RADEC_f).deg > dist:
                 continue
 
-        #=======================================================================
+        #============================ Limit by l,b =============================
+        if lim_lb is not None:
+            l_0 = RADEC_0.galactic.l.deg
+            b_0 = RADEC_0.galactic.b.deg
+            bounds = [float(val) for val in lim_lb]
+            if not (bounds[0] < l_0 < bounds[1] and bounds[2] < b_0 < bounds[3]):
+                continue
+
         #===================== Get the photometric magnitudes ==================
-        # U magnitude
-        umag_0 = simbad['U'][0]
-        if str(umag_0) == '--':
-            umag_0 = np.nan
+        # Photometry
+        for mag_band in ('U', 'B', 'V'):
+            val = simbad[mag_band][0]
+            val = np.nan if str(val) == '--' else float(val)
+            row[f'mag_{mag_band}'] = round(val, 2)
+            row[f'mag_{mag_band}'].unit = u.mag
 
-        row['mag_U'] = round(umag_0, 2)
-        row['mag_U'].unit = u.mag
+        if bmag is not None and not np.isnan(row['mag_B'][0]):
+            b_val = row['mag_B'][0]
+            if bmag.startswith('<') and float(bmag[1:]) < b_val:
+                continue
+            if bmag.startswith('>') and float(bmag[1:]) > b_val:
+                continue
 
-        # B magnitude
-        bmag_0 = simbad['B'][0]
-        if str(bmag_0) == '--':
-            bmag_0 = np.nan
+        if vmag is not None and not np.isnan(row['mag_V'][0]):
+            v_val = row['mag_V'][0]
+            if vmag.startswith('<') and float(vmag[1:]) < v_val:
+                continue
+            if vmag.startswith('>') and float(vmag[1:]) > v_val:
+                continue
 
-        # Limit by B magnitude (if provided)
-        if bmag != None and ~np.isnan(bmag_0):
-            if bmag[0] == '<' and float(bmag[1:]) < bmag_0: continue
-            elif bmag[0] == '>' and float(bmag[1:]) > bmag_0: continue
-
-        row['mag_B'] = round(bmag_0, 2)
-        row['mag_B'].unit = u.mag
-
-        # V magnitude
-        vmag_0 = simbad['V'][0]
-        if str(vmag_0) == '--':
-            vmag_0 = np.nan
-
-        # Limit by V magnitude (if provided)
-        if vmag != None and ~np.isnan(vmag_0):
-            if vmag[0] == '<' and float(vmag[1:]) < vmag_0: continue
-            elif vmag[0] == '>' and float(vmag[1:]) > vmag_0: continue
-
-        row['mag_V'] = round(vmag_0, 2)
-        row['mag_V'].unit = u.mag
-
-        #=======================================================================
         #======================= Get the spectral class ========================
         if db == 'IACOB':
-
-            SpC_0 = header['I-SPC']
-            if (not type(SpC_0) == str or SpC_0.strip() == '-'):
-                row['SpC'] = SpC_0 = simbad['sp_type'][0].replace(' ','')
+            SpC_0 = header.get('I-SPC', '-')
+            if not isinstance(SpC_0, str) or SpC_0.strip() == '-':
+                row['SpC'] = SpC_0 = simbad['sp_type'][0].replace(' ', '')
                 row['SpC_ref'] = 'SIMBAD'
-
             else:
-                row['SpC'] = SpC_0.replace(' ','')
-                if 'I-SPCREF' in header and header['I-SPCREF'] is not None:
-                    row['SpC_ref'] = header['I-SPCREF']
-                else:
-                    row['SpC_ref'] = '???'
-
+                row['SpC'] = SpC_0.replace(' ', '')
+                row['SpC_ref'] = header.get('I-SPCREF', '???')
         else:
-            row['SpC'] = SpC_0 = simbad['sp_type'][0].replace(' ','')
+            row['SpC'] = SpC_0 = simbad['sp_type'][0].replace(' ', '')
             row['SpC_ref'] = 'SIMBAD'
 
-        #=======================================================================
         #========================= Limit by SpT or LC ==========================
-        spt_0 = []; lc_0 = []
-        if spt != None or lc != None:
-
+        if spt is not None or lc is not None:
             if 'I' in SpC_0:
                 spt_0 = SpC_0[:SpC_0.index('I')]
                 lc_0 = SpC_0[SpC_0.index('I'):]
-
             elif 'V' in SpC_0:
                 spt_0 = SpC_0[:SpC_0.index('V')]
                 lc_0 = SpC_0[SpC_0.index('V'):]
-
-            elif len(re.split(':|p|n|f|\\(|\\)',SpC_0.strip())[0]) <= 4: # e.g. O9.5:npe 4+:npe
+            elif len(re.split(r':|p|n|f|\(|\)', SpC_0.strip())[0]) <= 4:
                 spt_0 = SpC_0.strip()
-
+                lc_0 = ''
             else:
                 spt_0 = SpC_0
+                lc_0 = ''
 
-            if spt != None and not any([j in spt_0 for j in spt]): continue
+            if spt is not None and not any(s in spt_0 for s in spt):
+                continue
 
-            match = False
-            if lc != None and lc_0 != []:
-                if 'IV' in lc and 'IV' in lc_0: match = True
-                lc_0 = lc_0.replace('IV', '')
-                if 'V' in lc and 'V' in lc_0: match = True
-                if 'III' in lc and 'III' in lc_0: match = True
-                lc_0 = lc_0.replace('III', '')
-                if 'II' in lc and 'II' in lc_0: match = True
-                lc_0 = lc_0.replace('II', '')
-                if 'I' in lc and 'I' in lc_0: match = True
-                if match == False: continue
+            if lc is not None and lc_0:
+                match_lc = False
+                for token in ('IV', 'V', 'III', 'II', 'I'):
+                    if token in lc and token in lc_0:
+                        match_lc = True
+                    lc_0 = lc_0.replace(token, '')
+                if not match_lc:
+                    continue
 
-        #=======================================================================
         #===================== Get the spectral class code =====================
-        if spccode == True and SpC_0 != '':
-            row['SpT'], row['LC'] = spc_code(SpC_0)
-        elif spccode == True and SpC_0 == '':
-            row['SpT'] = row['LC'] = np.nan
+        if spccode:
+            row['SpT'], row['LC'] = spc_code(SpC_0) if SpC_0 else (np.nan, np.nan)
 
-        #=======================================================================
         #============== Add extra columns from header or database ==============
         # Counting FIES / HERMES / FEROS spectra
         if db == 'IACOB':
-            FIES = 0
-            HERMES = 0
-            FEROS = 0
-            for j in lst_sources_all:
-                if source + '_' in j and j.endswith('.fits'):
-
-                    if '_N_' in j:
-                        FIES = FIES + 1
-
-                    elif '_M_' in j:
-                        HERMES = HERMES + 1
-
-                    elif '_F_' in j:
-                        FEROS = FEROS + 1
+            FIES = HERMES = FEROS = 0
+            for item in lst_sources_all:
+                item_name = Path(item).name
+                if item_name.startswith(f"{source}_") and item_name.endswith('.fits'):
+                    if '_N_' in item_name:
+                        FIES += 1
+                    elif '_M_' in item_name:
+                        HERMES += 1
+                    elif '_F_' in item_name:
+                        FEROS += 1
 
             row['FIES'] = FIES
             row['HERMES'] = HERMES
             row['FEROS'] = FEROS
-
             row['Ref_file'] = filename
-
-            # SNR of the best spectra (prioritizing for M or F)
             row['SNR_best'] = int(header['I-SNR'])
+            row['SB'] = header.get('I-SB', '----')
+            row['Comments'] = header.get('I-commen', '----')
 
-        # SB feature of the star (added at the end)
-        try:
-            row['SB'] = header['I-SB']
-        except:
-            row['SB'] = '----'
-
-        # Comments in the header (added at the end)
-        try:
-            row['Comments'] = header['I-commen']
-        except:
-            row['Comments'] = '----'
-
-        #=======================================================================
         #======================== Get Gaia DR2/3 data ==========================
-        if gaia in ['DR2','DR3']:
-
-            gFlag = True
-            if gaia == 'DR2':
-                catalog = "I/345/gaia2"
-
-            elif gaia == 'DR3':
-                catalog = "I/355/gaiadr3"
-
-            if vmag_0 != '' and float(vmag_0) < 5:
-                msg.warn('\n%s is too bright (Vmag = %r)' % (source, vmag_0))
-
+        if gaia in ('DR2', 'DR3'):
+            catalog = "I/345/gaia2" if gaia == 'DR2' else "I/355/gaiadr3"
             try:
-                gaiaq = v.query_object(source,catalog=catalog,radius=radius*u.arcsec)[0]
-
+                gaiaq = v.query_object(source, catalog=catalog, radius=radius * u.arcsec)[0]
                 if gaia == 'DR2':
-                    # Correct Gaia photometry:
-                    if str(gaiaq['Gmag'][0]) != '--' or str(gaiaq['e_Gmag'][0]) != '--':
-                        if gaiaq['e_Gmag'] < 8e-3:  gaiaq['e_Gmag'] = 8e-3
-                        if (6 <= gaiaq['Gmag'] <= 16):
-                            gaiaq['Gmag'] = gaiaq['Gmag'] - 0.0032*(gaiaq['Gmag']-6)
-                        if gaiaq['Gmag'] < 6:
-                            gaiaq['Gmag'] = gaiaq['Gmag'] + 0.0271*(6-gaiaq['Gmag'])
+                    if str(gaiaq['Gmag'][0]) != '--':
+                        gaiaq['e_Gmag'] = max(gaiaq['e_Gmag'], 8e-3)
+                        if 6 <= gaiaq['Gmag'] <= 16:
+                            gaiaq['Gmag'] -= 0.0032 * (gaiaq['Gmag'] - 6)
+                        elif gaiaq['Gmag'] < 6:
+                            gaiaq['Gmag'] += 0.0271 * (6 - gaiaq['Gmag'])
                         gaiaq['Gmag'].unit = u.mag
-                    else:
-                        gFlag = False; print(str(source),'has missing Gaia G photometry.')
 
-                    if str(gaiaq['e_BPmag'][0]) != '--':
-                        if gaiaq['e_BPmag'] < 9e-3:
-                            gaiaq['e_BPmag'] = 9e-3
-                    else:
-                        msg.warn(str(source)+' has missing Gaia B photometry.')
-                        gFlag = False
+                    if offset == 'y' and str(gaiaq['Plx'][0]) != '--':
+                        gaiaq['Plx'] = round(gaiaq['Plx'] + 0.03, 6)
 
-                    if str(gaiaq['e_RPmag'][0]) != '--':
-                        if gaiaq['e_RPmag'] < 10e-3:
-                            gaiaq['e_RPmag'] = 10e-3
-                    else:
-                        msg.warn(str(source)+' has missing Gaia R photometry.')
-                        gFlag = False
-
-                    # Correct Gaia astrometry:
-                    try:
-                        if offset == 'y':
-                            gaiaq['Plx'] = round(gaiaq['Plx'] + 0.03, 6)
-                    except:
-                        msg.warn(str(source)+' has missing Gaia parallax.')
-
-                    # Add RUWE column
-                    if gFlag == True:
-                        UWE = np.sqrt(float(gaiaq['chi2AL'])/(float(gaiaq['NgAL']) - 5))
-
-                        diff = abs(gaiaq['Gmag'][0] - table_u0['g_mag']) \
-                            + abs(gaiaq['BPmag'][0] - gaiaq['RPmag'][0] - table_u0['bp_rp'])
-
-                        diff = diff.tolist()
-
-                        gaiaq['RUWE'] = round(UWE/table_u0['u0'][diff.index(min(diff))],4)
-
-                        gaiaq.remove_columns(['NgAL','chi2AL'])
-
+                    UWE = np.sqrt(float(gaiaq['chi2AL']) / (float(gaiaq['NgAL']) - 5))
+                    diff = (abs(gaiaq['Gmag'][0] - table_u0['g_mag']) +
+                            abs(gaiaq['BPmag'][0] - gaiaq['RPmag'][0] - table_u0['bp_rp'])).tolist()
+                    gaiaq['RUWE'] = round(UWE / table_u0['u0'][diff.index(min(diff))], 4)
+                    gaiaq.remove_columns(['NgAL', 'chi2AL'])
                 elif gaia == 'DR3':
+                    gaiaq = gaiaq[[c for c in gaiaq.columns if not any(x in c for x in ['dr2', 'scan_', '_corr', '_obs_', 'ipd_', 'transits'])]]
 
-                    gaiaq = gaiaq[[i for i in gaiaq.columns if not \
-                        any([j in i for j in ['dr2','scan_','_corr','_obs_','ipd_','transits']])]]
+                row = hstack([row, gaiaq])
+            except Exception:
+                msg.warn(f"\n{source} could not be queried in Gaia.")
 
-                row = hstack([row,gaiaq])
-
-            except:
-                msg.warn('\n%s could not be queried in Gaia.' % source)
-
-        try:
-            table = vstack([table,row])
-        except:
-            table = row
-
+        table = row if table is None else vstack([table, row])
         bar.update(i)
 
     bar.finish()
 
-    try:
-        msg.info('Table has been successfully created with length %i' % len(table))
-    except:
+    if table is None or len(table) == 0:
         msg.warn('Table is empty, no sources were found.')
+        return None
 
-    # Some final formatting:
+    msg.info(f"Table has been successfully created with length {len(table)}")
+
     table['mag_U'] = table['mag_U'].astype('float32')
     table['mag_B'] = table['mag_B'].astype('float32')
     table['mag_V'] = table['mag_V'].astype('float32')
-    table['SB'] = table['SB'].astype('<U8')
-    table['Comments'] = table['Comments'].astype('<U32')
+    if 'SB' in table.colnames:
+        table['SB'] = table['SB'].astype('<U8')
+    if 'Comments' in table.colnames:
+        table['Comments'] = table['Comments'].astype('<U32')
 
-    # Export table
-    table.write(maindir + 'tables/tablestars.fits', format='fits', overwrite=True)
-
+    out_file = maindir / 'tables' / 'tablestars.fits'
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    table.write(out_file, format='fits', overwrite=True)
     return None
 
 
 def spc_code(spc, sub_class_I=False):
-
     '''
     Function to translate input SpC (Spectral Class) into SpT and LC codes.
 
@@ -1063,63 +914,47 @@ def spc_code(spc, sub_class_I=False):
     '''
 
     spt_dic = {'O': 1, 'B': 2, 'A': 3, 'F': 4, 'G': 5, 'K': 6, 'M': 7}
-    if sub_class_I == False:
+    if not sub_class_I:
         lc_dic = {'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5}
-    elif sub_class_I == True:
+    else:
         lc_dic = {'Iab': 1.2, 'Ia+': 0.9, 'Ia': 1.1, 'Ib': 1.3, 'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5}
 
-    spc = spc.replace('var','') # Remove variable flag
-    spc = spc.replace('Mn','') # Remove Mn flag
+    spc = spc.replace('var', '').replace('Mn', '').replace('Ve', 'V').replace('Va', 'V')
+    spc = spc.replace('/ab', '/Iab').replace('/a', '/Ia').replace('/b', '/Ib')
+    spc = spc.split('+')[0].replace('/', '-').replace(':', '')
 
-    spc = spc.replace('Ve','V')
-    spc = spc.replace('Va','V')
+    if spc in ['~'] or spc.startswith(('WC', 'WN', 'WR', 'C')):
+        return np.nan, np.nan
 
-    spc = spc.replace('/ab','/Iab')
-    spc = spc.replace('/a','/Ia')
-    spc = spc.replace('/b','/Ib')
+    # Spectral type
+    spt_c = re.findall('[O,B,A,F,G,K,M]', spc)
+    num = len(spt_c)
+    spt_c_lst = [spt_dic[i] for i in spt_c]
 
-    #spc = spc.split('+')[0].split('/')[0].replace(':', '')
-    spc = spc.split('+')[0].replace('/','-').replace(':', '')
+    spt_digits = re.findall(r'[0-9.]+', spc)
+    spt_c_lst += [float(i) / 10 for i in spt_digits]
 
-    if spc in ['~'] or spc.startswith(('WC','WN','WR','C')):
-        spt_c = lc_c = np.nan
-
-    else:
-        # Spectral type
-        spt_c = re.findall('[O,B,A,F,G,K,M]', spc)
-        num = len(spt_c)
-        spt_c_lst = [spt_dic[i] for i in spt_c]
-
-        spt_c = re.findall('[0-9.]+', spc)
-        spt_c_lst += [float(i)/10 for i in spt_c]
-
-        try:
-            # This is for B1-2 in which there is B(1) and 1-2(2)
-            if num < len(spt_c_lst)-num:
-                spt_c = (sum(spt_c_lst[:num])/num+sum(spt_c_lst[num:])/len(spt_c_lst[num:]))
-            else:
-                spt_c = sum(spt_c_lst)/num
-        except:
-            msg.warn('SpC separation into SpT and LC code failed for: %s, %s, %i' % (spc, spt_c_lst, num))
-            spt_c = np.nan
-
-        # Luminosity class
-        if sub_class_I == False:
-            lc_c = re.findall('[I,V]+', spc)
-        elif sub_class_I == True:
-            lc_c = re.findall('[Iab, Ia+, Ia, Ib, I, V]+', spc)
-        lc_c_lst = [lc_dic[i] for i in lc_c]
-
-        if len(lc_c_lst) == 0:
-            lc_c = np.nan
+    try:
+        # This is for B1-2 in which there is B(1) and 1-2(2)
+        if num < len(spt_c_lst) - num:
+            spt_val = (sum(spt_c_lst[:num]) / num + sum(spt_c_lst[num:]) / len(spt_c_lst[num:]))
         else:
-            lc_c = np.asarray(lc_c_lst).mean()
+            spt_val = sum(spt_c_lst) / num
+    except Exception:
+        msg.warn(f"SpC separation into SpT and LC code failed for: {spc}, {spt_c_lst}, {num}")
+        spt_val = np.nan
 
-    return round(spt_c,2), round(lc_c,2)
+    # Luminosity class
+    pattern = '[Iab, Ia+, Ia, Ib, I, V]+' if sub_class_I else '[I,V]+'
+    lc_matches = re.findall(pattern, spc)
+    lc_c_lst = [lc_dic[i] for i in lc_matches if i in lc_dic]
+
+    lc_val = np.asarray(lc_c_lst).mean() if lc_c_lst else np.nan
+
+    return round(spt_val, 2), round(lc_val, 2)
 
 
 def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False, other_names=False):
-
     '''
     Function to query an object in Simbad database.
 
@@ -1153,55 +988,49 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False, other_
     # if SIMBAD module is not imported, import it
     if 'Simbad' not in globals():
         from astroquery.simbad import Simbad
-        Simbad.add_votable_fields("U","B","V","sp_type")
+        Simbad.server = 'simbad.harvard.edu'
+        Simbad.add_votable_fields("U", "B", "V", "sp_type")
         Simbad.columns_in_output = [i for i in Simbad.columns_in_output if 'coo' not in i.name]
 
-    if otypes is True and 'otypes' not in Simbad.columns_in_output:
+    if otypes and 'otypes' not in Simbad.columns_in_output:
         Simbad.add_votable_fields('otypes')
         Simbad.columns_in_output = [i for i in Simbad.columns_in_output if i.name not in ['origin', 'otype_txt']]
 
     if name is not None:
-        if other_names is True:
+        if other_names:
             simbad = Simbad.query_objectids(name)
-            if len(simbad) > 0:
-                [print(i['ID']) for i in simbad]
+            if simbad and len(simbad) > 0:
+                for entry in simbad:
+                    print(entry['ID'])
             else:
-                print('No objects found for %s in Simbad.' % name)
+                print(f"No objects found for {name} in Simbad.")
             return None
-        
+
         # For some reason sometimes adding a whitespace fix some querying issues
-        for name_i in [name, name+' ', ' '+name]:
-            simbad = Simbad.query_object(name_i)
-            if len(simbad) > 0:
+        simbad = None
+        for name_variant in (name, name + ' ', ' ' + name):
+            simbad = Simbad.query_object(name_variant)
+            if simbad is not None and len(simbad) > 0:
                 break
 
-        while len(simbad) == 0:
-
-            print('Provide alternative name for %s in Simbad.' % name)
+        while simbad is None or len(simbad) == 0:
+            print(f"Provide alternative name for {name} in Simbad.")
             print('In some cases try replacing "HD" by "HD " or vice versa.')
-
-            if ra != None and dec != None:
-                print('Type "sky" to query %s around input ra/dec (if given).' % radius)
-
-            print('Hit return to skip this source.')
-
-            check = input('Alternative: ')
-            if check == '':
-                print('Skipping source: %s\n' % name)
+            if ra is not None and dec is not None:
+                print(f'Type "sky" to query {radius} around input ra/dec.')
+            check = input('Alternative (or hit enter to skip): ').strip()
+            if not check:
+                print(f"Skipping source: {name}\n")
                 break
-
-            elif check == 'sky' and ra != None and dec != None:
+            if check == 'sky' and ra is not None and dec is not None:
                 simbad = Simbad.query_region(SkyCoord(ra, dec, unit='deg'), radius=radius)
-                if len(simbad) == 0:
-                    print('No objects found.')
-
             else:
                 try:
                     simbad = Simbad.query_object(check)
-                except:
+                except Exception:
                     simbad = None
 
-        if otypes is True and len(simbad) > 0:
+        if otypes and simbad is not None and len(simbad) > 0:
             # list all rows with different main_id
             main_ids = list(set(simbad['main_id']))
             for main_id in main_ids:
@@ -1214,37 +1043,33 @@ def query_Simbad(name=None, ra=None, dec=None, radius='5s', otypes=False, other_
                 new_row['otypes.otype'] = '|'.join(all_otypes)
                 simbad.add_row(new_row)
 
-        if len(simbad) > 1:
-            msg.warn('More than one Simbad result, choosing the brigtest source...')
+        if simbad is not None and len(simbad) > 1:
+            msg.warn('More than one Simbad result, choosing the brightest source...')
             simbad.sort('V')
-
             simbad = Table(simbad[0])
 
-        if 'SCRIPT_NUMBER_ID' in simbad.colnames:
+        if simbad is not None and 'SCRIPT_NUMBER_ID' in simbad.colnames:
             simbad.remove_column('SCRIPT_NUMBER_ID')
 
         return simbad
 
-    elif ra != None and dec != None:
+    if ra is not None and dec is not None:
         simbad = Simbad.query_region(SkyCoord(ra, dec, unit='deg'), radius=radius)
-
-        if len(simbad) == 0:
+        if simbad is None or len(simbad) == 0:
             msg.warn('No objects found.')
-
-        elif len(simbad) > 1:
-            msg.warn('More than one Simbad result, choosing the brigtest source...')
+            return None
+        if len(simbad) > 1:
+            msg.warn('More than one Simbad result, choosing the brightest source...')
             simbad.sort('V')
             simbad = Table(simbad[0])
-
         return simbad
 
-    else:
-        msg.error('Name or RA+DEC is required for the query...')
-        return None
+    msg.error('Name or RA+DEC is required for the query...')
+    return None
 
 
-def query_Gaia(name=None, gaia='dr3', ra=None, dec=None, radec=None, radius=2, limit_one_source=True, get_zp=False):
-
+def query_Gaia(name=None, gaia='dr3', ra=None, dec=None, radec=None, radius=2,
+               limit_one_source=True, get_zp=False):
     '''
     Function to query an object in Gaia database.
 
@@ -1281,114 +1106,78 @@ def query_Gaia(name=None, gaia='dr3', ra=None, dec=None, radec=None, radius=2, l
 
     # Gaia Query
     from astroquery.gaia import Gaia
-    Gaia.MAIN_GAIA_TABLE = "gaiadr3.gaia_source" # Select Data Release 3
-    Gaia.ROW_LIMIT = -1 # Set the number of output raw limit to infinite
 
     # Gaia Zero point offset
     from edr3_zp import zpt
+
+    Gaia.ROW_LIMIT = -1
     zpt.load_tables()
 
-    if gaia not in ['dr2','DR2','dr3','DR3']:
+    gaia_lower = gaia.lower()
+    if gaia_lower not in ('dr2', 'dr3'):
         msg.error('Input Gaia catalog is not dr2 / dr3. Exiting...')
         return None
-    elif gaia in ['dr2','DR2']:
-        Gaia.MAIN_GAIA_TABLE = "gaiadr2.gaia_source"
-    elif gaia in ['dr3','DR3']:
-        Gaia.MAIN_GAIA_TABLE = "gaiadr3.gaia_source"
+
+    Gaia.MAIN_GAIA_TABLE = f"gaia{gaia_lower}.gaia_source"
 
     if name is not None:
-
         RADEC = SkyCoord.from_name(name)
-
-        while RADEC is None: # type(simbad) == type(None)
-
-            print('Provide alternative name for %s in Gaia.' % name)
+        while RADEC is None:
+            print(f"Provide alternative name for {name} in Simbad.")
             print('In some cases try replacing "HD" by "HD " or vice versa.')
-            print('Hit return to skip this source.')
-
-            check = input('Alternative: ')
-            if check == '':
-                print('Skipping source: %s\n' % name)
+            check = input('Alternative (or hit enter to skip): ').strip()
+            if not check:
+                print(f"Skipping source: {name}\n")
                 break
-
-            else:
-                try:
-                    RADEC = SkyCoord.from_name(check)
-                except:
-                    RADEC = None
-
-    elif ra != None and dec != None:
-
-        RADEC = SkyCoord(ra=ra, dec=dec, unit=(u.deg,u.deg), frame='icrs')
-
-        if RADEC is None: # type(simbad) == type(None)
-            msg.warn('No objects found.')
-
-    elif radec != None:
-
-        RADEC = SkyCoord(radec, unit=(u.hour,u.deg), frame='icrs')
-
+            try:
+                RADEC = SkyCoord.from_name(check)
+            except Exception:
+                RADEC = None
+    elif ra is not None and dec is not None:
+        RADEC = SkyCoord(ra=ra, dec=dec, unit=(u.deg, u.deg), frame='icrs')
+    elif radec is not None:
+        RADEC = SkyCoord(radec, unit=(u.hour, u.deg), frame='icrs')
     else:
         msg.error('Name or RA+DEC is required for the query...')
         return None
 
-    #width  = u.Quantity(radius, u.arcsec)
-    #height = u.Quantity(radius, u.arcsec)
-    #query = Gaia.query_object_async(coordinate=RADEC, width=width, height=height)
+    query = Gaia.cone_search_async(coordinate=RADEC, radius=u.Quantity(radius, u.arcsec))
+    query = query.results
 
-    radius = u.Quantity(radius, u.arcsec)
-    query = Gaia.cone_search_async(coordinate=RADEC, radius=radius)
-
-    if len(query.results) == 0:
-        if name is not None:
-            msg.error('Gaia query failed for object %s' % name)
-        else:
-            msg.error('Gaia query failed for object with RA DEC = %s, %s' % (RADEC.ra, RADEC.dec))
+    if len(query) == 0:
+        msg.error(f"Gaia query failed for target {name or (RADEC.ra, RADEC.dec)}")
         return None
 
-    if limit_one_source and len(query.results) > 1:
+    if limit_one_source and len(query) > 1:
         msg.warn('More than one Gaia result')
-        # To make use of the Gaia DRX ######, if used as name
-        if name in query.results['designation']:
-            query = query.results[query.results['designation'] == name]
+        if name in query['designation']:
             msg.info('Choosing the same Gaia source ID as the input...')
+            query = query[query['designation'] == name]
+
         else:
             msg.warn('Input name not in Gaia source ID, choosing the brigtest source...')
+            query.sort('phot_g_mean_mag')
+            query = Table(query[0])
 
-            query.results.sort('phot_g_mean_mag')
-            query = Table(query.results[0])
-
-    else:
-        query = query.results
-
-    if get_zp == True and gaia in ['dr3','DR3']:
+    if get_zp and gaia_lower == 'dr3':
         if query['astrometric_params_solved'] <= 3:
-            msg.info('Astrometric parameters solved is <3. Skipping source_id = %s' % str(query['source_id'][0]))
+            msg.info(f'Astrometric parameters solved is <3. Skipping source_id = {query["source_id"]} for zero point calculation.')
             query['zp_offset'] = -9999
-
         else:
             query['zp_offset'] = zpt.get_zpt(
-                query['phot_g_mean_mag'], query['nu_eff_used_in_astrometry'], \
-                query['pseudocolour'], query['ecl_lat'], query['astrometric_params_solved'])
+                query['phot_g_mean_mag'], query['nu_eff_used_in_astrometry'],
+                query['pseudocolour'], query['ecl_lat'], query['astrometric_params_solved']
+            )
 
-    if name is None:
-        name = ['--']
-
-    query['ID'] = name
-
-    query = query[['ID'] + [i for i in query.colnames][:-1]]
-    if 'designation' in query.colnames:
-        query.remove_column('designation')
-    if 'phot_variable_flag' in query.colnames:
-        query.remove_column('phot_variable_flag')
-    if 'libname_gspphot' in query.colnames:
-        query.remove_column('libname_gspphot')
+    query['ID'] = name if name is not None else '--'
+    for extra_col in ('designation', 'phot_variable_flag', 'libname_gspphot'):
+        if extra_col in query.colnames:
+            query.remove_column(extra_col)
 
     return query
 
 
 def show_header(fitsfile):
-
     '''
     Function to show the header of a fits file separated in rows.
 
@@ -1402,28 +1191,28 @@ def show_header(fitsfile):
     Nothing, but the header is printed.
     '''
 
-    fitsfile = findstar(fitsfile)
-
-    if len(fitsfile) > 1:
+    matches = findstar(fitsfile)
+    if not matches:
+        msg.error('File not found.')
+        return None
+    if len(matches) > 1:
         msg.error('Only one file can be shown at a time.')
         return None
 
-    hdul = fits.open(fitsfile[0])
-    hdul.info()
-    print(hdul[0].header.items)
+    with fits.open(Path(matches[0])) as hdul:
+        hdul.info()
+        print(hdul[0].header.items)
+        return hdul[0].header
 
-    return hdul[0].header
 
-
-def check_fits(list, max_dist=90):
-
+def check_fits(list_name, max_dist=90):
     '''
     Function to detect errors in the filenames and headers of the fits files.
 
     Parameters
     ----------
 
-    list : str
+    list_name : str
         Enter the input list, either name(s)/FITS of the source(s) separated by coma,
         or a .txt/.lst file containing the source names or files.
 
@@ -1437,56 +1226,54 @@ def check_fits(list, max_dist=90):
     Nothing, but a file with the errors found is generated.
     '''
 
-    dir_spectra = findstar(list)
+    dir_spectra = findstar(list_name)
+    if not dir_spectra:
+        return None
 
     bar = pb.ProgressBar(maxval=len(dir_spectra),
-        widgets=[pb.Bar('=', '[', ']'), ' ', pb.Percentage(), ' ', pb.ETA()])
+                         widgets=[pb.Bar('=', '[', ']'), ' ', pb.Percentage(), ' ', pb.ETA()])
     bar.start()
 
-    type_errors = {'Simbad':[],'filename':[],'duplicate':[],'baddate':[],'radec0':[],'distance':[]}
+    type_errors = {'Simbad': [], 'filename': [], 'duplicate': [], 'baddate': [], 'radec0': [], 'distance': []}
+    IDs = {'F': [], 'M': [], 'N': []}
+    date_0_long = []
 
-    IDs = {'F': [], 'M':[], 'N':[]}
-
-    date_0_long = []; i = 0
-    for spectrum in dir_spectra:
-
-        bar.update(i + dir_spectra.index(spectrum))
-        #time.sleep(0.1)
-
-        filename = spectrum.split(os.sep)[-1]
-        id_star = spectrum.split(os.sep)[-1].split('_')[0]
+    for i, spectrum in enumerate(dir_spectra):
+        bar.update(i)
+        p = Path(spectrum)
+        filename = p.name
+        id_star = filename.split('_')[0]
 
         # Problems quering in Simbad
-        if not id_star in type_errors['Simbad']:
-            simbad = query_Simbad(id_star)
-            if len(simbad) == 0:
-                type_errors['Simbad'].append(id_star)
+        simbad = query_Simbad(id_star) if id_star not in type_errors['Simbad'] else []
+        if not simbad and id_star not in type_errors['Simbad']:
+            type_errors['Simbad'].append(id_star)
 
-        # Retrieve the key values fron the fits header
-        hdu = fits.open(spectrum) # Open the fits image file
-        hdu0 = hdu.verify('fix')  # Fix header keywords
-        hdu0 = hdu[0]             # Load the header list of primary header
-        header = hdu0.header      # Read the values of the headers
+        with fits.open(p) as hdu:
+            hdu.verify('fix')
+            header = hdu[0].header
 
-        if '_F_' in filename: IDs['F'].append(header['ARCFILE'])
-        elif '_M_' in filename: IDs['M'].append(str(header['UNSEQ']))
-        elif '_N_' in filename: IDs['N'].append(header['FILENAME'])
+        if '_F_' in filename:
+            IDs['F'].append(header['ARCFILE'])
+        elif '_M_' in filename:
+            IDs['M'].append(str(header['UNSEQ']))
+        elif '_N_' in filename:
+            IDs['N'].append(header['FILENAME'])
 
         # Catch files with wrong object name comparing filename and header
-        if id_star != header['OBJECT'].replace(' ','').upper():
+        if id_star != header['OBJECT'].replace(' ', '').upper():
             type_errors['filename'].append(filename)
 
         # Get the date and time from the header
         if '_N_' in filename or '_M_' in filename:
-            date_0 = header['DATE-AVG'] #; print date_0
+            date_0 = header['DATE-AVG']
             date_0_short = str(date_0[0:4]) + str(date_0[5:7]) + str(date_0[8:10])
         elif '_F_' in filename:
             date_0 = header['ARCFILE']
             date_0_short = str(date_0[6:10]) + str(date_0[11:13]) + str(date_0[14:16])
 
         # Get the date from the filename
-        date_filename = spectrum.split(os.sep)[-1].split('_')[1]
-
+        date_filename = filename.split('_')[1]
         # Catch two+ files with same date in header but different filenames
         # e.g. HD111111 and HDE111111
         if date_0 not in date_0_long:
@@ -1495,61 +1282,60 @@ def check_fits(list, max_dist=90):
             type_errors['duplicate'].append(filename)
 
         # Catch wrong dates in the filenames when comparing with the date in the header
-        if not date_filename == date_0_short:
+        if date_filename != date_0_short:
             type_errors['baddate'].append(filename)
 
         # Get the coordinates from the header
-        RA_0 = header['RA']
-        DEC_0 = header['DEC']
-
+        RA_0, DEC_0 = header['RA'], header['DEC']
         # Catch missing RA/DEC:
         if '0.0000' in str(RA_0) or '0.0000' in str(DEC_0):
             type_errors['radec0'].append(filename)
 
         # Catch spectra of different object than the object queried in Simbad
-        if len(simbad) > 0 and (not '0.0000' in str(RA_0) or not '0.0000' in str(DEC_0)):
+        if simbad and ('0.0000' not in str(RA_0) and '0.0000' not in str(DEC_0)):
             c1 = SkyCoord(RA_0, DEC_0, unit=u.deg)
             c2 = SkyCoord(simbad['ra'][0], simbad['dec'][0], unit=u.deg)
             difcoord = round(c1.separation(c2).arcsec, 3)
-
             if difcoord > max_dist:
-                type_errors['distance'].append(filename+' -> '+str(difcoord))
+                type_errors['distance'].append(f"{filename} -> {difcoord}")
 
     bar.finish()
 
     # Wrtiting the errors to the file:
     error_descriptions = [
-    '# Problem querying these objects in Simbad. Correct the name and re-run to check object coordinates.\n',
-    '# File names which has a wrong name for the object when compared to the header.\n',
-    '# Duplicated files with same full date but different name in the file name.\n',
-    '# Files with different date in the header and the file name.\n',
-    '# Spectra with no RA or DEC values in the header. Correct the header and re-run to check object coordinates.\n',
-    '# Distance from Simbad query is above the threshold for these spectra.\n']
+        '# Problem querying these objects in Simbad. Correct the name and re-run to check object coordinates.\n',
+        '# File names which has a wrong name for the object when compared to the header.\n',
+        '# Duplicated files with same full date but different name in the file name.\n',
+        '# Files with different date in the header and the file name.\n',
+        '# Spectra with no RA or DEC values in the header. Correct the header and re-run to check object coordinates.\n',
+        '# Distance from Simbad query is above the threshold for these spectra.\n'
+    ]
 
-    print('Possible errors (if any) are written in lists/Errors_DB.txt')
-    errorsDB = open(maindir+'lists/Errors_DB.txt', 'w')
-    for description,error in zip(error_descriptions,type_errors):
-        if len(type_errors[error]) == 0:
-            continue
-        errorsDB.write(description)
-        [errorsDB.write(i+'\n') for i in type_errors[error]]
-    errorsDB.close()
+    errors_path = maindir / 'lists' / 'Errors_DB.txt'
+    errors_path.parent.mkdir(parents=True, exist_ok=True)
+    print(f"Possible errors (if any) are written in {errors_path}")
+    with errors_path.open('w') as errorsDB:
+        for description, error in zip(error_descriptions, type_errors):
+            if not type_errors[error]:
+                continue
+            errorsDB.write(description)
+            for item in type_errors[error]:
+                errorsDB.write(f"{item}\n")
 
+    ids_path = maindir / 'lists' / 'IDs_spectra.txt'
+    ids_path.parent.mkdir(parents=True, exist_ok=True)
     # Writing the file unique identificators to a file
-    print('Unique IDs of the spectra are written in lists/IDs_spectra.txt')
-    IDs_spectra = open(maindir+'lists/IDs_spectra.txt', 'w')
-    for description,tel in zip(['# FEROS files\n','# HERMES files\n','# FIES files\n'],IDs):
-        if len(IDs[tel]) == 0:
-            continue
-        IDs_spectra.write(description)
-        [IDs_spectra.write(i+'\n') for i in IDs[tel]]
-    IDs_spectra.close()
-
-    return None
+    print(f"Unique IDs of the spectra are written in {ids_path}")
+    with ids_path.open('w') as IDs_spectra:
+        for description, tel in zip(['# FEROS files\n', '# HERMES files\n', '# FIES files\n'], IDs):
+            if not IDs[tel]:
+                continue
+            IDs_spectra.write(description)
+            for item in IDs[tel]:
+                IDs_spectra.write(f"{item}\n")
 
 
-def fix_fits(list, coords_Simbad=True, radius=60, savepath=''):
-
+def fix_fits(list_name, coords_Simbad=True, radius=60, savepath=''):
     '''
     Function to detect and correct errors in the filenames/headers allowing
     the user to save a corrected FITS file.
@@ -1557,8 +1343,7 @@ def fix_fits(list, coords_Simbad=True, radius=60, savepath=''):
 
     Parameters
     ----------
-
-    list : str
+    list_name : str
         Enter the input list, either name(s)/FITS of the source(s) separated by coma,
         or a .txt/.lst file containing the source names or files.
 
@@ -1578,89 +1363,77 @@ def fix_fits(list, coords_Simbad=True, radius=60, savepath=''):
     Nothing.
     '''
 
-    dir_spectra = findstar(list)
+    dir_spectra = findstar(list_name)
+    if not dir_spectra:
+        return None
 
     for spectrum in dir_spectra:
+        spectrum_path = Path(spectrum)
+        filename = spectrum_path.name
+        id_star = filename.split('_')[0]
 
-        filename = spectrum.split(os.sep)[-1]
-        id_star = spectrum.split(os.sep)[-1].split('_')[0]
+        with fits.open(spectrum_path) as hdu:
+            hdu.verify('fix')
+            header = hdu[0].header
 
-        # Retrieve the key values fron the fits header
-        hdu = fits.open(spectrum) # Open the fits image file
-        hdu0 = hdu.verify('fix')  # Fix header keywords
-        hdu0 = hdu[0]             # Load the header list of primary header
-        header = hdu0.header      # Read the values of the headers
+            print(f"\nName (filename) / Name (object)\n{id_star} / {header['OBJECT']}\n")
 
-        print('\nName (filename) / Name (object)\n%s / %s\n' % (id_star,header['OBJECT']))
+            RADEC = SkyCoord(str(header['RA']), str(header['DEC']), unit=u.deg)
+            if 'OBJ_RA' in header:
+                RADEC_OBJ = SkyCoord(str(header['OBJ_RA']), str(header['OBJ_DEC']), unit=u.deg)
+            elif 'OBJRA' in header:
+                RADEC_OBJ = SkyCoord(str(header['OBJRA']), str(header['OBJDEC']), unit=(u.hour, u.deg))
+            else:
+                RADEC_OBJ = RADEC
 
-        RADEC = SkyCoord(str(header['RA']),str(header['DEC']), unit=u.deg)
+            print('From header:\n--------------------------')
+            print(f"RADEC / RADEC_OBJ\n{RADEC.ra} / {RADEC_OBJ.ra}")
+            print(f"{RADEC.dec} / {RADEC_OBJ.dec}\n")
 
-        if 'OBJ_RA' in header:
-            RADEC_OBJ = SkyCoord(str(header['OBJ_RA']),str(header['OBJ_DEC']), unit=u.deg)
-        elif 'OBJRA' in header:
-            RADEC_OBJ = SkyCoord(str(header['OBJRA']),str(header['OBJDEC']), unit=(u.hour,u.deg))
-        elif 'RA' in header:
-            RADEC_OBJ = SkyCoord(str(header['RA']),str(header['DEC']), unit=u.deg)
-
-        print('From header:\n--------------------------')
-        print('RADEC / RADEC_OBJ\n%s / %s' % (RADEC.ra,RADEC_OBJ.ra))
-        print(RADEC.dec,'/',RADEC_OBJ.dec,'\n')
-
-        simbad = query_Simbad(id_star)
-
-        if len(simbad) > 0:
-            print('From Simbad (querying ID):\n--------------------------')
-
-            RADEC_SB = SkyCoord(simbad['ra'],simbad['dec'], unit=(u.hour,u.deg))[0]
-
-            try: # Additional coordinates from SkyCoord package
-                RADEC_SC = SkyCoord.from_name(id_star)
-            except:
-                RADEC_SC = SkyCoord('0 0', unit=u.deg)
-
-            print('RADEC (Simbad) / RADEC (SkyCoord)\n%s / %s' % (RADEC_SB.ra,RADEC_SC.ra))
-            print(RADEC_SB.dec,'/',RADEC_SC.dec,'\n')
-
-            print('SpC (header) / SpC (Simbad)\n%s (%s) / %s\n' %
-                (header['I-SPC'],header['I-SPCREF'],simbad['sp_type'][0]))
-
-        if coords_Simbad == True:
-
-            region = query_Simbad(ra=RADEC.ra, dec=RADEC.dec, radius=radius*u.arcsec)
-
-            if type(region) != type(None):
-                print('From Simbad (querying header RA,DEC):\n-------------------------------------')
-
-                print('Sources found:')
-                [print(i['MAIN_ID']+' ('+i['sp_type']+')') for i in region]
-                print('\n')
-
-        user = '-'; change = False
-        while user != '':
-
-            print("To change something from the header type: <keyword>:<value>")
-            print("Type +<name> to obtain a list of alternative names for <name> in Simbad.")
-            user = input("Or hit return to continue. Input: ")
-
-            if user.startswith('+') and not ':' in user:
-                query_Simbad(name=user.replace('+',''), other_names=True)
-
-            if ':' in user:
+            simbad = query_Simbad(id_star)
+            if simbad is not None and len(simbad) > 0:
+                print('From Simbad (querying ID):\n--------------------------')
+                RADEC_SB = SkyCoord(simbad['ra'], simbad['dec'], unit=(u.hour, u.deg))[0]
                 try:
-                    header[user.split(':')[0]] = user.split(':')[1]
+                    RADEC_SC = SkyCoord.from_name(id_star)
+                except Exception:
+                    RADEC_SC = SkyCoord('0 0', unit=u.deg)
+
+                print(f"RADEC (Simbad) / RADEC (SkyCoord)\n{RADEC_SB.ra} / {RADEC_SC.ra}")
+                print(f"{RADEC_SB.dec} / {RADEC_SC.dec}\n")
+                print(f"SpC (header) / SpC (Simbad)\n{header.get('I-SPC')} ({header.get('I-SPCREF')}) / {simbad['sp_type'][0]}\n")
+
+            if coords_Simbad:
+                region = query_Simbad(ra=RADEC.ra, dec=RADEC.dec, radius=radius * u.arcsec)
+                if region is not None:
+                    print('From Simbad (querying header RA,DEC):\n-------------------------------------')
+                    print('Sources found:')
+                    for src in region:
+                        print(f"{src['MAIN_ID']} ({src['sp_type']})")
+                    print('\n')
+
+            user = '-'
+            change = False
+            while user:
+                print("To change something from the header type: <keyword>:<value>")
+                print("Type +<name> to obtain a list of alternative names for <name> in Simbad.")
+                user = input("Or hit return to continue. Input: ").strip()
+
+                if user.startswith('+') and ':' not in user:
+                    query_Simbad(name=user.replace('+', ''), other_names=True)
+
+                if ':' in user:
+                    k, v = user.split(':', 1)
+                    header[k.strip()] = v.strip()
                     change = True
-                except:
-                    print('Entry not valid. Verify the input.')
 
-        if change == True:
-            save = input('FITS file has been modified, do you want to save it? y/n/<filename.fits> ')
+            if change:
+                save = input('FITS file has been modified, do you want to save it? y/n/<filename.fits>: ').strip()
+                out_path = spectrum_path.with_name(save) if save.endswith('.fits') else spectrum_path
 
-            if save.endswith('.fits'):
-                spectrum = spectrum.replace(filename, save)
+                if save.lower() != 'n':
+                    if savepath:
+                        out_path = Path(savepath) / out_path.name
 
-            if save != 'n':
-
-                if savepath != '':
-                    spectrum = savepath + spectrum.split(os.sep)[-1]
-
-                hdu.writeto(spectrum, output_verify='ignore', overwrite=True)
+                    out_path.parent.mkdir(parents=True, exist_ok=True)
+                    hdu.writeto(out_path, output_verify='ignore', overwrite=True)
