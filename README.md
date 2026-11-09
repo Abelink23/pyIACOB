@@ -64,16 +64,21 @@ The required folders will be created and the package will be installed.
 
 - hardcoded_maui.py contains hardcoded values, parameters, or masks used in the MAUI analysis.
 
-- iacob_broad.py contains functions to perform the line-broadening analysis of OB-type
-  stars using the IACOB-BROAD tool.
+- iacob_broad.py contains the function to perform the line-broadening analysis of OB-type
+  stars using the IACOB-BROAD tool. This module is a Python implementation of the original
+  IDL tool developed by Simón-Díaz, S. & Herrero, A. (2014), and later translated to Python
+  by D. Galán (PhD, IAC) together with the sub-modules included in the broadening/ folder.
 
-- isocrones.py contains functions to retrieve isochrones from different libraries (MIST, Bonn, Geneva...) [IN DEVELOPMENT].
+- isocrones.py contains functions to retrieve isochrones from different libraries.
+  [IN DEVELOPMENT].
 
 - maui.py contains functions which helps the user to generate output and input tables for
-  MAUI, with some additional features regarding the analysis of the results.
+  MAUI (Urbaneja 2026), with some additional features regarding the preparation of the
+  analysis and the review of the results.
 
-- measure.py contains functions to interactively or automatically obtain Equivalent Widths,
-  Full Widths, and Radial Velocities for a given input of stars and spectral lines.
+- measure.py contains functions to interactively or automatically obtain equivalent
+  widths, full widths, full widths at 3/4 and 1/4 of the line depth, or radial velocities
+  for a given input of stars and spectral lines.
 
 - reduction.py contains functions to perform the reduction of the spectra, including
   the data extraction, normalization, and formatting to match the IACOB database format.
