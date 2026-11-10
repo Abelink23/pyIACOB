@@ -697,17 +697,17 @@ def degrade_spec(path_to_spectra, output_dir, resol=5000, lwl=None, rwl=None, st
             filename = spectrum.name.split('_')[0]
 
         # If directory "degraded" inside output_dir does not exist, it is created
-        if not Path(output_dir+'degraded/').exists():
-            Path(output_dir+'degraded/').mkdir(parents=True, exist_ok=True)
+        if not Path(output_dir + 'degraded/').exists():
+            Path(output_dir + 'degraded/').mkdir(parents=True, exist_ok=True)
 
         # Save the spectrum
         if extension in ['ascii', 'txt', 'csv']:
-            np.savetxt(output_dir+'degraded/%s' % (filename + '.' + extension),
+            np.savetxt(output_dir + 'degraded/%s' % (filename + '.' + extension),
                 np.transpose([wave, flux]), delimiter=delimiter, fmt=('%.4f','%.6f'),
                 header='lambda%sflux' % delimiter, comments='')
         elif extension == 'fits':
             hdu = fits.PrimaryHDU(np.transpose([flux, wave]))
-            hdu.writeto(output_dir+'degraded/%s' % (filename + '.' + extension), overwrite=True)
+            hdu.writeto(output_dir + 'degraded/%s' % (filename + '.' + extension), overwrite=True)
 
     return None
 
