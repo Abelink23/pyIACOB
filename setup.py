@@ -84,11 +84,19 @@ if not ascii_dir.exists():
 
 # Copy the file 'snr_gaps.txt' to the main_dir/lists directory.
 print('Copying the file snr_gaps.txt to the main/lists directory...')
-shutil.copyfile('snr_gaps.txt', str(main_dir / 'lists' / 'snr_gaps.txt'))
+shutil.copyfile('snr_gaps.txt', main_dir / 'lists' / 'snr_gaps.txt')
 
 # Copy the 'atlas_lines' folder to the main_dir/lists/lines/ directory.
 print('Copying the folder atlas_lines to the main/lists/lines directory...')
-shutil.copytree('atlas_lines', str(main_dir / 'lists' / 'lines' / 'atlas_lines'), dirs_exist_ok=True)
+shutil.copytree('atlas_lines', main_dir / 'lists' / 'lines' / 'atlas_lines', dirs_exist_ok=True)
+
+# Copy the tracks.zip file to the main_dir directory, unzip it, and remove the zip file
+print('Copying the file tracks.zip to the main directory and unzipping it...')
+shutil.copyfile('tracks.zip', main_dir / 'tracks.zip')
+shutil.unpack_archive(main_dir / 'tracks.zip', main_dir)
+if (main_dir / '__MACOSX').exists():
+    shutil.rmtree(main_dir  / '__MACOSX')
+Path(main_dir / 'tracks.zip').unlink()
 
 # --- Environment Activation Confirmation & Manager Selection ---
 print('\n' + '=' * 60)
