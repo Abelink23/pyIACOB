@@ -400,6 +400,9 @@ class spec():
                 snr_spec = self.snrcalc('v')
             elif line > 6000 and line < 7000:
                 snr_spec = self.snrcalc('r')
+            else:
+                msg.warn('Line %sA outside SNR calculation range. SNR set to NaN.' % line)
+                snr_spec = np.nan
         else:
             snr_spec = np.nan
 
