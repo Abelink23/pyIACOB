@@ -8,28 +8,32 @@ Additionally, this package facilitates the use of MAUI (M.A. Urbaneja 2026), a t
 This project is developed by Abel de Burgos Sierra since 2019, and has continuesly evolved with different contributions from Sergio Simón-Díaz, Alba Casabuenas, Daniel Galan, Gonzalo Holgado, and Carlos Martinez-Sebastian, who are all members of the IACOB project. The package is currently maintained by Abel de Burgos Sierra.
 
 # Installation
-Clone the repository from GitHub:
+Clone the repository from GitHub (preferable for keeping the package up to date):
 
       git clone https://github.com/Abelink23/pyIACOB/
 
 Or download the zip file from GitHub and extract it in your preferred location.
+
+Note: if your pyIACOB is older than the version indicated above, update it by running this command from the main folder of the package:
+
+      git pull origin main
 
 ## Python version:
 pyIACOB requires **Python 3.11 or higher**. It is recommended to install a python environment via Conda or venv to avoid conflicts with other packages:
 
 For Conda (or Miniconda) users:
 
-      conda create -n pyIACOB python=3.11
-      conda activate pyIACOB
+      conda create -n <name_of_the_env> python=3.11
+      conda activate <name_of_the_env>
 
-For venv users with python >3.11 installed, go to the main folder of the package and run:
+Alternatively, for venv users with python 3.11 installed, go to your directory of choice (e.g., working directory or directory with other environments, but not the main folder of the package), and run:
 
-      python -m venv pyIACOB
-      source pyIACOB/bin/activate  (Linux/MacOS)
-      pyIACOB\Scripts\activate     (Windows)
+      python -m venv <name_of_the_env>
+      source <name_of_the_env>/bin/activate  (Linux/MacOS)
+      <name_of_the_env>\Scripts\activate     (Windows)
 
 ## Installation script:
-Run the following command in the terminal from the main folder of the package:
+Run the following command in the terminal from the main folder of the package (pyIACOB):
 
       python setup.py
 
@@ -43,6 +47,8 @@ Note: checked and installed automatically when running the setup.py script (see 
 - numpy 2.4.6
 - progressbar 4.6.0
 - scipy 1.17.1
+
+If you use ipython or jupyter notebooks, it is recommended to install the corresponding packages.
 
 ## Downloading the IACOB spectra:
 Spectra from the IACOB spectroscopic database stored locally. IACOB spectra can be downloaded from: https://research.iac.es/proyecto/iacob/iacobcat/
@@ -88,7 +94,7 @@ If you plan to use spectra in ascii format, you will need to put this files insi
 To use the package, simply import everything from the pyIACOB module you need to use. For example, to use the functions in `spec.py`, you would do:
 
       from spec import *
-      s = spec('path/to/spectrum.fits')
+      s = spec('<name_of_the_star/spectrum>')
       s.plotspec()
       s.fitline(4552.622, plot=True)
 
