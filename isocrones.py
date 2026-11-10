@@ -64,8 +64,7 @@ def isomist(myr=None, logmyr=None, av=1.0, vini_vcrit=0.4):
     if logage < 7.676: ranage = '1-45'
     else: ranage = '50-300'
 
-    iso_mist = Table.read(modeldir + 'MIST/ISOCHRONES/ISOC_FeH0_%sMyr_Av%s_V%s.fits' % \
-        (ranage,Av,vini_vcrit),format='fits')
+    iso_mist = Table.read(maindir / 'isochrones' / 'MIST' / f'ISOC_FeH0_{ranage}Myr_Av{Av}_V{vini_vcrit}.fits', format='fits')
 
     iso_mist = iso_mist[iso_mist['log10_isochrone_age_yr'] == logage]
 
