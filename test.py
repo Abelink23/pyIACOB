@@ -1,4 +1,3 @@
-import os
 import shutil
 
 #for module in ['db','reduction', 'get_feros', 'spec', 'spec_posproc', 'IACOBroad',
@@ -21,14 +20,14 @@ except Exception as e:
     print(f'\033[91mError importing module db: {e}\033[0m')
 
 #^ findstar from the database module
-print("Trying to find the star HD 37022 using findstar from the db module.")
+print("Trying to find the star HD 37042 using findstar from the db module.")
 try:
-    star = findstar('HD 37022')
+    star = findstar('HD 37042')
     print(f'\033[92mSpectra available for star {star}\033[0m')
 except Exception as e:
     print(f'\033[91mError finding star: {e}\033[0m')
 try:
-    star = findstar('HD 37022', snr='best')
+    star = findstar('HD 37042', snr='best')
     print(f'Best spectra available for star {star[0]}')
 except Exception as e:
     print(f'\033[91mError finding star with best SNR: {e}\033[0m')
@@ -59,39 +58,32 @@ except Exception as e:
     print(f'\033[91mError finding table: {e}\033[0m')
 
 #^ query_Simbad from the database module
-print("Trying to query Simbad for the star HD37022 using query_Simbad from the db module.")
+print("Trying to query Simbad for the star HD37042 using query_Simbad from the db module.")
 try:
-    star = query_Simbad('HD 37022')
-    print(f'\033[92mSimbad query result for star HD 37022:\n {star}\033[0m')
+    star = query_Simbad('HD 37042')
+    print(f'\033[92mSimbad query result for star HD 37042:\n {star}\033[0m')
 except Exception as e:
     print(f'\033[91mError querying Simbad: {e}\033[0m')
 
 #^ query_Gaia from the database module
-print("Trying to query Gaia for the star HD37022 using query_Gaia from the db module.")
+print("Trying to query Gaia for the star HD37042 using query_Gaia from the db module.")
 try:
-    star = query_Gaia('HD 37022')
-    print(f'\033[92mGaia query result for star HD 37022:\n {star}\033[0m')
+    star = query_Gaia('HD 37042')
+    print(f'\033[92mGaia query result for star HD 37042:\n {star}\033[0m')
 except Exception as e:
     print(f'\033[91mError querying Gaia: {e}\033[0m')
 
 #^ table_db from the database module
 print("Trying to make a table using table_db from the db module.")
 try:
-    table = table_db('HD37022_20171217_224509_M_V85000.fits', db='IACOB',
-                    spt='O', snrcut=50, spccode=True, bmag='>1', gaia='DR3')
-    print(f'\033[92mTable for star HD 37022:\n {table[:10]}\n...\033[0m')
+    table = table_db('HD37042_20171030_024023_M_V85000.fits', db='IACOB',
+                    spt='B', snrcut=50, spccode=True, bmag='>1', gaia='DR3')
+    print(f'\033[92mTable for star HD 37042:\n {table[:10]}\n...\033[0m')
     findtable('tablestars.fits')
     Path(maindir / 'tables' / 'tablestars.fits').unlink()
 except Exception as e:
     print(f'\033[91mError making table: {e}\033[0m')
 
-#^ show_header from the database module
-print("Trying to show the header of the file sample fits file using show_header from the db module.")
-try:
-    show_header('HD37022_20171217_224509_M_V85000.fits')[0:10]
-    print(f'\033[92mSuccessfully showed the header of the file\033[0m')
-except Exception as e:
-    print(f'\033[91mError showing header: {e}\033[0m')
 
 #? spec module ==========================================================================
 try:
@@ -103,7 +95,7 @@ except Exception as e:
 #? class spec from the spec module
 print("Trying to create an instance of the class spec for the file sample fits file.")
 try:
-    s = spec('HD37022_20171217_224509_M_V85000.fits', snr=40, rv0=1)
+    s = spec('HD37042_20171030_024023_M_V85000.fits', snr=40, rv0=1)
     print(f'\033[92mInstance of class spec created successfully for file {s.filename}\033[0m')
 except Exception as e:
     print(f'\033[91mError creating instance of class spec: {e}\033[0m')
