@@ -75,12 +75,15 @@ ascii_dir = data_dir / 'ASCII'
 if not ascii_dir.exists():
     print("Creating ASCII directory...")
     ascii_dir.mkdir(parents=True, exist_ok=True)
-    # Move the files in test_data to the data_dir directory
-    print("Moving the FITS files in test_data to the data directory...")
-    if Path('test_data').exists():
-        for file in Path('test_data').iterdir():
+    # Move the files in sample_spectra to the data_dir directory
+    print("Moving the FITS files in sample_spectra to the data directory...")
+    if Path('sample_spectra').exists():
+        for file in Path('sample_spectra').iterdir():
             if file.is_file():
                 shutil.move(str(file), str(data_dir / file.name))
+                print(f"Moved {file.name} to {data_dir}")
+    else:
+        print("WARNING: sample_spectra directory does not exist. No files were moved.")
 
 # Copy the file 'snr_gaps.txt' to the main_dir/lists directory.
 print('Copying the file snr_gaps.txt to the main/lists directory...')
