@@ -63,7 +63,7 @@ with open('paths.txt', 'w') as f:
 
 # Create the subfolders inside the main_dir directory
 print('\nCreating the subfolders inside the main directory...\n')
-subfolders = ['broadening', 'lists', 'lists/lines', 'plots', 'tables', 'tmp']
+subfolders = ['broadening', 'lists', 'lists/lines', 'lists/lines/atlas_lines', 'plots', 'tables', 'tmp']
 for subfolder in subfolders:
     target_folder = main_dir / subfolder
     if not target_folder.exists():
