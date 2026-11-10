@@ -104,12 +104,13 @@ except Exception as e:
 print("Trying to use the methods of the class spec for the instance created.")
 try:
     s.waveflux(lwl=4000, rwl=8000, cut_edges=True)
+    print('Close the plot window to continue...')
     s.fitline(4552.622, info=True, fw3414=True, plot=True)
+    plt.show(block=True)
     s.snrcalc()
     s.cosmic()
     s.convolution(resol=5000, vsini=100)
     s.resamp(dlam=0.03)
-    s.plotline(4552.622)
     print(f'\033[92mMethods of class spec used successfully.\033[0m')
 except Exception as e:
     print(f'\033[91mError using methods of class spec: {e}\033[0m')
