@@ -513,7 +513,7 @@ def iacob_broad(
     # #################### QUALITY INDEX (QIB) STEP ####################
     if qib_step:
         qib = -1.0
-        while qib is -1.0:
+        while qib == -1.0:
             try:
                 val = input("Give a quality index to the analysis (0 to 5): ")
                 qib = float(val)
