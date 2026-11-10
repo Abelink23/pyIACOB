@@ -351,6 +351,8 @@ def findtable(table, path=None, format=None, delimiter=',', header_start=0,
         If 'True' it will not print any message if the file is not found of more
         than one file is found. Default is 'False'.
 
+    Note: If the table has a commented header, use 'commented_header' as format.
+
     Returns
     -------
     Data in table, in table format.
@@ -362,16 +364,14 @@ def findtable(table, path=None, format=None, delimiter=',', header_start=0,
     if table_file is None:
         return None
 
-    table_path = Path(table_file)
-
-    if '.fits' in table_path.name or format == 'fits':
-        data = Table.read(table_path, format='fits')
+    if '.fits' in table_file.suffix or format == 'fits':
+        data = Table.read(table_file, format='fits')
         if fits_strip_end:
             to_strip = [col for col in data.colnames if data.dtype[col].type in (np.str_, np.bytes_)]
             for col in to_strip:
                 data[col] = [val.strip() if not np.ma.is_masked(val) else val for val in data[col]]
     else:
-        data = ascii.read(table_path, header_start=header_start, format=format, delimiter=delimiter, guess=guess)
+        data = ascii.read(table_file, header_start=header_start, format=format, delimiter=delimiter, guess=guess)
 
     if fix_missing:
         for col in [c for c in data.colnames if data.dtype[c].type in (np.str_, np.bytes_)]:
