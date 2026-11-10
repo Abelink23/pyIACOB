@@ -515,7 +515,7 @@ def iacob_broad(
         qib = -1.0
         while qib == -1.0:
             try:
-                val = input("Give a quality index to the analysis (0 to 5): ")
+                val = input("Give a quality index to the analysis (0:low to 5:high): ")
                 qib = float(val)
                 if not (0.0 <= qib <= 5.0):
                     msg.error("Error: QIB must be a value between 0 and 5.")
