@@ -659,7 +659,8 @@ def table_db(list_name, db, coords=None, limdist=None, lim_lb=None, spt=None, lc
 
     # Progress Bar
     bar = pb.ProgressBar(maxval=len(lst_sources_f),
-        widgets=[pb.Bar('=', '[', ']'), ' ', pb.Percentage(), ' ', pb.ETA()])
+        widgets=[pb.Bar('=', '[', ']'), ' ', pb.Percentage(), ' ', pb.ETA()],
+        redirect_stdout=True, redirect_stderr=True)
     bar.start()
 
     #================================= Sources =================================
@@ -871,8 +872,8 @@ def table_db(list_name, db, coords=None, limdist=None, lim_lb=None, spt=None, lc
                     gaiaq = gaiaq[[c for c in gaiaq.columns if not any(x in c for x in ['dr2', 'scan_', '_corr', '_obs_', 'ipd_', 'transits'])]]
 
                 row = hstack([row, gaiaq])
-            except Exception:
-                msg.warn(f"\n{source} could not be queried in Gaia.")
+            except Exception as e:
+                msg.warn(f"{source} could not be queried in Gaia due to: {e}.")
 
         table = row if table is None else vstack([table, row])
         bar.update(i)
