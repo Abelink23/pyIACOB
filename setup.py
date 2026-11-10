@@ -10,7 +10,7 @@ print('\033[96mThis setup script will help you configure the pyIACOB package and
 
 # Obtain the paths to the main and data mandatory directories.
 while True:
-    raw_input = input('Please provide the path to the main directory: ').strip()
+    raw_input = input('Please provide the path to the main working directory: ').strip()
     if not raw_input:
         print('The main directory is mandatory, please provide the path to the main directory.')
         continue
@@ -129,12 +129,12 @@ else:
 
 # List of packages to check/install
 packages = [
-    'numpy==2.4.6',
+    'numpy==2.4.6', # 2.5.4 (py 3.13)
     'matplotlib==3.11.2',
-    'scipy==1.17.1',
+    'scipy==1.17.1', # 1.18.1 (py 3.13)
     'astropy==8.0.2',
     'astroquery==0.4.11',
-    'progressbar2==4.6.0',
+    'progressbar2==4.6.0', # 4.7.0 (py 3.13)
 ]
 
 # Mapping of distribution package name -> Python import name
