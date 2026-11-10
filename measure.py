@@ -271,7 +271,8 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
                         fig.suptitle(star.id_star + ' -- Filename: ' + star.filename + ' -- Lines for rv corrextion: ' + rv_lines, fontsize=8)
 
                         # Delete the unused axes
-                        [fig.delaxes(axs[i]) for i in np.arange(i % 36 + 1, len(axs))]
+                        for j in range(i % 36 + 1, len(axs)):
+                            axs[j].set_visible(False)
 
                         fig.tight_layout()
                         fig.subplots_adjust(wspace=0.2, hspace=0.3)

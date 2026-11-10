@@ -35,13 +35,13 @@ def trackbonn11(mass=None, vini_vcrit=0.0):
     mass = '0'*digit+mass
 
     # find all models starting with f+mass
-    path = tracksdir + 'Brott11/'
+    path = maindir / 'tracks' / 'Brott11'
     tracks = [f for f in Path(path).iterdir() if f.is_file() and f.startswith('M'+str(mass))]
 
     # find the vini for each model
     vini_list = [m.split('V')[1].split('Av')[0] for m in tracks]
     # calculate the vini/vcrit for each vini
-    vcrit_list = [Table.read(tracksdir+'Brott11/M%sZ014V%sAv00.fits' % (mass,v), format='fits')['Vcrit'][0] for v in vini_list]
+    vcrit_list = [Table.read(path / f'M{mass}Z014V{v}Av00.fits', format='fits')['Vcrit'][0] for v in vini_list]
 
     # pick the vini to achieve the nearest v/vcrit
     vini_list = [int(i) for i in vini_list]
@@ -50,7 +50,7 @@ def trackbonn11(mass=None, vini_vcrit=0.0):
         msg.warn('The closest vini is more than 20 km/s away from the desired v/vcrit')
     msg.info('Closest v/v_crit is %f for vsini = %f km/s' % (round(vini/vcrit_list[vini_list.index(vini)],2),vini))
 
-    trk_brott = Table.read(tracksdir+'Brott11/M%sZ014V%sAv00.fits' % (mass,f"{int(vini):03d}"), format='fits')
+    trk_brott = Table.read(path / f'M{mass}Z014V{vini:03d}Av00.fits', format='fits')
 
     # log(X/H) + 12
     for elem in ['He','C','N','O','Si']:
@@ -129,8 +129,8 @@ def trackmist(mass=None, metallicity=0.014, vini_vcrit=0.4, av=0.0):
 
     metallicity = str(metallicity)[3:]
 
-    trk_mist = Table.read(tracksdir + 'MIST/M%sZ%sV%sAv%s.fits' % \
-        (mass, metallicity, vini_vcrit, Av), format='fits')
+    path = maindir / 'tracks' / 'MIST'
+    trk_mist = Table.read(path / f'M{mass}Z{metallicity}V{vini_vcrit}Av{Av}.fits', format='fits')
 
     return trk_mist
 
@@ -200,7 +200,8 @@ def trackgene12(mass, vini_vcrit=0.4):
     digit = 3-len(mass)
     mass = '0'*digit+mass
 
-    trk_geneva = Table.read(tracksdir + 'Ekstrom12/M%sZ14V%s.fits' % (mass,vini_vcrit), format='fits')
+    path = maindir / 'Ekstrom12'
+    trk_geneva = Table.read(path / f'Ekstrom12/M{mass}Z14V{vini_vcrit}.fits', format='fits')
 
     # FROM Gonzalo
     trk_geneva.rename_columns(['lg(Teff)','lg(L)'],['log_Teff','log_L'])
@@ -285,7 +286,8 @@ def trackgene26(mass, vini_vcrit=0.4, model='magn', tams='FS'):
     if tams not in ['FS','SR']:
         msg.error("The tams input parameter must be 'FS' or 'SR'")
 
-    trk_geneva = Table.read(tracksdir + 'Sciarini26/M%sZ14V%sAv00_%s_%s.fits' % (mass,vini_vcrit,model,tams), format='fits')
+    path = maindir / 'tracks' / 'Sciarini26'
+    trk_geneva = Table.read(path / f'M{mass}Z14V{vini_vcrit}Av00_{model}_{tams}.fits', format='fits')
 
     trk_geneva.rename_columns(['lg(Teff)','lg(L)'],['log_Teff','log_L'])
     #trk_geneva['L'] = (10**trk_geneva['lg(L)'])

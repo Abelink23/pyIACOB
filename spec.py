@@ -1374,13 +1374,13 @@ class spec():
                 print('Spectrum not corrected from RV, lines will have offset.')
 
             if  lines.lower() in ['all']:
-                table = findtable('all.txt', delimiter=',', path=maindir+'lists/lines/atlas_lines/')
+                table = findtable('all.txt', delimiter=',', path=maindir /'lists' / 'lines' / 'atlas_lines/')
                 table = table[table['-lg(gf)'] > -1]
             elif lines.lower() in ['all_ob','all_obs','all_ob','ob','obs']:
-                table = findtable('all_OBs.txt', delimiter=',', path=maindir+'lists/lines/atlas_lines/')
+                table = findtable('all_OBs.txt', delimiter=',', path=maindir /'lists' / 'lines' / 'atlas_lines/')
                 table = table[table['-lg(gf)'] > -1]
             elif lines.lower() in ['35-10k','35k','30k','25k','20k','15k','10k']:
-                table = findtable('%s.fits' % lines, path=maindir+'lists/lines/atlas_lines/')
+                table = findtable('%s.fits' % lines, path=maindir /'lists' / 'lines' / 'atlas_lines/')
                 # www.lsw.uni-heidelberg.de/projects/hot-stars/websynspec.php
             elif '.txt' in lines or '.lst' in lines:
                 table = Table(findlines(lines))
