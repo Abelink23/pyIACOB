@@ -120,7 +120,7 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
 
         Path(maindir / 'plots' / 'measure').mkdir(parents=True, exist_ok=True)
 
-        pdf_fitting = PdfPages(maindir + 'plots/measure/measure_lines_%s.pdf' % time.strftime('%Y%m%d_%H%M%S'))
+        pdf_fitting = PdfPages(maindir / 'plots' / 'measure' / 'measure_lines_%s.pdf' % time.strftime('%Y%m%d_%H%M%S'))
 
         plt.rcParams.update({
             'xtick.labelsize' : 6,
@@ -137,7 +137,7 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
             print('Generating plots in pdf is enable. The show_plot parameter is set to False.')
             show_plot = False
 
-    print('Output table in: %s' % (maindir.replace("\\","/")+'tables/'+output_table))
+    print('Output table in: %s' % (maindir / 'tables' / output_table))
     print('Lines to fit: %s' % lines)
     print('Minimum EW to consider a line as detected: %s mA' % ewcut)
 
@@ -286,7 +286,7 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
                 continue
             else:
                 output = vstack([output,T_source])
-                output.write(maindir+'tables/'+output_table.replace('.fits','_tmp.fits'), format='fits', overwrite=True)
+                output.write(maindir / 'tables' / output_table.replace('.fits','_tmp.fits'), format='fits', overwrite=True)
 
                 if next == 'q':
                     quit = next
@@ -389,7 +389,7 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='vrg_H', rv_to
             )
 
     ewcut = 50  # Minimum EW to consider a line as detected
-    print('Output table in: %s' % (maindir.replace("\\","/")+'tables/'+output_table))
+    print('Output table in: %s' % (maindir / 'tables' / output_table))
     print('Minimum EW to consider a line as detected: %s mA' % ewcut)
 
     quit = ''
@@ -519,7 +519,7 @@ def measure_Hb(table, output_table, rv_lines='rv_Bs.lst', rv_func='vrg_H', rv_to
 
                 if next == 'q': quit = next
 
-    output.write(maindir+'tables/'+output_table, format='fits', overwrite=True)
+    output.write(maindir / 'tables' / output_table, format='fits', overwrite=True)
 
     return 'DONE'
 
@@ -561,7 +561,7 @@ def auto_measure(lines, table, output_table='new_RVEWFW.fits',
     '''
 
     from matplotlib.backends.backend_pdf import PdfPages
-    pp = PdfPages(maindir+'tmp_plots/auto_RVEWFW.pdf')
+    pp = PdfPages(maindir / 'tmp_plots' / 'auto_RVEWFW.pdf')
 
     lines,elements,_ = findlines(lines)
 
@@ -695,7 +695,7 @@ def auto_measure(lines, table, output_table='new_RVEWFW.fits',
 
     pp.close()
 
-    output.write(maindir+'tables/'+output_table, format='fits', overwrite=True)
+    output.write(maindir / 'tables' / output_table, format='fits', overwrite=True)
 
     bar.finish()
 
@@ -712,7 +712,7 @@ def auto_measure(lines, table, output_table='new_RVEWFW.fits',
                 table['vsini'] = vsini
             elif func == 'v':
                 table['gamma'] = gamma
-        table.write(maindir+'tables/param_'+output_table, format='fits', overwrite=True)
+        table.write(maindir / 'tables' / ('param_' + output_table), format='fits', overwrite=True)
 
     return 'DONE'
 
