@@ -728,7 +728,7 @@ def ib_results(solution_dir=None, table=None, check_best=False, format='fits'):
     data_rows['SNR_IB'] = [int(round(row)) for row in data_rows['SNR_IB']]
 
     # Saving the results:
-    full_path = maindir + 'tables/IB_results_new.' + format
+    full_path = maindir / 'tables' / f'IB_results_new.{format}'
     if format == 'ascii':
         format += '.fixed_width_two_line'
 
