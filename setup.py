@@ -6,7 +6,7 @@ from pathlib import Path
 
 print('\033[96m\033[1m\033[4mWelcome to the pyIACOB package!\033[0m\n')
 print('\033[96mDeveloped by Abel de Burgos and the IACOB team.\033[0m\n')
-print('\033[96mThis setup script will help you configure the pyIACOB package and its dependencies.\033[0m\n')
+print('\033[96mThis setup script will help you configure the pyIACOB package focused on the IACOB-broad sub-module and its dependencies.\033[0m\n')
 
 # Obtain the paths to the main and data mandatory directories.
 while True:
@@ -47,23 +47,14 @@ while True:
         data_dir = path_candidate
         break
 
-# Obtain the paths to the optional directories.
-print('\nThe following directories are optional, you can leave them empty if you do not want to use them.')
-maui_dir   = input('Please provide the path where MAUI is installed: ').strip()
-
-# Inform the user about the location of the evolutionary tracks and broadening data.
-print('\nThe evolutionary tracks are located in pyIACOB/tracks')
-print(f'\nThe broadening data is located in {main_dir / "broadening"}')
-
 # Create the file 'paths.txt' which contains the paths to the directories.
 with open('paths.txt', 'w') as f:
     f.write('main=' + str(main_dir) + '\n')
     f.write('data=' + str(data_dir) + '\n')
-    f.write('maui=' + maui_dir + '\n')
 
 # Create the subfolders inside the main_dir directory
 print('\nCreating the subfolders inside the main directory...\n')
-subfolders = ['broadening', 'lists', 'lists/lines', 'lists/lines/atlas_lines', 'plots', 'tables', 'tmp']
+subfolders = ['broadening', 'lists', 'lists/lines', 'plots', 'tables', 'tmp']
 for subfolder in subfolders:
     target_folder = main_dir / subfolder
     if not target_folder.exists():
@@ -89,17 +80,6 @@ if not ascii_dir.exists():
 print('Copying the file snr_gaps.txt to the main/lists directory...')
 shutil.copyfile('snr_gaps.txt', main_dir / 'lists' / 'snr_gaps.txt')
 
-# Copy the 'atlas_lines' folder to the main_dir/lists/lines/ directory.
-print('Copying the folder atlas_lines to the main/lists/lines directory...')
-shutil.copytree('atlas_lines', main_dir / 'lists' / 'lines' / 'atlas_lines', dirs_exist_ok=True)
-
-# Copy the tracks.zip file to the main_dir directory, unzip it, and remove the zip file
-print('Copying the file tracks.zip to the main directory and unzipping it...')
-shutil.copyfile('tracks.zip', main_dir / 'tracks.zip')
-shutil.unpack_archive(main_dir / 'tracks.zip', main_dir)
-if (main_dir / '__MACOSX').exists():
-    shutil.rmtree(main_dir  / '__MACOSX')
-Path(main_dir / 'tracks.zip').unlink()
 
 # --- Environment Activation Confirmation & Manager Selection ---
 print('\n' + '=' * 60)
