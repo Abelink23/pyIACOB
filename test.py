@@ -1,13 +1,5 @@
 import shutil
 
-#for module in ['db','reduction', 'get_feros', 'spec', 'spec_posproc', 'IACOBroad',
-#                'measure','binarity', 'maui', 'models', 'rv']:
-#    try:
-#        exec(f'from {module} import *')
-#        print(f'Module {module} imported successfully.')
-#    except Exception as e:
-#        print(f'Error importing module {module}: {e}')
-
 print('\033[92mWelcome to the pyIACOB test program!\033[0m')
 print('This program will test the main functions of the pyIACOB package.\n')
 print('This program is not intended to be used by the user, but it is useful for development.\n')
@@ -45,17 +37,6 @@ try:
     tmp_file_path.unlink()
 except Exception as e:
     print(f'\033[91mError finding lines: {e}\033[0m')
-
-#^ findtable from the database module
-print("Trying to find the table 'stars' using findtable from the db module.")
-# copy the file all.txt to the main_dir/tables directory
-try:
-    shutil.copyfile(maindir/'lists/lines/atlas_lines/all.txt', maindir/'tables'/'_ALL_all_.txt')
-    table = findtable('_ALL_all_.txt')
-    print(f'\033[92mTable found:\n {table[:10]}\n...\033[0m')
-    Path(maindir / 'tables' / '_ALL_all_.txt').unlink()
-except Exception as e:
-    print(f'\033[91mError finding table: {e}\033[0m')
 
 #^ query_Simbad from the database module
 print("Trying to query Simbad for the star HD37042 using query_Simbad from the db module.")
