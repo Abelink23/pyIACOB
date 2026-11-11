@@ -8,11 +8,11 @@ This project is developed by Abel de Burgos Sierra since 2019, and has continues
 # Installation
 Clone the repository from GitHub (preferable for keeping the package up to date):
 
-      git clone https://github.com/Abelink23/pyIACOB/tree/iacob-broad
+      git clone -b iacob-broad https://github.com/Abelink23/pyIACOB
 
 Or download the zip file from GitHub and extract it in your preferred location.
 
-Note: if your iacob-broad branch is older than the version indicated above, update it by running this command from the main folder of the package:
+Note: if your iacob-broad branch is older than the version indicated above, update it from the pyIACOB folder by running this command from the main folder of the package:
 
       git pull origin iacob-broad
 
