@@ -55,8 +55,6 @@ If you plan to use spectra in ascii format, you will need to put this files insi
 
 
 # Overview of the main modules:
-- binarity.py contains functions review multi-epoch spectra and perform a preliminary analysis of the binary nature of the target.
-
 - color_msg.py contains functions to print colored messages in the terminal.
 
 - db.py is the main module of the package, which loads the default paths, and provides functions to search for lists, tables, files, spectra (by, e.g. S/N); generate master tables; make queries in Simbad or Gaia; check the integrity of the fits files; and other functions to interact with the IACOB database.
