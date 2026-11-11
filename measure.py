@@ -120,7 +120,7 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
 
         Path(maindir / 'plots' / 'measure').mkdir(parents=True, exist_ok=True)
 
-        pdf_fitting = PdfPages(maindir / 'plots' / 'measure' / 'measure_lines_%s.pdf' % time.strftime('%Y%m%d_%H%M%S'))
+        pdf_fitting = PdfPages(maindir / 'plots' / 'measure' / 'measure_lines_{}.pdf'.format(time.strftime('%Y%m%d_%H%M%S')))
 
         plt.rcParams.update({
             'xtick.labelsize' : 6,
