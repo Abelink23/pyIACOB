@@ -8,11 +8,11 @@ Additionally, this package facilitates the use of MAUI (M.A. Urbaneja 2026), a t
 This project is developed by Abel de Burgos Sierra since 2019, and has continuesly evolved with different contributions from Sergio Simón-Díaz, Alba Casabuenas, Daniel Galan, Gonzalo Holgado, and Carlos Martinez-Sebastian, who are all members of the IACOB project. The package is currently maintained by Abel de Burgos Sierra.
 
 # Installation
-Clone the repository from GitHub (preferable for keeping the package up to date):
+Clone the repository from GitHub (if you plan to get the latest version of the package):
 
-      git clone https://github.com/Abelink23/pyIACOB/
+      git clone https://github.com/Abelink23/pyIACOB
 
-Or download the zip file from GitHub and extract it in your preferred location.
+Or download the zip file from GitHub and extract it in your preferred location (if you just want to use the package as it is).
 
 Note: if your pyIACOB is older than the version indicated above, update it by running this command from the main folder of the package:
 
