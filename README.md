@@ -3,20 +3,18 @@ This package has been created mainly to reduce, review, modify, and analyze spec
 
 The main scientific goal pursued by the IACOB project is to perform single snap-shot and multi-epoch quantitative spectroscopic analyses providing a complete empirical overview of the physical properties of these stars.
 
-Additionally, this package facilitates the use of MAUI (M.A. Urbaneja 2026), a tool that allows the user to perform a quantitative spectroscopic analysis of OB-type stars using grids of FASTWIND (Puls et al. 2005) stellar atmosphere models.
-
-This project is developed by Abel de Burgos Sierra since 2019, and has continuesly evolved with different contributions from Sergio Simón-Díaz, Alba Casabuenas, Daniel Galan, Gonzalo Holgado, and Carlos Martinez-Sebastian, who are all members of the IACOB project. The package is currently maintained by Abel de Burgos Sierra.
+This project is developed by Abel de Burgos Sierra since 2019, and has continuesly evolved with different contributions from the IACOB team. This particular branch of the package (IACOB-broad) includes a Python implementation of the original IDL tool developed by Simón-Díaz, S. & Herrero, A. (2014), and later translated to Python by Daniel Galán (PhD, IAC) together with other sub-modules maintained by Dr. Abel de Burgos Sierra (ESO).
 
 # Installation
 Clone the repository from GitHub (preferable for keeping the package up to date):
 
-      git clone https://github.com/Abelink23/pyIACOB/
+      git clone https://github.com/Abelink23/pyIACOB/tree/iacob-broad
 
 Or download the zip file from GitHub and extract it in your preferred location.
 
-Note: if your pyIACOB is older than the version indicated above, update it by running this command from the main folder of the package:
+Note: if your iacob-broad branch is older than the version indicated above, update it by running this command from the main folder of the package:
 
-      git pull origin main
+      git pull origin iacob-broad
 
 ## Python version:
 pyIACOB requires **Python 3.11 or higher**. It is recommended to install a python environment via Conda or venv to avoid conflicts with other packages:
@@ -63,40 +61,22 @@ If you plan to use spectra in ascii format, you will need to put this files insi
 
 - db.py is the main module of the package, which loads the default paths, and provides functions to search for lists, tables, files, spectra (by, e.g. S/N); generate master tables; make queries in Simbad or Gaia; check the integrity of the fits files; and other functions to interact with the IACOB database.
 
-- get_feros.py contains functions to download FEROS datasets from the ESO archive and only keep the files that contain the reduced spectra of the target star.
-
-- hardcoded_maui.py contains hardcoded values, parameters, or masks used in the MAUI module.
-
-- iacob_broad.py contains the function to perform the line-broadening analysis of OB-type stars using the IACOB-BROAD tool. This module is a Python implementation of the original IDL tool developed by Simón-Díaz, S. & Herrero, A. (2014), and later translated to Python by D. Galán (PhD, IAC) together with the sub-modules included in the broadening/ folder.
-
-- isocrones.py contains functions to retrieve isochrones from different libraries [IN DEVELOPMENT].
-
-- maui.py contains functions which helps the user to generate output and input tables for MAUI (Urbaneja 2026), with some additional features regarding the preparation of the analysis and the review or visualization of the results.
-
-- measure.py contains functions to interactively or automatically obtain equivalent widths, full widths, full widths at 3/4 and 1/4 of the line depth, or radial velocities or a given input of stars and spectral lines.
-
-- reduction.py contains functions to perform the reduction of the spectra, including the data extraction, normalization, and formatting to match the IACOB database format.
-
-- rv.py contains functions to calculate the radial velocity offset via cross-correlation or via input list of lines. It also allows to create RV curves.
+- iacob_broad.py contains the function to perform the line-broadening analysis of OB-type stars. It calculates the projected rotational velocity (vsini) and macroturbulent broadening (vmac) of a spectral line with the Fourier Transform + Goodness-of-Fit method.
 
 - setup.py contains the code to install the package, the dependencies, and create the required folders.
 
 - spec.py contains functions that manipulate an input spectrum (in FITS or ASCII format), plot it, make different measurements, and eventually export the new spectrum into a file. See also fitline_diagram.txt and fitline_readme.txt for a description of the line fitting procedure.
 
-- spec_posproc.py allows the user to perform a post-processing of the input spectra, including the radial velocity correction or the cosmetic defects and cosmic rays removal.
-
-- tools.py contains utility functions which could also be interested while using spectroscopic data.
-
-- tracks.py contains functions to use evolutionary tracks from different sources inclued in the tracks/ folder. Currently it includes the tracks from Brott et al. (2011) and Ekström et al. (2012), Sciarini et al. (2026), and the MIST tracks.
-
 # Usage:
 
 To use the package, simply import everything from the pyIACOB module you need to use. For example, to use the functions in `spec.py`, you would do:
 
-      from spec import *
+      from iacob_broad import *
       s = spec('<name_of_the_star/spectrum>')
       s.plotspec()
-      s.fitline(4552.622, plot=True)
+      results = iacob_broad(s, snr='best', line='SiIII')              # interactive
+      results = iacob_broad(s, snr='best', line='SiIII', cut=True)    # pre-processing only
+      results = iacob_broad(s, snr='best', line='SiIII', noproc=True) # skip pre-processing if already done and GOF is computed
 
 Note: You can use ascii spectra not coming from the IACOB database (e.g. synthetic spectra), but you will need to provide the wavelength and flux arrays in the correct format (see spec.py for details).
 
