@@ -6,11 +6,11 @@ The main scientific goal pursued by the IACOB project is to perform single snap-
 This project is developed by Abel de Burgos Sierra since 2019, and has continuesly evolved with different contributions from the IACOB team. This particular branch of the package (IACOB-broad) includes a Python implementation of the original IDL tool developed by Simón-Díaz, S. & Herrero, A. (2014), and later translated to Python by Daniel Galán (PhD, IAC) together with other sub-modules maintained by Dr. Abel de Burgos Sierra (ESO).
 
 # Installation
-Clone the repository from GitHub (preferable for keeping the package up to date):
+Clone the repository from GitHub (if you plan to get the latest version of the package):
 
       git clone -b iacob-broad https://github.com/Abelink23/pyIACOB
 
-Or download the zip file from GitHub and extract it in your preferred location.
+Or download the zip file from GitHub and extract it in your preferred location (if you just want to use the package as it is).
 
 Note: if your iacob-broad branch is older than the version indicated above, update it from the pyIACOB folder by running this command from the main folder of the package:
 
