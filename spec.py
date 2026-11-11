@@ -1317,7 +1317,7 @@ class spec():
         return None
 
 
-    def plotspec(self, lwl=3700, rwl=8000, lines=None, ylim=None, lw=.5, c=None, alpha=1):
+    def plotspec(self, lwl=3700, rwl=8000, ylim=None, lw=.5, c=None, alpha=1):
 
         '''
         Function to create a plot of a portion of the spectra and optionally overplot
@@ -1330,10 +1330,6 @@ class spec():
 
         rwl : float, optional
             Sets the end wavelength of the spectrum.
-
-        lines : str, optional
-            Use to overplot position of spectral lines. Current options are:
-            all_OB/OB (recommended), all, 35-10k, 35k, 30k, 25k, 20k, 15k, 10k
 
         ylim : tuple/list, optional
             Sets the y-limits for the plot. Input must be like "[ymin,ymax]".
@@ -1361,63 +1357,6 @@ class spec():
             rwl = max(self.wave)
 
         mask = (self.wave >= lwl) & (self.wave <= rwl)
-
-        if lines != None:
-
-            try:
-                depth = max(self.flux[mask]) - min(self.flux[mask]) # or 1-min
-            except:
-                print('Problem finding max/min in masked flux.')
-                return None
-
-            if self.rv0 == 0:
-                print('Spectrum not corrected from RV, lines will have offset.')
-
-            if  lines.lower() in ['all']:
-                table = findtable('all.txt', delimiter=',', path=maindir /'lists' / 'lines' / 'atlas_lines/')
-                table = table[table['-lg(gf)'] > -1]
-            elif lines.lower() in ['all_ob','all_obs','all_ob','ob','obs']:
-                table = findtable('all_OBs.txt', delimiter=',', path=maindir /'lists' / 'lines' / 'atlas_lines/')
-                table = table[table['-lg(gf)'] > -1]
-            elif lines.lower() in ['35-10k','35k','30k','25k','20k','15k','10k']:
-                table = findtable('%s.fits' % lines, path=maindir /'lists' / 'lines' / 'atlas_lines/')
-                # www.lsw.uni-heidelberg.de/projects/hot-stars/websynspec.php
-            elif '.txt' in lines or '.lst' in lines:
-                table = Table(findlines(lines))
-                table.rename_columns(['col0','col1','col2'], ['wl_air','spc','loggf'])
-
-            table = table[(table['wl_air'] >= lwl) & (table['wl_air'] <= rwl)]
-
-            if 'spectrum' in table.columns:
-                table.rename_column('spectrum', 'spc')
-
-            if '-lg(gf)' in table.columns:
-                table['width'] = 10**table['-lg(gf)']/np.nanmax(10**table['-lg(gf)']) * 3
-                # 10**gf/5 empiric way to draw thicker lines for instense lines
-            elif 'strength' in table.columns:
-                table['strength'] = [i if i<800 else 800 for i in table['strength']]
-                table['width'] = table['strength']/np.nanmax(table['strength']) * 3
-            else:
-                table['width'] = 3
-
-            # If the gf column is masked, rise a warning and assign width == 3 to the masked lines
-            if np.ma.is_masked(table['width']):
-                msg.warn('Some lines have masked gf values, width set to an average value.')
-                avg_width = np.nanmean(table['width'])
-                table['width'] = [i if i is not np.ma.masked else avg_width for i in table['width']]
-
-            at_color = {'HI':'gray', 'HeI':'turquoise', 'OI':'r', 'NI':'b', 'CI':'k', 'SI':'gold',
-                'Si':'tan', 'Mg':'g', 'Fe':'chocolate', 'Ne':'teal', 'Al':'rosybrown'}
-
-            for line in table:
-                try: c_l = at_color[line['spc'].replace(' ','')[:2]]
-                except: c_l = 'dimgray'
-
-                plt.plot([line['wl_air'],line['wl_air']], [1.008-depth,np.median(self.flux[mask])],
-                c=c_l, linestyle='dotted', lw=line['width'])
-
-                # depth line mask = depth deepest line
-                plt.text(line['wl_air'],1.004-depth, line['spc'], c=c_l, size=6, rotation=-90, clip_on=True)
 
         plt.plot(self.wave[mask], self.flux[mask], lw=lw, label=self.id_star+' '+self.SpC, alpha=alpha, c=c)
         plt.tick_params(direction='in', top='on')
