@@ -34,7 +34,7 @@ def load_default_paths(dir_paths_file='paths.txt'):
     Returns
     -------
     tuple[Path, Path, Path, Path, Path, Path]
-        Paths for the main directories (main, data, ib, maui, tracks, tess).
+        Paths for the main directories (main, data, ib).
     '''
     paths_file = Path(dir_paths_file)
     while not paths_file.is_file():
@@ -49,10 +49,10 @@ def load_default_paths(dir_paths_file='paths.txt'):
             for key, val in [line.split('=', 1)]
             }
 
-    return dirs['main'], dirs['data'], dirs['maui']
+    return dirs['main'], dirs['data']
 
 
-maindir, datadir, mauidir = load_default_paths('paths.txt')
+maindir, datadir = load_default_paths('paths.txt')
 
 
 def search(myfile, path, silent_search=False):
