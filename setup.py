@@ -25,6 +25,9 @@ while True:
         else:
             print('Please provide a valid path to the main directory.')
     else:
+        if path_candidate.resolve() == Path(__file__).parent.resolve():
+            print('The main directory cannot be the same as the pyIACOB package directory. Please provide a different path.')
+            continue
         main_dir = path_candidate
         break
 
@@ -44,8 +47,12 @@ while True:
         else:
             print('Please provide a valid path to the data directory.')
     else:
+        if path_candidate.resolve() == Path(__file__).parent.resolve():
+            print('The data directory cannot be the same as the pyIACOB package directory. Please provide a different path.')
+            continue
         data_dir = path_candidate
         break
+
 
 # Create the file 'paths.txt' which contains the paths to the directories.
 with open('paths.txt', 'w') as f:
