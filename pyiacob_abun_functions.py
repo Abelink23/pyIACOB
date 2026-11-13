@@ -1018,10 +1018,12 @@ def plot_best_model_element(ref_file,el_input,star_db,star_measure,
     print("Saving the image...")
     fig.savefig(savepath+ref_file.split(".")[0]+'_bestfit_%s.png'%el_input, bbox_inches = "tight")    
 
-    stop = input("Press return to finish with the analysis.")
-
     plt.show(block=False)
 
+    stop = input("After the plot with the best fit appears, press return to finish with the analysis.")
+
+    plt.close("all")
+    
     print("DONE!")
 
     return wave, flux
@@ -1361,6 +1363,9 @@ def find_FW_model(grid_path,el_input,T,g,He,Q,b,abun):
     else:
         Aab='p'+'0'*(3)
 
+    # FOR THE WINTER SCHOOL WS (REDUCED FASTWIND GRID WITH ONLY CENTRAL ABUNDANCE): 
+    Aab='p'+'0'*(3)
+
     he_i = "%d"%int(He)
     if len(he_i) < 2:
         he_i = "0%d"%int(He)
@@ -1440,7 +1445,7 @@ def broadened_FASTWIND_model(path_model,micro,line,vsini,vmac,R,beta=1.5):
         s.flux = flx
         s.dlam = np.mean(s.wave[1::] - s.wave[0:-1])
 
-        spec.convolution(s, vsini = vsini, vmac = vmac, resol = R, quiet = "y")
+        spec.convolution(s, vsini = vsini, vmac = vmac, resol = R, quiet = True)
 
         return s.wave, s.flux 
 
@@ -1745,12 +1750,10 @@ def calc_Tg(ref_file,spc_star,orig,el_input,star_measure,syn_measure,lines,
     Ag=10 #error en g
 
     fig = plt.figure (figsize = (10,14),constrained_layout=True)
-    gs = fig.add_gridspec(3, 2, height_ratios=[3,2,2])
+    gs = fig.add_gridspec(2, 2, height_ratios=[2,1])
     ax0=fig.add_subplot(gs[0,:])
     ax1 = fig.add_subplot(gs[1,0])
-    ax2 = fig.add_subplot(gs[2,0])
-    ax3 = fig.add_subplot(gs[1,1])
-    ax4 = fig.add_subplot(gs[2,1])
+    ax2 = fig.add_subplot(gs[1,1])
 
     colors = {"black": "#000000", "orange" : "#E69F00", "sky blue": "#56B4E9", "bluish green": "#009E73", 
             "yellow": "#F0E442", "blue": "#0072B2", "vermillion": "#D55E00", "reddish purple": "#CC79A7", 
@@ -1762,12 +1765,12 @@ def calc_Tg(ref_file,spc_star,orig,el_input,star_measure,syn_measure,lines,
                   '#377eb8', '#ff7f00', '#4daf4a',
                   '#f781bf', '#a65628', '#984ea3',
                   '#999999', '#e41a1c', '#dede00']
-                 
+
     EWline_array=np.empty(len(Si_lineindex),dtype=float)
 
     ylow_all = 1
     yhigh_all = 1
-        
+    
     for i,ind in zip(range(len(Si_lineindex)),Si_lineindex):
         
         if (~np.ma.getmask(star_measure['EW_'+str(linenames[ind])])):
@@ -1836,15 +1839,15 @@ def calc_Tg(ref_file,spc_star,orig,el_input,star_measure,syn_measure,lines,
 
         EW_2=syn_measure[line2][(syn_measure['g']==gi)]
         EW_1=syn_measure[line1][(syn_measure['g']==gi)]
-        EW_3 = syn_measure[line3][(syn_measure['g']==gi)]
-        EW_4 = syn_measure[line4][(syn_measure['g']==gi)]
+        # EW_3 = syn_measure[line3][(syn_measure['g']==gi)]
+        # EW_4 = syn_measure[line4][(syn_measure['g']==gi)]
         Ti=np.array((syn_measure['T'][(syn_measure['g']==gi)]),dtype=int)*100
                
         maski= ((EW_2>5) & (EW_1>5))
         EW_2=EW_2[maski]
         EW_1=EW_1[maski]
-        EW_3 = EW_3[maski]
-        EW_4 = EW_4[maski]
+        # EW_3 = EW_3[maski]
+        # EW_4 = EW_4[maski]
         Ti=Ti[maski]
 
         if len(EW_2/EW_1)<2:
@@ -1883,10 +1886,10 @@ def calc_Tg(ref_file,spc_star,orig,el_input,star_measure,syn_measure,lines,
                 ax1.plot(np.linspace(Tmin-1000,Tmax+1000,100),EW2_star*np.ones(100),'r--')
                 ax2.plot(Ti, EW_1,'.-',label='log g=%.1f' %(float(gi)/100))  
                 ax2.plot(np.linspace(Tmin-1000,Tmax+1000,100),EW1_star*np.ones(100),'r--')
-                ax3.plot(Ti,EW_3,'.-',label='log g=%.1f' %(float(gi)/100))
-                ax3.plot(np.linspace(Tmin-1000,Tmax+1000,100),EW3_star*np.ones(100),'r--')
-                ax4.plot(Ti, EW_4,'.-',label='log g=%.1f' %(float(gi)/100))  
-                ax4.plot(np.linspace(Tmin-1000,Tmax+1000,100),EW4_star*np.ones(100),'r--')                                    
+                # ax3.plot(Ti,EW_3,'.-',label='log g=%.1f' %(float(gi)/100))
+                # ax3.plot(np.linspace(Tmin-1000,Tmax+1000,100),EW3_star*np.ones(100),'r--')
+                # ax4.plot(Ti, EW_4,'.-',label='log g=%.1f' %(float(gi)/100))  
+                # ax4.plot(np.linspace(Tmin-1000,Tmax+1000,100),EW4_star*np.ones(100),'r--')                                    
                     
                 Timin=Ti[np.nanargmin(np.abs(np.array(EW_2/EW_1)-EWmax))]
                 Timin=np.min(Ti)
@@ -1921,10 +1924,8 @@ def calc_Tg(ref_file,spc_star,orig,el_input,star_measure,syn_measure,lines,
         ax0.set_ylabel("%s / %s" %(line2,line1))
     ax1.set_ylabel(line2)
     ax2.set_ylabel(line1)
-    ax3.set_ylabel(line3)
-    ax4.set_ylabel(line4)    
+    ax1.set_xlabel('Teff (K)')
     ax2.set_xlabel('Teff (K)')
-    ax4.set_xlabel('Teff (K)')
 
     ax0.legend(fancybox=True, framealpha=0.7,fontsize="15") #,loc='upper left'
     ax0.set_title("He=%d, Q=%d, b=%d, abSi=%.2f, micro=%d" %(int(fixed_He),int(fixed_Q),int(fixed_b),float(fixed_abun),int(fixed_micro)))
@@ -2077,6 +2078,8 @@ def best_Tg(ref_file,spc_star,orig,table_calcTg,
     star_name = star_measure["ID"]
 
     vtable=findtable(vtable_file,path=maindir+'tables/')
+
+    R_star=vtable['Resol'][vtable['Ref_file']==ref_file][0]
     
     if len(vtable[vtable['Ref_file']==ref_file])<1:
         print('\nNo vsini or vmac info known about the star.')
@@ -2171,31 +2174,28 @@ def best_Tg(ref_file,spc_star,orig,table_calcTg,
 
     # READING THE SPECTRA OF THE STAR: 
     star=spec(ref_file, snr='bestHF', orig=orig,rv0=rv0)
-    wave=star.wave
-    flux=star.flux
+
+    wave = star.wave
+    flux = star.flux    
+
+    mask_peakproc = masks_blends(wave, rotation = "slow")
 
     ###################################################################################
     #### FUNCTIONS FOR MASKING THE SPECTRUM TO ONLY KEEP THE BALMER LINES #############
     ###################################################################################
     
-    def process_balmer_peaks(ref_file, orig, rv0, snr_key, Balmer_lineindex,
+    def process_balmer_peaks(wave, flux,Balmer_lineindex,
                             linewaves, linenames, FW_measure, el_input,
                             T_temp, g_temp, fixed_He, fixed_Q, fixed_b,
                             fixed_abun, fixed_micro, vsini_star, vmac_star,
-                            savepath, star_name, spec, find_FW_model,
-                            broadened_FASTWIND_model,
-                            nsigma=3.0, max_iter=8, R=85000, beta=1.5,
+                            savepath, star_name, find_FW_model,
+                            broadened_FASTWIND_model,mask_peakproc,
+                            nsigma=3.0, max_iter=8, R=R_star, beta=1.5,
                             kernel_mult=4.0, min_width_frac=0.6, pad_frac=0.5,
                             min_median_kernel_aa=1.0, min_min_group_aa=0.05,
                             min_pad_aa=0.1):
         
         print("Working on removing the contaminating lines in the Balmer line profiles...")
-
-        star = spec(ref_file, snr=snr_key, orig=orig, rv0=rv0)
-        wave = star.wave
-        flux = star.flux
-
-        mask_peakproc = np.ones(len(wave), dtype=bool)
     
         show_plot = "n" #change to "y" whenever relevant. 
 
@@ -2227,8 +2227,9 @@ def best_Tg(ref_file,spc_star,orig,table_calcTg,
                                     g_temp, fixed_He, fixed_Q, fixed_b, fixed_abun)
 
             wavemodi, fluxmodi = broadened_FASTWIND_model(
-                modeli, fixed_micro, linenames[ind], int(vsini_star),
-                int(vmac_star), R=R)
+                                    modeli, fixed_micro, linenames[ind], 
+                                    int(vsini_star),int(vmac_star), R=R)
+            
             fit_syn = np.interp(wave_st, wavemodi, fluxmodi)
 
             local_mask = mask_peakproc[mask_st]
@@ -2312,7 +2313,6 @@ def best_Tg(ref_file,spc_star,orig,table_calcTg,
                 
                 local_mask = new_keep
                 
-    
             axs_sc[1, i].plot(wave_st, flux_st, c='b', lw=0.8)
             axs_sc[1, i].plot(wave_st, smoothed, c='orange', alpha=0.75, lw=0.8)
             axs_sc[1, i].plot(wave_st, fit_syn, c='r', alpha=0.4, lw=0.8)
@@ -2330,19 +2330,17 @@ def best_Tg(ref_file,spc_star,orig,table_calcTg,
         else: 
             plt.ion()
         plt.close(fig_sc)
-        return mask_peakproc, wave, flux, star
+        return mask_peakproc
 
     ###################################################################################
 
-    mask_peakproc, wave, flux, star = process_balmer_peaks(
-        ref_file, orig, rv0, 'bestHF', Balmer_lineindex,
-        linewaves, linenames, FW_measure, el_input,
-        T_temp, g_temp, fixed_He, fixed_Q, fixed_b,
-        fixed_abun, fixed_micro, vsini_star, vmac_star,
-        savepath, star_name, spec, find_FW_model,
-        broadened_FASTWIND_model,
-        nsigma=3.0, R=85000)
-
+    mask_peakproc = process_balmer_peaks(wave, flux,Balmer_lineindex,
+                        linewaves, linenames, FW_measure, el_input,
+                        T_temp, g_temp, fixed_He, fixed_Q, fixed_b,
+                        fixed_abun, fixed_micro, vsini_star, vmac_star,
+                        savepath, star_name, find_FW_model,
+                        broadened_FASTWIND_model, mask_peakproc, R=R_star, nsigma=3.0)
+    
     core_half_width = 3
 
     mask_updated = np.empty(len(linenames), dtype=object)
@@ -2408,7 +2406,7 @@ def best_Tg(ref_file,spc_star,orig,table_calcTg,
                                     fixed_He, fixed_Q, fixed_b, fixed_abun)
             wavemodi, fluxmodi = broadened_FASTWIND_model(
                 modeli, fixed_micro, linenames[ind], int(vsini_star),
-                int(vmac_star), R=85000)
+                int(vmac_star), R=R_star)
             fit_syn = np.interp(wave_st, wavemodi, fluxmodi)
             fluxes_syn[-1].append(fit_syn)
 
@@ -2758,7 +2756,7 @@ def best_Tg(ref_file,spc_star,orig,table_calcTg,
                               fixed_He, Qi, bi,  fixed_abun)
                 
                 wavemodi,fluxmodi=broadened_FASTWIND_model(modeli,fixed_micro, linenames[0] ,int(vsini_star),
-                                                               int(vmac_star),R=85000)
+                                                               int(vmac_star),R=R_star)
         
                 count = count + 1 
             except:
@@ -2779,7 +2777,7 @@ def best_Tg(ref_file,spc_star,orig,table_calcTg,
                                     fixed_He, Qi, bi,  fixed_abun)
                 
                     wavemodi,fluxmodi=broadened_FASTWIND_model(modeli,fixed_micro, linenames[ind] ,int(vsini_star),
-                                                               int(vmac_star),R=85000)
+                                                               int(vmac_star),R=R_star)
                     ax.plot(wavemodi,fluxmodi,alpha=0.75,label='Q=%i,b=%i'%(int(Qi),int(bi)),linewidth=1)
 
                 except:
@@ -2823,7 +2821,7 @@ def best_Tg(ref_file,spc_star,orig,table_calcTg,
                                         el_input, str('%d'%(int(nearest_T))), str(int(nearest_g)),
                                     fixed_He, Qi, fixed_b,  fixed_abun)
                     wavemodi,fluxmodi=broadened_FASTWIND_model(modeli,fixed_micro, linenames[ind] ,int(vsini_star),
-                                                                    int(vmac_star),R=85000)
+                                                                    int(vmac_star),R=R_star)
                     fit_syn=np.interp(wave_st, wavemodi, fluxmodi)
 
                     chi2i_Q[count_Q]=(1/len(wave_st[mask_withcore[ind]]))*np.sum((np.array(fit_syn[mask_withcore[ind]])-np.array(flux_st[mask_withcore[ind]]))**2/sigma**2)*1e4
@@ -2913,7 +2911,7 @@ def best_Tg(ref_file,spc_star,orig,table_calcTg,
                       fixed_He, fixed_Q, fixed_b,  fixed_abun)
         
         wavemodi,fluxmodi=broadened_FASTWIND_model(modeli,fixed_micro, linenames[ind] ,int(vsini_star),
-                                                       int(vmac_star),R=85000) 
+                                                       int(vmac_star),R=R_star) 
                         
         ax.plot(wavemodi,fluxmodi,alpha=0.75,label='Q=%i, b=%i'%(int(fixed_Q),int(fixed_b)),c='green')
         
@@ -2946,7 +2944,7 @@ def best_Tg(ref_file,spc_star,orig,table_calcTg,
                       fixed_He, fixed_Q, fixed_b,  fixed_abun)
         
         wavemodi,fluxmodi=broadened_FASTWIND_model(modeli,fixed_micro, linenames[ind] ,int(vsini_star),
-                                                       int(vmac_star),R=85000)
+                                                       int(vmac_star),R=R_star)
                        
         ax.plot(wavemodi,fluxmodi,alpha=0.75,label='He=%i'%(int(fixed_He)),c='green')
         
@@ -5713,7 +5711,7 @@ def parameters(ref_file,el_input,star_db,star_measure,finallinelist,linestab,lin
     plot_best_model(ref_file,el_input,star_db,star_measure,
                     finallinelist,FW_EW_measure,parameterstable,savepath)   
 
-    if auto == "n": stop = input("Press return to finish with the analysis.")
+    if auto == "n": stop = input("After the plot with the best fit appears, press return to finish with the analysis.")
 
     plt.close("all")
 
@@ -5989,3 +5987,83 @@ def abundances_element(ref_file,el_input,star_db,star_measure,linestab,
     print('Done')
     
     return None
+
+def masks_blends(wave, rotation = "slow"):
+    if rotation == "slow": 
+        mask = [                # mask_maui_SR from hardcoded_maui.py
+            (6521.00, 6532.00), # Halpha, mask NII lines in the blue wing [??]
+            (6575.75, 6585.29), #         mask CII lines in the red wing
+            (4330.50, 4335.33), # Hgamma, mask NIII/SIII? lines in the blue wind
+            (4344.42, 4355.83), #         mask OII lines in the red wing
+            (4083.20, 4085.50), # Hdelta, mask metal lines
+            (4086.29, 4090.53),
+            (4092.27, 4093.99),
+            (4096.50, 4098.00),
+            (3953.09, 3955.05), # Hepsil, mask metal lines
+            (3960.70, 3962.24),
+            (3963.38, 3965.76),
+            (3967.00, 3969.00),
+            (3972.53, 3974.10),
+            (4465.00, 4468.50), # HeI 4471, mask OII lines in the blue wind
+            (4923.50, 4926.00), # HeI 4922, mask an OII line in the red wing
+            (5013.20, 5014.50), # HeI 5015, mask a SII line
+            (5017.50, 5019.50), #           mask some Ni I/II lines?
+            (4544.00, 4546.00), # HeII 4541, mask AlIII lines
+            (4478.87, 4480.20), # MgII 4481, mask the AlIII blend
+            (4128.71, 4130.10), # SiII 4130
+            (4131.40, 4134.08),
+            (4547.60, 4550.20), # SiIII 4552 (remove continuum)
+            (4555.00, 4558.96),
+            (4563.08, 4565.00), # SiIII 4567 (remove continuum)
+            (4571.00, 4571.35),
+            (4571.30, 4572.50), # SiIII 4575 (remove continuum)
+            (4576.00, 4579.32),
+            (4112.50, 4113.80), # SiIV 4116 (first val should match lmin)
+            (4117.70, 4124.70), # (last val should match lmax)
+            (3922.60, 3923.58), # CII 3920, mask SII line above 3922.60A
+            (4269.40, 4270.00), # CII 4267, mask SII line around 4269.70A
+            (4617.50, 4621.00), # NII 4600, mask CII line not in FW
+            (5009.00, 5010.00), # NII 5000, mask SII line
+            (4511.70, 4513.50), # NIII 4515, mask one unidentified line
+            (4074.00, 4075.25), # OII 4070, mask CII line not in FW
+        ]        
+
+    elif rotation == "fast": 
+
+        mask = [                # mask_maui_FR from hardcoded_maui.py
+            (6521.00, 6532.00), # Halpha, mask NII line in the blue wing [??]
+            (6575.75, 6585.29), #         mask CII lines in the red wing
+            (4330.50, 4345.33), # Hgamma, mask NIII/SIII? lines in the blue wind
+            (4344.42, 4355.83), #         mask OII lines in the red wing
+            (4083.20, 4085.50), # Hdelta, mask metal lines
+            (4086.29, 4090.53),
+            (4092.27, 4093.99),
+            (4096.50, 4098.00),
+            (3953.09, 3955.05), # Hepsil, mask metal lines
+            (3960.70, 3962.24),
+            (3963.38, 3965.76),
+            (3967.00, 3969.00),
+            (3972.53, 3974.10),
+            (4465.00, 4468.50), # HeI 4471, mask OII lines in the blue wind
+            (4923.50, 4926.00), # HeI 4922, mask an OII line in the red wing
+            (5013.20, 5014.50), # HeI 5015, mask a SII line
+            (5017.50, 5019.50), #           mask some Ni I/II lines?
+            (4544.00, 4546.00), # HeII 4541, mask AlIII lines
+            (4478.87, 4480.20), # MgII 4481, mask the AlIII blend
+            (4128.71, 4130.10), # SiII 4130
+            (4131.40, 4134.08),
+            (4547.40, 4549.00), # SiIII 4552 (remove continuum)
+            (4556.00, 4558.90),
+            (4576.00, 4581.40), # SiIII 4567 + 4575 (remove continuum)
+            (4112.50, 4113.80), # SiIV 4116 (first val should match lmin)
+            (4117.70, 4124.70), # (last val should match lmax)
+        ]    
+
+    mask_noblends = np.ones(len(wave), dtype=bool)
+    for low, high in mask:
+        mask_noblends[(wave > low) & (wave < high)] = False
+    
+    return mask_noblends
+
+
+
