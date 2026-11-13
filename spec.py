@@ -950,7 +950,7 @@ class spec():
         self.flux[mask] = convoluted
 
 
-    def convolution(self, vsini=None, beta=1.5, vmac=None, resol=None):
+    def convolution(self, vsini=None, beta=1.5, vmac=None, resol=None, quiet=False):
         '''
         Function to apply convolution to a spectrum.
 
@@ -970,12 +970,18 @@ class spec():
         ----------
         vsini : int/float, optional
             Rotational velocity in km/s to apply in the 'rotation' mode. Default is None.
+
         beta : float, optional
             Linear limb-darkening coefficient to apply in the 'rotation' mode. Default is 1.5.
+
         vmac : int/float, optional
             Macroturbulence velocity in km/s to apply in the 'macro' mode. Default is None.
+
         resol : int/float, optional
             Resolution of the spectrum to apply in the 'instrumental' mode. Default is None. d
+
+        quiet : bool, optional
+            If True, only the errors will be printed in the terminal. Default is False.
 
         Returns
         -------
@@ -990,13 +996,13 @@ class spec():
             return None
 
         # Raise warning if difference in wavelengh is >100 A
-        if not hasattr(self, 'warning_len') and max(self.wave) - min(self.wave) > 100:
+        if not hasattr(self, 'warning_len') and max(self.wave) - min(self.wave) > 100 and not quiet:
             msg.warn('The wavelength range is >100 ang. As the broadening functions are')
             msg.bold('y','dependent of the central wavelength considered, the spectrum will be split')
             msg.bold('y','in smaller parts and the convolution will be applied separately to each.')
             setattr(self, 'warning_len', True)
 
-        if np.isnan(self.flux[0]) or np.isnan(self.flux[-1]):
+        if (np.isnan(self.flux[0]) or np.isnan(self.flux[-1])) and not quiet:
             msg.warn('The flux at the edges of the spectrum a nan value.')
             msg.y('Consider using cut_edges=True when loading the spectrum.')
 
@@ -1046,7 +1052,8 @@ class spec():
 
             # Check that the last slice reaches the end of the spectrum, otherwise raise warning
             if min_wave + n_slices*l_slices < max_wave:
-                msg.warn('The last slice does not reach the end of the spectrum.')
+                if not quiet:
+                    msg.warn('The last slice does not reach the end of the spectrum.')
 
             # Create the vectors with the information of the individual slices for the convolution
             # Mask for the wavelength and non nan flux values.
@@ -1116,7 +1123,9 @@ class spec():
         self.vsini = vsini
         self.vmac = vmac
         self.resolution = resol
-        print('Convolution applied in %.3f seconds.' % (Time.now() - t).sec)
+
+        if not quiet:
+            print('Convolution applied in %.3f seconds.' % (Time.now() - t).sec)
 
 
     def resamp(self, dlam, lwl=None, rwl=None, force_edges=False, method='linear'):
