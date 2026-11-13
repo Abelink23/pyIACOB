@@ -21,12 +21,10 @@ import time
 from astropy.table import unique
 import os
 
-# FUNCIONES DE CARLOS MARTÍNEZ SEBASTIÁN
-from line_broadening import *
-
 # FUNCIONES DE ABEL DE BURGOS 
 from db import * 
 from measure import * 
+from spec import *
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -797,13 +795,13 @@ def plot_lines(ref_file,spc_star,orig,
     
     if list_of_models is not None:
         grid_path,el_input,T,g,He,Q,b,micro,abun=list_of_models
-        vsini,vmac,R,beta=broadening
+        vsini,vmac,R=broadening
         model_wave=[]
         model_flux=[]
         for linei in linenames:
             modeli=find_FW_model(grid_path,el_input,T,g,He,Q,b,abun)
             if modeli is not None:
-                m=broadened_FASTWIND_model(modeli,micro,linei,int(vsini),int(vmac),int(R),beta)
+                m=broadened_FASTWIND_model(modeli,micro,linei,int(vsini),int(vmac),int(R))
                 if m is not None:
                     wavei,fluxi=m[0],m[1]
                     model_wave.append(list(wavei))
@@ -992,7 +990,7 @@ def plot_best_model_element(ref_file,el_input,star_db,star_measure,
         flux_st=flux[(wave>xrange[0]) & (wave<xrange[1])]
 
         wavemodi,fluxmodi=broadened_FASTWIND_model(modeli,micro_final, linei ,int(vsini_star),
-                                        int(vmac_star),R=int(R_star),beta=1.5) #beta=1.5?
+                                        int(vmac_star),R=int(R_star)) 
                 
         axs[i].axvline(wavei, color='tab:blue',ls='--', alpha=0.5)
         axs[i].plot(wave_st,flux_st,label=linei,c='navy')
@@ -1171,7 +1169,7 @@ def plot_best_model(ref_file,el_input,star_db,star_measure,
         flux_st=flux[(wave>xrange[0]) & (wave<xrange[1])]
 
         wavemodi,fluxmodi=broadened_FASTWIND_model(modeli,micro_final, linei ,int(vsini_star),
-                                        int(vmac_star),R=int(R_star),beta=1.5) #beta=1.5?
+                                        int(vmac_star),R=int(R_star)) 
         
         ax=fig0.add_subplot(gs0[row0,int(start):int(start+step)])
         ax.axvline(wavei, color='red',ls='--', alpha=0.75)
@@ -1213,7 +1211,7 @@ def plot_best_model(ref_file,el_input,star_db,star_measure,
         flux_st=flux[(wave>xrange[0]) & (wave<xrange[1])]
         
         wavemodi,fluxmodi=broadened_FASTWIND_model(modeli,micro_final, linei ,int(vsini_star),
-                                        int(vmac_star),R=int(R_star),beta=1.5) #beta=1.5?
+                                        int(vmac_star),R=int(R_star))
         
         ax=fig0.add_subplot(gs0[row0,int(start):int(start+step)])
         ax.axvline(wavei, color='red',ls='--', alpha=0.75)
@@ -1255,7 +1253,7 @@ def plot_best_model(ref_file,el_input,star_db,star_measure,
         flux_st=flux[(wave>xrange[0]) & (wave<xrange[1])]
         
         wavemodi,fluxmodi=broadened_FASTWIND_model(modeli,micro_final, linei ,int(vsini_star),
-                                        int(vmac_star),R=int(R_star),beta=1.5) #beta=1.5?
+                                        int(vmac_star),R=int(R_star))
         
         ax=fig0.add_subplot(gs0[row0,int(start):int(start+step)])
         ax.axvline(wavei, color='red',ls='--', alpha=0.75)
@@ -1384,74 +1382,74 @@ def find_FW_model(grid_path,el_input,T,g,He,Q,b,abun):
 
     return folder
 
+class spec_FASTWIND_line():
+    def __init__(self, path_model, micro, line):
+        '''
+        Parameters
+        ----------
+        path_model: str
+            full path to the FASTWIND model in xdr format.
+        micro: str
+            microturbulence value as recorded in FASTWIND e.g. "001", "003", "025", etc.
+            It needs to be a value that exists in the model in path_model. 
+        line: str
+            label of the line to read inside the FASTWIND model in xdr format. 
+            It needs to be a label that exists in the model in path_model. 
+        '''
 
-def FASTWIND_model(path_model,micro,line):
-    
-    Proof=scipy.io.readsav(path_model)
+        self.fullpath = path_model
+        self.modelname = Path(self.fullpath).name
+        self.micro = micro
+        self.line = line
 
-    # print(path_model)
-    Models=Proof['l']
+        #we could also add the rest of the parameters, but they are in the model name in self.path 
 
-    lines=[Models[jj][0].decode("utf-8") for jj in range(len(Models)) ]
-    micros=[Models[jj][1].decode("utf-8") for jj in range(len(Models)) ] 
-            
-    mask=( (lines==line) & (micros==micro) ) 
-    index=(np.argwhere(mask>0))[0][0]
-    
-    wave_og=Models[index][3]
-    flux_og=Models[index][4]
-    
-    return wave_og, flux_og
+        Proof=scipy.io.readsav(path_model)
+        Models=Proof['l']
+
+        lines=[Models[jj][0].decode("utf-8") for jj in range(len(Models)) ]
+        micros=[Models[jj][1].decode("utf-8") for jj in range(len(Models)) ] 
+
+        mask=( (np.array(lines)==line) & (np.array(micros)==micro) ) 
+
+        index=(np.argwhere(mask>0))[0][0]
+
+        wave=Models[index][3]
+        flux=Models[index][4]
+ 
+        ind=int(len(wave) / 2)
+        l0=wave[ind]       
+
+        self.wave = wave
+        self.flux = flux 
+        self.l0 = l0
+        self.dlam = np.mean(self.wave[1::] - self.wave[0:-1])
+        self.resolution = None #should be >=0 or None. Try with np.nan
 
 def broadened_FASTWIND_model(path_model,micro,line,vsini,vmac,R,beta=1.5):
+        s = spec_FASTWIND_line(path_model, micro, line)
 
-    Proof=scipy.io.readsav(path_model)
-    Models=Proof['l']
+        stp = s.l0 / (R * 10)      
 
-    lines=[Models[jj][0].decode("utf-8") for jj in range(len(Models)) ]
-    micros=[Models[jj][1].decode("utf-8") for jj in range(len(Models)) ] 
+        f1 = interp1d(s.wave,s.flux, kind='linear')  
+        wv = np.arange(start=s.wave[0],stop=s.wave[-2],step=stp)
+        wv = wv[wv <= s.wave[-2]]
+        flx = f1(wv) 
 
-    mask=( (np.array(lines)==line) & (np.array(micros)==micro) ) 
+        s.wave = wv
+        s.flux = flx
+        s.dlam = np.mean(s.wave[1::] - s.wave[0:-1])
 
-    index=(np.argwhere(mask>0))[0][0]
+        spec.convolution(s, vsini = vsini, vmac = vmac, resol = R, quiet = "y")
 
-    wave_og=Models[index][3]
-    flux_og=Models[index][4]
-    
-    ind=int(len(wave_og) / 2)
-    l0=wave_og[ind]
+        return s.wave, s.flux 
 
-    wave,flux=final_resolution(wave_og, flux_og-1, l0, vsini, vmac, R, beta, stp ='Default')
-        
-    return wave,flux+1
-
-    # try:
-    #     index=(np.argwhere(mask>0))[0][0]
-    
-    #     wave_og=Models[index][3]
-    #     flux_og=Models[index][4]
-        
-    #     ind=int(len(wave_og) / 2)
-    #     l0=wave_og[ind]
-    
-    #     wave,flux=final_resolution(wave_og, flux_og-1, l0, vsini, vmac, R, beta, stp ='Default')
-        
-    #     return wave,flux+1
-    # except:
-    #     print("Couldn't broaden the Fastwind model of the line", line)
-    #     print("mask", np.sum(mask))
-    #     print((np.argwhere(mask>0)))
-        
-    #     return None
-    
-
- 
 def read_OUT_lines(gridpath, folder, atom, micro):
 
     '''
     Reads the EW of a folder with FASTWIND models from the OUT.line files.
     Given the path where the files are, the atom of the lines you want, and
-    the desired microturbulence, it gives a 
+    the desired microturbulence, it gives a table. 
     '''
 
     folder = gridpath + folder
@@ -2230,7 +2228,7 @@ def best_Tg(ref_file,spc_star,orig,table_calcTg,
 
             wavemodi, fluxmodi = broadened_FASTWIND_model(
                 modeli, fixed_micro, linenames[ind], int(vsini_star),
-                int(vmac_star), R=R, beta=beta)
+                int(vmac_star), R=R)
             fit_syn = np.interp(wave_st, wavemodi, fluxmodi)
 
             local_mask = mask_peakproc[mask_st]
@@ -2343,7 +2341,7 @@ def best_Tg(ref_file,spc_star,orig,table_calcTg,
         fixed_abun, fixed_micro, vsini_star, vmac_star,
         savepath, star_name, spec, find_FW_model,
         broadened_FASTWIND_model,
-        nsigma=3.0, R=85000, beta=1.5)
+        nsigma=3.0, R=85000)
 
     core_half_width = 3
 
@@ -2410,7 +2408,7 @@ def best_Tg(ref_file,spc_star,orig,table_calcTg,
                                     fixed_He, fixed_Q, fixed_b, fixed_abun)
             wavemodi, fluxmodi = broadened_FASTWIND_model(
                 modeli, fixed_micro, linenames[ind], int(vsini_star),
-                int(vmac_star), R=85000,beta=1.5) #beta=1.5?
+                int(vmac_star), R=85000)
             fit_syn = np.interp(wave_st, wavemodi, fluxmodi)
             fluxes_syn[-1].append(fit_syn)
 
@@ -2760,7 +2758,7 @@ def best_Tg(ref_file,spc_star,orig,table_calcTg,
                               fixed_He, Qi, bi,  fixed_abun)
                 
                 wavemodi,fluxmodi=broadened_FASTWIND_model(modeli,fixed_micro, linenames[0] ,int(vsini_star),
-                                                               int(vmac_star),R=85000,beta=1.5) #beta=1.5?
+                                                               int(vmac_star),R=85000)
         
                 count = count + 1 
             except:
@@ -2781,7 +2779,7 @@ def best_Tg(ref_file,spc_star,orig,table_calcTg,
                                     fixed_He, Qi, bi,  fixed_abun)
                 
                     wavemodi,fluxmodi=broadened_FASTWIND_model(modeli,fixed_micro, linenames[ind] ,int(vsini_star),
-                                                               int(vmac_star),R=85000,beta=1.5) #beta=1.5?
+                                                               int(vmac_star),R=85000)
                     ax.plot(wavemodi,fluxmodi,alpha=0.75,label='Q=%i,b=%i'%(int(Qi),int(bi)),linewidth=1)
 
                 except:
@@ -2825,7 +2823,7 @@ def best_Tg(ref_file,spc_star,orig,table_calcTg,
                                         el_input, str('%d'%(int(nearest_T))), str(int(nearest_g)),
                                     fixed_He, Qi, fixed_b,  fixed_abun)
                     wavemodi,fluxmodi=broadened_FASTWIND_model(modeli,fixed_micro, linenames[ind] ,int(vsini_star),
-                                                                    int(vmac_star),R=85000,beta=1.5) #beta=1.5?
+                                                                    int(vmac_star),R=85000)
                     fit_syn=np.interp(wave_st, wavemodi, fluxmodi)
 
                     chi2i_Q[count_Q]=(1/len(wave_st[mask_withcore[ind]]))*np.sum((np.array(fit_syn[mask_withcore[ind]])-np.array(flux_st[mask_withcore[ind]]))**2/sigma**2)*1e4
@@ -2915,7 +2913,7 @@ def best_Tg(ref_file,spc_star,orig,table_calcTg,
                       fixed_He, fixed_Q, fixed_b,  fixed_abun)
         
         wavemodi,fluxmodi=broadened_FASTWIND_model(modeli,fixed_micro, linenames[ind] ,int(vsini_star),
-                                                       int(vmac_star),R=85000,beta=1.5) #beta=1.5?
+                                                       int(vmac_star),R=85000) 
                         
         ax.plot(wavemodi,fluxmodi,alpha=0.75,label='Q=%i, b=%i'%(int(fixed_Q),int(fixed_b)),c='green')
         
@@ -2948,7 +2946,7 @@ def best_Tg(ref_file,spc_star,orig,table_calcTg,
                       fixed_He, fixed_Q, fixed_b,  fixed_abun)
         
         wavemodi,fluxmodi=broadened_FASTWIND_model(modeli,fixed_micro, linenames[ind] ,int(vsini_star),
-                                                       int(vmac_star),R=85000,beta=1.5) #beta=1.5?
+                                                       int(vmac_star),R=85000)
                        
         ax.plot(wavemodi,fluxmodi,alpha=0.75,label='He=%i'%(int(fixed_He)),c='green')
         
