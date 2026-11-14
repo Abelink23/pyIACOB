@@ -19,11 +19,11 @@ plt.rc('xtick', direction='in', top=True)
 plt.rc('ytick', direction='in', right=True)
 
 
-#_* Spec module version 2.01 (2026-11-09)
+#_* Spec module version 2.02 (2026-11-13)
 
 class spec():
-    def __init__(self, spectrum, snr=0, rv0=0, offset=0, cut_edges=False, orig='IACOB', delimiter=' ',
-                 outside_dir=''):
+    def __init__(self, spectrum, snr=0, rv0=0, offset=0, cut_edges=False, raw_flux=False,
+                 orig='IACOB', delimiter=' ', outside_dir=''):
         '''
         Parameters
         ----------
@@ -45,6 +45,10 @@ class spec():
 
         cut_edges : boolean, optional
             If True, it cuts the edges of the spectrum where the flux is asymptotic.
+            Default is False.
+
+        raw_flux : boolean, optional
+            If True, it uses the not normalized flux values from the spectrum.
             Default is False.
 
         orig : str, optional
@@ -116,7 +120,7 @@ class spec():
         self.rv0 = rv0        # Note: run self.waveflux to apply the correction.
         self.SpC = ''         # Spectral classification
 
-        self.waveflux(cut_edges=cut_edges, delimiter=delimiter)
+        self.waveflux(cut_edges=cut_edges, raw_flux=raw_flux, delimiter=delimiter)
 
 
     def get_spc(self):
@@ -139,7 +143,7 @@ class spec():
             self.SpC = ''
 
 
-    def waveflux(self, lwl=None, rwl=None, width=0, helcorr='hel', cut_edges=False, delimiter=' '):
+    def waveflux(self, lwl=None, rwl=None, width=0, helcorr='hel', cut_edges=False, raw_flux=False, delimiter=' '):
         '''
         Function to load or update the wavelength and flux vectors and optionally apply
         an offset or a radial velocity correction if they are different from 0 in the
@@ -235,7 +239,10 @@ class spec():
 
             # Get the flux of the spectrum
             try:
-                flux = hdu[0].data[0]
+                if raw_flux:
+                    flux = hdu[0].data[1]
+                else:
+                    flux = hdu[0].data[0]
             except:
                 flux = hdu[0].data
 
