@@ -14,7 +14,7 @@ from scipy.signal import convolve
 from scipy.interpolate import interp1d
 
 # Print a message to indicate that the reduction version is being loaded
-reduction_version = '1.0.2'
+reduction_version = '1.0.3'
 print('Loading pyIACOB reduction module: ' + '\033[92mv' + reduction_version + '\033[0m')
 
 def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False):
@@ -24,12 +24,15 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False)
 
     Parameters
     ----------
-    path_to_spectra : str
+    path_to_spectra : str | Path
         Enter the path of the folder containing the files to convert.
-    table_with_spc : str, optional
-        [See retrieve_spc function]
+
+    table_with_spc : str | Path, optional
+        Path to the spectral classification table [see retrieve_spc].
+
     norm_order : int, optional
-        [See normalize_slice function]
+        Polynomial order for continuum normalization [see normalize_slice].
+
     plot : bool, optional
         [See normalize function]
 
@@ -41,158 +44,189 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False)
     spectra = [p for p in Path(path_to_spectra).glob('*.fits')
                if not p.name.startswith('.') and p.is_file()]
 
-    if not Path(maindir / 'reduced').exists():
-        Path(maindir / 'reduced').mkdir(parents=True, exist_ok=True)
+    reduced_dir = Path(datadir) / 'reduced'
+    reduced_dir.mkdir(parents=True, exist_ok=True)
+    # check if the spectra comes from MERCATOR archive
+    while True:
+        M_archive = input('Does the spectra come from the Mercator archive? (y/n): ').strip().lower()
+        if M_archive in ['y', 'n']:
+            break
 
     for spectrum in spectra:
+        msg.info(f'Processing file: {spectrum.name}')
 
-        # Retrieve the key values from the fits header
-        hdu = fits.open(spectrum) # Open the fits image file
-        hdu0 = hdu[0]           # Load the header list of primary header
-        header = hdu0.header    # Read the values of the headers
+        with fits.open(spectrum) as hdu:
+            hdu0 = hdu[0]
+            header = hdu0.header
 
-        if 'I-pyIB' in header and len(hdu0.data) == 2:
-            print('File ' + spectrum.name + ' already in IACOB format. Skipping...')
-            continue
+            if 'I-pyIB' in header and hdu0.data is not None and len(hdu0.data) == 2:
+                print(f'File {spectrum.name} already in IACOB format. Skipping...')
+                continue
 
-        object = header['OBJECT'].replace(' ','').upper()
+            object = header['OBJECT'].replace(' ','').upper()
 
-        if header['INSTRUME'].strip() == 'FIES':
-            telcode = '_N_'
-            TELES = 'NOT' ; TELESINFO = 'Telescope (www.not.iac.es)'
-            INSTR = 'FIES'
-            #loc = EarthLocation.of_site('LaPalma')
-            loc = EarthLocation.from_geodetic(lat=28.7624*u.deg, lon=-17.8792*u.deg, height=2350*u.m)
-            if header['FIFMSKNM'].strip() == 'F4 HiRes':
-                RESOL = 'V67000'
-            elif header['FIFMSKNM'].strip() == 'F3 MedRes':
-                RESOL = 'V46000'
-            elif header['FIFMSKNM'].strip() == 'F1 LowRes':
-                RESOL = 'V25000'
-        elif header['INSTRUME'].strip() == 'HERMES':
-            telcode = '_M_'
-            TELES = 'MERCATOR'; TELESINFO = 'Telescope (www.mercator.iac.es)'
-            INSTR = 'HERMES'
-            RESOL = 'V85000'
-            loc = EarthLocation.from_geodetic(lat=28.7624*u.deg, lon=-17.8792*u.deg, height=2350*u.m)
-        elif header['INSTRUME'].strip() == 'FEROS':
-            telcode = '_F_'
-            TELES = 'MPI-2.2' ; TELESINFO = 'Telescope (www.mpia-hd.mpg.de/FEROS)'
-            INSTR = 'FEROS'
-            RESOL = 'V48000'
-            #loc = EarthLocation.of_site('LaSilla')
-            loc = EarthLocation.from_geodetic(lat=-29.2567*u.deg, lon=-70.7366*u.deg, height=2350*u.m)
+            if header['INSTRUME'].strip() == 'FIES':
+                telcode = '_N_'
+                TELES = 'NOT'
+                TELESINFO = 'Telescope (www.not.iac.es)'
+                INSTR = 'FIES'
+                loc = EarthLocation.from_geodetic(lat=28.7624 * u.deg, lon=-17.8792 * u.deg, height=2350 * u.m)
+                fib_name = header['FIFMSKNM'].strip()
+                if fib_name == 'F4 HiRes':
+                    RESOL = 'V67000'
+                elif fib_name == 'F3 MedRes':
+                    RESOL = 'V46000'
+                elif fib_name == 'F1 LowRes':
+                    RESOL = 'V25000'
+                else:
+                    raise ValueError(f"Unrecognized FIES fiber mask '{fib_name}' in {spectrum.name}")
+                wave_min = 3715.0
+            elif header['INSTRUME'].strip() == 'HERMES':
+                telcode = '_M_'
+                TELES = 'MERCATOR'
+                TELESINFO = 'Telescope (www.mercator.iac.es)'
+                INSTR = 'HERMES'
+                RESOL = 'V85000'
+                loc = EarthLocation.from_geodetic(lat=28.7624 * u.deg, lon=-17.8792 * u.deg, height=2350 * u.m)
+                wave_min = 3815.0
+            elif header['INSTRUME'].strip() == 'FEROS':
+                telcode = '_F_'
+                TELES = 'MPI-2.2'
+                TELESINFO = 'Telescope (www.mpia-hd.mpg.de/FEROS)'
+                INSTR = 'FEROS'
+                RESOL = 'V48000'
+                loc = EarthLocation.from_geodetic(lat=-29.2567 * u.deg, lon=-70.7366 * u.deg, height=2350 * u.m)
+                wave_min = 3715.0
+            else:
+                print(f"Warning: Instrument not recognized in {spectrum.name}. Skipping...")
+                continue
 
-        # Get the date when the spectrum was taken. Note: for FEROS it is the start ti,e/
-        if INSTR == 'FEROS' and not 'DATE-AVG' in header:
-            DATE = header['ARCFILE'].replace('.fits','').replace('FEROS.','')
-        else:
-            DATE = header['DATE-AVG']
-        date, time = DATE.split('T')
-        date = date.replace('-','')
-        time = time.replace(':','').split('.')[0]
+            # Get the date when the spectrum was taken. Note: for FEROS it is the start time.
+            if INSTR == 'FEROS' and 'DATE-AVG' not in header:
+                DATE = header['ARCFILE'].replace('.fits', '').replace('FEROS.', '')
+            else:
+                DATE = header['DATE-AVG']
+            date, time = DATE.split('T')
+            date = date.replace('-','')
+            time = time.replace(':','').split('.')[0]
 
-        sc = SkyCoord(ra=float(header['RA'])*u.deg, dec=float(header['DEC'])*u.deg)
-        VBAR = sc.radial_velocity_correction(obstime=Time(DATE), location=loc)
+            sc = SkyCoord(ra=float(header['RA']) * u.deg, dec=float(header['DEC']) * u.deg)
+            VBAR = sc.radial_velocity_correction(obstime=Time(DATE), location=loc)
 
-        # Add some keywords with comments to the header
-        header['I-TELES'] = (TELES, TELESINFO)
-        header['I-INSTR'] = (INSTR, 'Instrument')
-        header['I-RESOL'] = (int(RESOL[1:]), 'Nominal resolving power (R)')
-        header['I-DATE'] = (DATE[:21], '[YYYY-MM-DDTHH:MM:SS.S] Adq.date at midpoint')
-        header['I-VBAR'] = (round(VBAR.to(u.km/u.s).value, 3), 'Barycentric velocity correction (km/s)')
-        header['I-HJD'] = (round(Time(DATE, scale='utc').jd, 5), 'Heliocentric JD at midpoint')
-        header['I-RA'] = (round(float(header['RA']), 5), 'RA [deg]')
-        header['I-DEC'] = (round(float(header['DEC']), 5), 'DEC [deg]')
-        header['I-TEXP'] = (round(float(header['EXPTIME']), 1), '[s]')
+            # Populate IACOB header keywords
+            header['I-TELES'] = (TELES, TELESINFO)
+            header['I-INSTR'] = (INSTR, 'Instrument')
+            header['I-RESOL'] = (int(RESOL[1:]), 'Nominal resolving power (R)')
+            header['I-DATE'] = (DATE[:21], '[YYYY-MM-DDTHH:MM:SS.S] Adq.date at midpoint')
+            header['I-VBAR'] = (round(VBAR.to(u.km / u.s).value, 3), 'Barycentric velocity correction (km/s)')
+            header['I-HJD'] = (round(Time(DATE, scale='utc').jd, 5), 'Heliocentric JD at midpoint')
+            header['I-RA'] = (round(float(header['RA']), 5), 'RA [deg]')
+            header['I-DEC'] = (round(float(header['DEC']), 5), 'DEC [deg]')
+            header['I-TEXP'] = (round(float(header['EXPTIME']), 1), '[s]')
 
-        # Get the wavelength of the spectrum
-        ctype = header['CTYPE1']       # Type of wavelength calibration (linear, log, etc.)
-        lam0 = header['CRVAL1']        # Get the wavelength of the first pixel
-        dlam = header['CDELT1']        # Step of increase in wavelength
-        pix0 = header['CRPIX1']        # Reference pixel (generally 1, FEROS -49)
-        spec_length = header['NAXIS1'] # Length of the spectrum
-        # Calculate the wavelength and flux arrays
-        flux = hdu0.data
-        wave = lam0 + dlam*(np.arange(spec_length) - pix0 + 1)
-        if 'log' in ctype:
-            wave = np.exp(wave)
+            # Reconstruct wavelength grid
+            ctype = str(header['CTYPE1'])
+            lam0 = float(header['CRVAL1'])
+            dlam = float(header['CDELT1'])
+            pix0 = float(header['CRPIX1'])
+            spec_length = int(header['NAXIS1'])
 
-        # replace any flux values that are below wavelength 3715 with nan
-        flux[wave < 3715] = np.nan
+            # Obtain the wavelength and flux arrays
+            flux = np.array(hdu0.data, dtype=float)
+            wave = lam0 + dlam * (np.arange(spec_length, dtype=float) - pix0 + 1.0)
+            if 'log' in ctype.lower():
+                wave = np.exp(wave)
 
-        # Normalize the spectrum
-        ft, ynt, fkt, lam, snr, snr4500 = normalize(TELES, wave, flux, order=norm_order)
-        # Add the normalize flux to the fits data
-        hdu0.data = [ft, hdu0.data]
+            # Cut the wave and flux arrays to the minimum wavelength for each instrument
+            mask = wave >= wave_min
+            wave = wave[mask]
+            flux = flux[mask]
 
-        if plot:
-            fig, ax = plt.subplots(figsize=(14, 7))
-            ax.plot(wave, flux/np.nanmean(flux), label='Original', lw=0.5, alpha=0.5)
-            ax.plot(wave, ft, label='Normalized', lw=0.5, alpha=0.5)
-            ax.plot(wave, ynt/np.nanmean(ynt), label='Continuum fit', lw=1, alpha=0.5)
-            fkt_plot = np.where(fkt == 0, np.nan, fkt)
-            ax.plot(wave, fkt_plot, label='Mask', lw=3, alpha=0.3, drawstyle='steps-mid')
-            ax.set_title(f"{object}_{DATE.replace('-', '').replace(':', '')}{telcode}{RESOL}")
-            ax.legend()
-            fig.tight_layout()
-            plt.show(block=False)
+            TELES = 'MERCATOR_ARCHIVE' if M_archive == 'y' else TELES
 
-        header['I-SNR'] = (int(np.nanmedian(snr)), 'Median SNR of the normalized regions')
-        header['I-SN450'] = (int(snr4500), 'SNR (4500 A)')
+            # Normalize the spectrum
+            ft, ynt, fkt, lam, snr, snr4500 = normalize(TELES, wave, flux, order=norm_order)
+            # Add the normalize flux to the fits data
+            hdu0.data = [ft, flux]
 
-        # Add the spectral classification to the header
-        if table_with_spc is not None:
-            spc, spc_ref = retrieve_spc(object, table_with_spc)
-            header['I-SPC'] = (spc, 'Spectral classification')
-            header['I-SPCREF'] = (spc_ref, 'Spectral classification reference')
+            if plot:
+                fig, ax = plt.subplots(figsize=(14, 7))
+                ax.plot(wave, flux/np.nanmean(flux), label='Original', lw=0.5, alpha=0.5)
+                ax.plot(wave, ft, label='Normalized', lw=0.5, alpha=0.5)
+                ax.plot(wave, ynt/np.nanmean(ynt), label='Continuum fit', lw=1, alpha=0.5)
+                fkt_plot = np.where(fkt == 0, np.nan, fkt)
+                ax.plot(wave, fkt_plot, label='Mask', lw=3, alpha=0.3, drawstyle='steps-mid')
+                ax.set_title(f"{object}_{DATE.replace('-', '').replace(':', '')}{telcode}{RESOL}")
+                ax.legend()
+                fig.tight_layout()
+                plt.show(block=False)
 
-        # Add the data release version
-        header['I-VERS'] = ('DR3.0', 'Data release version')
-        header['I-pyIB'] = (reduction_version, 'Version of the pyIACOB reduction module')
+            header['I-SNR'] = (int(np.nanmedian(snr)), 'Median SNR of the normalized regions')
+            header['I-SN450'] = (int(snr4500), 'SNR (4500 A)')
 
-        # Add the comments
-        header['COMMENT'] = ' --- The IACOB spectroscopic database of Galactic OB stars'
-        if telcode == '_N_':
-            header['COMMENT'] = ' --- FEROS spectrum downloaded from the ESO archive'
-        header['COMMENT'] = ' --- Some extra information about the spectra has been added above'
-        if telcode == '_N_' or (telcode == '_M_' and not '_log' in spectrum):
-            header['COMMENT'] = ' --- The spectrum is NOT corrected from barycentric velocity'
-            header['COMMENT'] = ' --- Use the keyword I-VBAR to correct from barycentric velocity'
-        elif telcode == '_F_' or (telcode == '_M_' and '_log' in spectrum):
-            header['COMMENT'] = ' --- The spectrum is corrected from barycentric velocity'
-        header['COMMENT'] = ' --- A normalized and original merged spectrum are included'
-        header['COMMENT'] = ' --- Be aware of the reference for the I-SPC keyword'
-        header.add_blank('', before='COMMENT')
+            # Add the spectral classification to the header
+            if table_with_spc is not None:
+                spc, spc_ref = retrieve_spc(object, table_with_spc)
+                header['I-SPC'] = (spc, 'Spectral classification')
+                header['I-SPCREF'] = (spc_ref, 'Spectral classification reference')
 
-        end = '.fits' if not 'log' in ctype else '_log.fits'
-        new_name = object + '_' + date + '_' + time + telcode + RESOL + end
+            # Add the data release and pyIACOB reduction version to the header
+            header['I-VERS'] = ('DR3.0', 'Data release version')
+            header['I-pyIB'] = (reduction_version, 'Version of the pyIACOB reduction module')
 
-        # save the fits file with the new name in the same folder
-        print(spectrum.name,'->',new_name,'| SNR(4500A)=',snr4500)
-        if Path(maindir / 'reduced' / new_name).exists():
-            print(f"Warning: File '{new_name}' already exists. Skipping...")
-            continue
-        hdu.writeto(maindir / 'reduced' / new_name, overwrite=False)
-        hdu.close()
+            # Add comments to the header
+            header['COMMENT'] = ' --- The IACOB spectroscopic database of Galactic OB stars'
+            if telcode == '_F_':
+                header['COMMENT'] = ' --- FEROS spectrum downloaded from the ESO archive'
+            header['COMMENT'] = ' --- Some extra information about the spectra has been added above'
+            if telcode == '_N_' or (telcode == '_M_' and '_log' not in spectrum.name):
+                header['COMMENT'] = ' --- The spectrum is NOT corrected from barycentric velocity'
+                header['COMMENT'] = ' --- Use the keyword I-VBAR to correct from barycentric velocity'
+            elif telcode == '_F_' or (telcode == '_M_' and '_log' in spectrum.name):
+                header['COMMENT'] = ' --- The spectrum is corrected from barycentric velocity'
+            header['COMMENT'] = ' --- A normalized and original merged spectrum are included'
+            header['COMMENT'] = ' --- Be aware of the reference for the I-SPC keyword'
+            header.add_blank('', before='COMMENT')
+
+            end = '.fits' if 'log' not in ctype.lower() else '_log.fits'
+            new_name = f"{object}_{date}_{time}{telcode}{RESOL}{end}"
+            out_path = reduced_dir / new_name
+
+            # save the fits file with the new name in the reduced directory
+            print(spectrum.name, '->', new_name, '| SNR(4500A)=', snr4500)
+            if out_path.exists():
+                print(f"Warning: File '{new_name}' already exists. Skipping...")
+                continue
+            hdu.writeto(out_path, overwrite=False)
 
     return None
 
 
 def calculate_snr(flux):
     # Calculate the SNR of the spectrum with an iterative sigma clipping method
-    me0 = np.nanmean(flux)
-    st0 = np.nanstd(flux)
+    finite = np.isfinite(flux)
+    if not np.any(finite):
+        return 0
+    flux = flux[finite]
+
+    me0 = np.mean(flux)
+    st0 = np.std(flux)
+    if st0 == 0 or not np.isfinite(st0):
+        return 0
     snr0 = me0 / st0
     snr = snr0 + 100
     while abs(snr0 - snr) >= 1.0:
         snr = snr0
-        tt = np.where(np.abs(flux - me0) <= 2.0 * st0)
-        me0 = np.nanmean(flux[tt])
-        st0 = np.nanstd(flux[tt])
+        tt = np.where(np.abs(flux - me0) <= 2.0 * st0)[0]
+        if tt.size == 0:
+            break
+        me0 = np.mean(flux[tt])
+        st0 = np.std(flux[tt])
+        if st0 == 0 or not np.isfinite(st0):
+            break
         snr0 = me0 / st0
 
-    return int(snr0)
+    return int(snr0) if np.isfinite(snr0) else 0
 
 
 def normalize(telescope, w, f, order=2):
@@ -227,7 +261,11 @@ def normalize(telescope, w, f, order=2):
         #lam = np.array([3815,3920,4060,4135,4290,4495,4605,4725,4800,4970,5200,5320,5440,5500,5620,5690,5750,5840,5980,6100,6220,6460,6630,6900,7250,7520,7750,8400,8710,8790,8930,9020], float) # iacobsweg
         lam = np.array([3815,3920,4060,4150,4290,4495,4605,4725,4800,4970,5200,5320,5420,5500,
                         5620,5690,5750,5840,5980,6100,6220,6460,6630,6900,7250,7520,7750,8400,
-                        8710,8850,9000,9200], float)
+                        8710,8850,8995,9200], float)
+    elif telescope == 'MERCATOR_ARCHIVE':
+        lam = np.array([3800,4040,4220,4400,4455,4495,4600,4770,4840,4900,5075,5280,5390,5555,
+                        5690,5755,5840,5980,6137,6218,6430,6630,6835,6975,7130,7250,7520,7750,
+                        8060,8635,8830,8995], float)
     elif telescope == 'MPI-2.2':
         lam = np.array([3690,3760,3815,3870,3920,4040,4155,4260,4520,4605,4705,4780,4970,5140,
                         5320,5420,5500,5620,5690,5750,5860,5980,6100,6220,6320,6440,6700,6850,
