@@ -53,9 +53,11 @@ class spec():
 
         orig : str, optional
             If 'IACOB', it assumes that the spectrum comes from the IACOB database.
-            If 'txt', it assumes that the spectrum comes from a two-columns file with
+            If 'txt'/'ascii', the spectrum comes from a two-columns file with
             wavelength and flux with no header in the file.
-            If 'syn', it assumes that the spectrum comes from a synthetic spectrum.
+            If 'syn'/'synthetic', the spectrum comes from a synthetic ascii spectrum.
+            If 'LiLiMaRlin', it assumes that the spectrum comes from the LiLiMaRlin
+            library by Jesús Maíz Apellániz.
             Default is IACOB.
 
         delimiter : str, optional
@@ -81,6 +83,8 @@ class spec():
             self.orig = 'ascii'
         elif orig_lower in ('syn', 'synthetic'):
             self.orig = 'synthetic'
+        elif orig_lower in ('lilimarlin',):
+            self.orig = 'LiLiMaRlin'
         else:
             msg.error(f"Problem in spec(): Unknown origin '{orig}'.\nExiting...")
             return None
@@ -182,20 +186,20 @@ class spec():
         if self.orig == 'IACOB':
 
             # Retrieve the key values from the fits header
-            hdu = fits.open(self.fullpath)  # Open the fits image file
-            hdu.verify('fix')               # Fix possible issues with the keywords
-            header0 = hdu[0].header         # Read header of primary extension
+            hdu = fits.open(self.fullpath) # Open the fits image file
+            hdu.verify('fix')              # Fix possible issues with the keywords
+            header = hdu[0].header         # Read header of primary extension
 
-            instrum = header0['INSTRUME']   # Instrument
+            instrum = header['INSTRUME']   # Instrument
 
-            if 'CTYPE1' in header0:
-                ctype = header0['CTYPE1']   # Type of wavelength calibration (linear, log, etc.)
+            if 'CTYPE1' in header:
+                ctype = header['CTYPE1']   # Type of wavelength calibration (linear, log, etc.)
             else:
                 ctype = 'WAVELENGTH'
-            lam0 = header0['CRVAL1']        # Get the wavelength of the first pixel
-            dlam = header0['CDELT1']        # Get the wavelength step in angstroms
-            pix0 = header0['CRPIX1']        # Reference pixel (generally 1, FEROS -49)
-            spec_length = header0['NAXIS1'] # Length of the spectrum
+            lam0 = header['CRVAL1']        # Get the wavelength of the first pixel
+            dlam = header['CDELT1']        # Get the wavelength step in angstroms
+            pix0 = header['CRPIX1']        # Reference pixel (generally 1, FEROS -49)
+            spec_length = header['NAXIS1'] # Length of the spectrum
             # Alternatively use len(hdu[0].data[0]) (NOT/MERCATOR) or len(hdu[0].data)
 
             # Correct Mercator CRVAL1 20101018-19:
@@ -203,27 +207,27 @@ class spec():
                 lam0 = 3763.61
 
             # Assign barycentric rv correction at midpoint [km/s]
-            if 'I-VBAR' in header0:
-                self.vbar = header0['I-VBAR']
+            if 'I-VBAR' in header:
+                self.vbar = header['I-VBAR']
             else:
                 print('No helio/bary-centric correction applied to' + self.fullpath)
                 self.vbar = 0
 
             # Assign Heliocentric Julian Date at midpoint
-            if 'I-HJD' in header0:
-                self.hjd = header0['I-HJD']
+            if 'I-HJD' in header:
+                self.hjd = header['I-HJD']
             else:
-                self.hjd = Time(header0['DATE'], scale='utc').jd
+                self.hjd = Time(header['DATE'], scale='utc').jd
 
             # Assign SNR
-            if 'I-SNR' in header0:
-                self.snr = header0['I-SNR']
+            if 'I-SNR' in header:
+                self.snr = header['I-SNR']
             else:
                 self.snr = np.nan
 
             # Assign SpC
-            if 'I-SPC' in header0:
-                self.SpC = header0['I-SPC']
+            if 'I-SPC' in header:
+                self.SpC = header['I-SPC']
 
             # Make lists with wavelength and flux for each spectrum
             # Those with log or from FEROS are already corrected from heliocentric velocity
@@ -276,6 +280,36 @@ class spec():
 
             if self.orig == 'IACOB':
                 self.get_spc()
+
+        elif self.orig == 'LiLiMaRlin':
+
+            hdu = fits.open(self.fullpath)  # Open the fits image file
+            hdu.verify('fix')               # Fix possible issues with the keywords
+            header = hdu[1].header          # Read header of primary extension
+
+            instrum = header['INSTRUME']   # Instrument
+
+            # Assign barycentric rv correction at midpoint [km/s]
+            if 'I-VBAR' in header:
+                self.vbar = header['I-VBAR']
+            else:
+                print('No helio/bary-centric correction applied to' + self.fullpath)
+                self.vbar = 0
+
+            # Assign Heliocentric Julian Date at midpoint
+            if 'I-HJD' in header:
+                self.hjd = header['I-HJD']
+            else:
+                self.hjd = Time(header['DATE'], scale='utc').jd
+
+            # Assign SNR
+            if 'I-SNR' in header:
+                self.snr = header['I-SNR']
+            else:
+                self.snr = np.nan
+
+            wave = hdu[1].data[0]
+            flux = hdu[1].data[1]
 
         # Apply the radial velocity correction (if provided)
         wave = wave*(1 - 1000*self.rv0/cte.c)
