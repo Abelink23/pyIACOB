@@ -185,7 +185,7 @@ def _vsiniFT(
     from .fourier import vfft
     from .interactive import _COLORS, _DASH_DOT3, _clip_curves, _clip_line, _inside, _limits, _show, _window, _xhair
     from .numerics import _interpol, _median_upper
-    from .profiles import _convol
+    from .convol import _convol
     from .variables import C_KMS
 
 
