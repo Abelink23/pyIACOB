@@ -90,6 +90,13 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
     output = findtable(output_table)
 
     if output is not None:
+        for col in ['ID','Ref_file']:
+            if col not in output.colnames:
+                print('Output table does not have the column "%s". Exiting...' % col)
+                return None
+            if type(output[col]) != str:
+                output[col] = output[col].astype(str)
+
         # Remove entries to be re-done
         if redo != 'n':
             try:
@@ -204,7 +211,7 @@ def measure(lines, table, output_table, col_line_names='lambda', rv_lines='rv_Bs
             plt.close('all')
 
             T_source = Table(
-                [[star.id_star],[star.filename],[snr_b],[snr_v],[snr_r],[round(star.rv0, 2)],[round(eRV0, 2)]],
+                [[str(star.id_star)],[str(star.filename)],[snr_b],[snr_v],[snr_r],[round(star.rv0, 2)],[round(eRV0, 2)]],
                 names=('ID','Ref_file','SNR_B','SNR_V','SNR_R','RV0','eRV0'))
 
             for i,line in zip(range(len(lines)),lines):
