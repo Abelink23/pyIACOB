@@ -73,8 +73,6 @@ def table_zp_edr3(table, ra, dec, search_radius=0.5):
 #===============================================================================
 # Wavelength conversions.
 #===============================================================================
-
-
 def atokms(dlamb, lamb0):
 
     '''
@@ -147,7 +145,6 @@ def vac2air(lamvac):
 #===============================================================================
 # COORDINATES AND DISTANCES
 #===============================================================================
-
 def sky_dist(radec1, radec2):
 
     '''
@@ -252,7 +249,6 @@ def changecoords(list, infmt, outfmt):
 #===============================================================================
 # Others:
 #===============================================================================
-
 def exptime(exp, mag, fib=3):
 
     '''
@@ -273,41 +269,6 @@ def exptime(exp, mag, fib=3):
     -------
     SNR
     '''
-
-def visplot(time, target, site=None):
-
-    '''
-    Function to create visibility plot for observing runs.
-
-    Parameters
-    ----------
-    time : str
-        Date and time of observation (e.g. '2018-01-02 19:00').
-
-    target : str
-        Name of the target (e.g. 'HD 189733').
-
-    Returns
-    -------
-    SNR
-    '''
-
-    import matplotlib.pyplot as plt
-
-    from astroplan import FixedTarget, Observer
-    from astroplan.plots import plot_airmass
-
-    time = Time(time)
-    target = FixedTarget.from_name(target)
-
-    if site == None:
-        print(EarthLocation.get_site_names())
-        site = input('Plese use one of the above: ')
-
-    apo = Observer.at_site(site)
-
-    plot_airmass(target, apo, time, brightness_shading=True, altitude_yaxis=True)
-    plt.show(block=False)
 
 
 def outliers(data, iter=3, siglo=2.5, sigup=2.5):
@@ -467,19 +428,19 @@ def rv_corr(spectrum, observatory, correction):
 
 def get_programs_feros(input_list, feros_dir='default'):
     """
-    
+
     This function returns a list of the programs of the input files.
-    
+
     Parameters
     ----------
     input_list : list, str
-        List of filenames or '.txt/.lst' file with the list of them that 
+        List of filenames or '.txt/.lst' file with the list of them that
         will be searched in the data directory defined in feros_dir.
-    
+
     feros_dir : str, optional
-        Path to the FEROS data directory. 
+        Path to the FEROS data directory.
         Default will search in 'datadir' as defined in the paths.txt
-    
+
     Returns
     -------
     List of programs of the input files.
@@ -496,11 +457,11 @@ def get_programs_feros(input_list, feros_dir='default'):
     programs = []
     for filename in input_list:
         filepath = findstar(filename)
-        
+
         if filepath != 'None':
-            
+
             header = fits.getheader(filepath[0])
-            
+
             if 'HIERARCH ESO OBS PROG ID' in header:
                 program = header['HIERARCH ESO OBS PROG ID']
                 programs.append(program)
