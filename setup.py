@@ -128,9 +128,9 @@ table_example_content = """
 with open(main_dir / 'gbat' / 'tables_launcher' / 'table_benchmark.dat', 'w') as f:
     f.write(table_example_content)
 
-# Copy gbat/gbat_linesHHe_benchmark.dat in the working gbat directory.
+# Copy gbat_linesHHe_benchmark.dat in the working gbat directory
 print('Copying the file gbat_linesHHe_benchmark.dat to the main/gbat directory...')
-shutil.copyfile('gbat_linesHHe_benchmark.dat', main_dir / 'gbat' / 'gbat_linesHHe_benchmark.dat')
+shutil.copyfile(Path('gbat') / 'gbat_linesHHe_benchmark.dat', main_dir / 'gbat' / 'gbat_linesHHe_benchmark.dat')
 
 # Copy the tracks.zip file to the main_dir directory, unzip it, and remove the zip file
 print('Copying the file tracks.zip to the main directory and unzipping it...')
