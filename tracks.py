@@ -137,7 +137,8 @@ def trackmist(mass=None, metallicity=0.014, vini_vcrit=0.4, av=0.0):
 
 def trackgene12(mass, vini_vcrit=0.4):
     '''
-    Function to retrieve a specific track from Ekstrom et al. (2012).
+    Function to retrieve a specific track from Ekstrom et al. (2012) for
+    solar metallicity (Z=0.014).
 
     NOTE: Tracks and isochrones from Geneva are downloaded from:
           https://obswww.unige.ch/Research/evol/tables_grids2011/
@@ -146,6 +147,10 @@ def trackgene12(mass, vini_vcrit=0.4):
     ----------
     mass : int/float
         Enter the mass in M/M_sun of the track you want to retrieve.
+        Available masses:
+            - For vini/vcrit = 0.0/0.4: 0.8, 0.9, 1.0, 1.1, 1.25, 1.35, 1.5,
+            1.7, 2.0, 2.5, 3, 4, 5, 7, 9, 12, 15, 20, 25, 32, 40, 60, 85, 120
+            - For vini/vcrit = 0.2: 20, 25, 32, 40, 60, 85, 120
 
     vini_vcrit : float, optional
         Enter the initial v/v_crit value [0.0/0.2/0.4]. Default is 0.4.
@@ -200,8 +205,8 @@ def trackgene12(mass, vini_vcrit=0.4):
     digit = 3-len(mass)
     mass = '0'*digit+mass
 
-    path = maindir / 'Ekstrom12'
-    trk_geneva = Table.read(path / f'Ekstrom12/M{mass}Z14V{vini_vcrit}.fits', format='fits')
+    path = maindir / 'tracks' / 'Ekstrom12'
+    trk_geneva = Table.read(path / f'M{mass}Z14V{vini_vcrit}.fits', format='fits')
 
     # FROM Gonzalo
     trk_geneva.rename_columns(['lg(Teff)','lg(L)'],['log_Teff','log_L'])
@@ -217,7 +222,8 @@ def trackgene12(mass, vini_vcrit=0.4):
 
 def trackgene26(mass, vini_vcrit=0.4, model='magn', tams='FS'):
     '''
-    Function to retrieve a specific track from Sciarini et al. (2026).
+    Function to retrieve a specific track from Sciarini et al. (2026) for
+    solar metallicity (Z=0.014).
 
     NOTE: Tracks and isochrones from Geneva are downloaded from:
           https://zenodo.org/records/22082876/
@@ -226,6 +232,7 @@ def trackgene26(mass, vini_vcrit=0.4, model='magn', tams='FS'):
     ----------
     mass : int/float
         Enter the mass in M/M_sun of the track you want to retrieve.
+        Available masses: 12, 15, 20, 25, 32, 40.
 
     vini_vcrit : float, optional
         Enter the initial v/v_crit value [0.0/0.2/0.4]. Default is 0.4.
