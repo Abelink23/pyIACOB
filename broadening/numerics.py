@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-pyiacob_broad_numerics — Numerical routines of IDL without a direct NumPy/SciPy equivalent.
+Numerical routines of IDL without a direct NumPy/SciPy equivalent.
 
 Only three operations are needed here because NumPy/SciPy do not provide the
 same mathematics:
@@ -199,7 +199,10 @@ def _spline_tension(
             Tension parameter. Values smaller than 0.001 are replaced by
             0.001, following the behaviour of the IDL routine. The tension
             is normalised by the mean knot spacing before constructing the
-            spline. For the IACOB-BROAD implementation, sigma=5 is used.
+            spline.
+            For the IACOB-BROAD implementation, sigma=5 is used.
+            IACOB-GBAT uses sigma=80 (envelope of the chi2 distributions)
+            and sigma=1 (IDL default).
 
     -------
     Returns
