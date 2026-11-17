@@ -95,7 +95,7 @@ def _chi_input(
 
     # #################### GRID ####################
     casa_red = CASA + '/iac_gbatgrid_HHe_' + METAL + METAL_EXTRA + '/'
-    file_models = casa_red + '/iac_gbatgrid_HHe_' + METAL + METAL_EXTRA + '_allHe.lis'
+    file_models = casa_red + 'iac_gbatgrid_HHe_' + METAL + METAL_EXTRA + '_allHe.lis'
 
 
     # #################### LINES ####################
