@@ -169,7 +169,7 @@ def _rv_adjust(
 
     # ########## PANORAMA ##########
     from .numerics import _interpol
-    from .profiles import _convol
+    from .convol import _convol
     from .variables import C_KMS, RV_RANGE, RV_STEP
 
 
@@ -301,7 +301,7 @@ def _gof_grid(
 
     # ########## PANORAMA ##########
     from .numerics import _interpol
-    from .profiles import _convol, _ewgauss
+    from .convol import _convol, _ewgauss
     from .variables import EW_STEP, FACT_VS, N_EW, N_EW_CUT, R_DELTA, STEP_V
 
 
@@ -669,7 +669,7 @@ def _best_models(
     # ########## PANORAMA ##########
     from .fourier import vfft
     from .numerics import _interpol
-    from .profiles import _convol, _ewgauss
+    from .convol import _convol, _ewgauss
     from .variables import R_DELTA
 
 
