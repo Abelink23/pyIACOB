@@ -215,7 +215,12 @@ def trackgene12(mass, vini_vcrit=0.4):
     trk_geneva['log_LLsol'] = trk_geneva['log_L'] - np.log10(trk_geneva['mass']) # NOT SURE ABOUT THIS ONE
     trk_geneva['log_g'] = 4*trk_geneva['log_Teff'] + np.log10(trk_geneva['mass']) - trk_geneva['log_L'] - 10.61
     trk_geneva['log_Lspec'] = 4*trk_geneva['log_Teff'] - trk_geneva['log_g'] - 10.61
-    trk_geneva['He'] = trk_geneva['4He_surf']/4/trk_geneva['1H_surf']
+    trk_geneva['He'] = np.divide(
+        trk_geneva['4He_surf'] / 4,
+        trk_geneva['1H_surf'],
+        out=np.full_like(trk_geneva['4He_surf'], np.nan, dtype=float),
+        where=trk_geneva['1H_surf'] != 0
+    )
 
     return trk_geneva
 
