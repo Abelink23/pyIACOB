@@ -1,0 +1,79 @@
+#----------------------------------------------------------------------------------
+#          LINES TO BE CONSIDERED IN THE IACOB_GBAT ANALYSIS
+#----------------------------------------------------------------------------------
+#
+# lab              : The label that will be used for the plots
+# lam              : Central waveleght of the line for the plots
+# fw_label         : Name of the line in FASTWIND
+# chi_in   =1      : The line is considered in the chi2 computation
+# step2_in =1      : The line is considered in the computation of final results
+# rowx10+column_pos: Use this column to locate the various lines in the final plot
+
+# ****************************** VERY IMPORTANT !!!! ******************************
+#
+# chi_in = 1, step2_in = 1 is a valid option  
+# chi_in = 0, step2_in = 0 is a valid option  
+# chi_in = 1, step2_in = 0 is a valid option  
+# chi_in = 0, step2_in = 1 is NOT a valid option <===================
+#
+# *********************************************************************************
+#
+#----------------------------------------------------------------------------------
+#   lab                   lam    fw_label  chi_in  step2_in  rowx10+column_pos
+#----------------------------------------------------------------------------------
+#
+# ========================== Optical HeI lines ====================================
+#
+  HeI5875               5875.62  HEI5875     1        1             32 
+  HeI+II4026            4026.19  HEI4026     1        1             31
+  HeI4120               4120.82  HEI4120     0        0             00
+  HeI4143               4143.80  HEI4143     0        0             00
+  HeI4387               4387.93  HEI4387     1        0             00
+  HeI4471               4471.47  HEI4471     1        1             22
+  HeI4713               4713.16  HEI4713     1        1             23 
+  HeI4922               4921.93  HEI4922     1        1             24
+  HeI5015               5015.68  HEI5015     0        0             00
+  HeI5047               5047.74  HEI5048     0        0             00
+  HeI6678+HeII6683      6680.57  HEI6678     1        1             33
+#
+# ========================== Optical HeII lines ===================================
+#
+  HeII4200              4199.83  HEII4200    1        1             41
+  HeII4541              4541.59  HEII4541    1        1             42
+  HeII4686              4685.71  HEII4686    1        1             43
+  HeII5411              5411.52  HEII5411    1        1             44
+  HeII6406              6405.25  HEII6406    0        0             00
+  HeII6527              6526.18  HEII6527    0        0             00
+#
+# ========================== Optical HI lines =====================================
+#
+  H!7a!3                6562.80  HALPHA      1        1             11
+  H!7b!3                4861.33  HBETA       1        1             12
+  H!7c!3                4340.46  HGAMMA      1        1             13
+  H!7d!3                4101.74  HDELTA      1        1             14
+  H!7e!3                3969.59  HEPS        0        0             00
+#
+# ========================== IR HeI lines =========================================
+#
+  HeI1.70               17005.0  HEI170      0        0             00 
+  HeI2.05               20580.0  HEI205      0        0             00 
+  HeI2.11               21120.0  HEI211      0        0             00
+  HeI2.16               21607.0  HEI21607    0        0             00
+#
+# ========================== IR HeII lines ========================================
+#
+  HeII2.18              21885.0  HEII218     0        0             00
+  HeII1.16              11628.0  HEII57      0        0             00
+  HeII1.16              11677.0  HEII611     0        0             00
+  HeII4.00              40000.0  HEII67      0        0             00
+  HeII1.69              16918.0  HEII712     0        0             00
+#
+# ========================== IR HI lines ==========================================
+#
+  Br!7a!3               40522.0  BRALPHA     0        0             00
+  Br!7b!3               26259.0  BRBETA      0        0             00
+  Br!7c!3               21661.0  BRGAMMA     0        0             00
+  Br10                  17367.0  BR10        0        0             00
+  Br11                  16811.0  BR11        0        0             00
+  Br12                  16412.0  BR12        0        0             00
+
