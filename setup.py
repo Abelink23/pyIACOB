@@ -59,7 +59,8 @@ maui_dir   = input('Please provide the path where MAUI is installed: ').strip()
 
 # Inform the user about the location of the evolutionary tracks and broadening data.
 print('\nThe evolutionary tracks are located in pyIACOB/tracks')
-print(f'\nThe broadening data is located in {main_dir / "broadening"}')
+print(f'\nThe broadening output data will be located in {main_dir / "broadening"}')
+print(f'\nThe GBAT output data will be located in {main_dir / "gbat"}')
 
 # Create the file 'paths.txt' which contains the paths to the directories.
 with open('paths.txt', 'w') as f:
@@ -69,12 +70,29 @@ with open('paths.txt', 'w') as f:
 
 # Create the subfolders inside the main_dir directory
 print('\nCreating the subfolders inside the main directory...\n')
-subfolders = ['broadening', 'lists', 'lists/lines', 'lists/lines/atlas_lines', 'plots', 'tables', 'tmp']
+subfolders = (
+    'broadening',
+    'gbat',
+    Path('gbat') / 'output_figures',
+    Path('gbat') / 'spectra_bfm',
+    Path('gbat') / 'spectra_cut',
+    Path('gbat') / 'tables_launcher',
+    Path('gbat') / 'trash',
+    Path('gbat') / 'xdr_files',
+    Path('gbat') / 'xdr_dist',
+    Path('gbat') / 'xdr_results',
+    'lists',
+    Path('lists') / 'lines',
+    Path('lists') / 'lines' / 'atlas_lines',
+    'plots',
+    'tables',
+    'tmp',
+)
 for subfolder in subfolders:
-    target_folder = main_dir / subfolder
-    if not target_folder.exists():
-        print(f"Creating {subfolder} directory...")
-        target_folder.mkdir(parents=True, exist_ok=True)
+    directory = main_dir / subfolder
+    if not directory.exists():
+        print(f"Creating {directory} directory...")
+        directory.mkdir(parents=True, exist_ok=True)
 
 # Create a subfolder 'ASCII' inside the data_dir directory if it does not exist.
 ascii_dir = data_dir / 'ASCII'
@@ -98,6 +116,21 @@ shutil.copyfile('snr_gaps.txt', main_dir / 'lists' / 'snr_gaps.txt')
 # Copy the 'atlas_lines' folder to the main_dir/lists/lines/ directory.
 print('Copying the folder atlas_lines to the main/lists/lines directory...')
 shutil.copytree('atlas_lines', main_dir / 'lists' / 'lines' / 'atlas_lines', dirs_exist_ok=True)
+
+# Create a file in gbat/tables_launcher called 'table_benchmark.dat' with a test case:
+print('Creating the file table_benchmark.dat in the main/gbat/tables_launcher directory...')
+table_example_content = """
+                                              Name     obsrun       inst  vsini  vmac	Teffm	TeffM  loggm  loggM   Qm   QM	bm   bM   Hem	HeM micm micM               fw_ref           SPC    Mv vinf    rv0
+-------------------------------------------------- ---------- ----------  ----- ----- ------- ------- ------ ------ ---- ---- ---- ---- ----- ----- ---- ---- -------------------- ------------- ----- ---- ------
+             HD36861_20140211_200754_M_V85000.fits  benchmark   hermes85     52    77	33200	37600	3.37   3.71 12.5 13.1  0.7  1.4  0.05  0.15    0   25 T355g355He10Q1300b10         O8III -5.29 2171     39
+"""
+
+with open(main_dir / 'gbat' / 'tables_launcher' / 'table_benchmark.dat', 'w') as f:
+    f.write(table_example_content)
+
+# Copy gbat/gbat_linesHHe_benchmark.dat in the working gbat directory.
+print('Copying the file gbat_linesHHe_benchmark.dat to the main/gbat directory...')
+shutil.copyfile('gbat_linesHHe_benchmark.dat', main_dir / 'gbat' / 'gbat_linesHHe_benchmark.dat')
 
 # Copy the tracks.zip file to the main_dir directory, unzip it, and remove the zip file
 print('Copying the file tracks.zip to the main directory and unzipping it...')
