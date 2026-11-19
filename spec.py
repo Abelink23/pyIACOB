@@ -114,11 +114,13 @@ class spec():
 
         # Extract spectral resolution from filename
         if self.orig == 'IACOB' or (self.orig in ('ascii', 'synthetic') and
-                                    any(k in self.filename for k in ('_V', '_R'))):
+                         any(k in self.filename for k in ('_V', '_R'))):
             self.resolution = int(re.split(r'(\d*\d+)', self.filename)[-2])
         else:
-            self.resolution = np.nan
-            msg.warn('Resolution not found in filename. Set to NaN.')
+            msg.warn('Resolution not found in filename.')
+            resol = input('Please enter the resolution of the spectrum: ')
+            if resol.isdigit():
+                self.resolution = float(resol)
 
         self.offset = offset  # Note: run self.waveflux to apply offset.
         self.rv0 = rv0        # Note: run self.waveflux to apply the correction.
@@ -228,6 +230,11 @@ class spec():
             # Assign SpC
             if 'I-SPC' in header:
                 self.SpC = header['I-SPC']
+
+            if 'I-RESOL' in header:
+                if int(self.resolution) != int(header['I-RESOL']):
+                    msg.warn('Resolution in filename (%s) does not match header (%s)'
+                             % (self.resolution, header['I-RESOL']))
 
             # Make lists with wavelength and flux for each spectrum
             # Those with log or from FEROS are already corrected from heliocentric velocity
@@ -422,12 +429,6 @@ class spec():
             return fitsol
 
         line = float(line)
-
-        if self.resolution is np.nan:
-            # ask user to input resolution if not found in filename
-            resol = input('Resolution not found in filename. Please enter the resolution of the spectrum: ')
-            if resol.isdigit():
-                self.resolution = float(resol)
 
         dlamb = line/self.resolution
 
@@ -779,9 +780,8 @@ class spec():
             return np.nan
 
         lam0 = np.mean(self.wave[mask])
-        resol = 10000
 
-        sigma = lam0/(2.35482*float(resol))
+        sigma = lam0/(2.35482*float(self.resolution))
 
         gauss = f_gaussian(np.arange(-5*sigma, 5*sigma, self.dlam), sigma)
         kernel = gauss/np.sum(gauss)
