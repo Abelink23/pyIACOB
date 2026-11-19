@@ -19,11 +19,11 @@ plt.rc('xtick', direction='in', top=True)
 plt.rc('ytick', direction='in', right=True)
 
 
-#_* Spec module version 2.01 (2026-11-09)
+#_* Spec module version 2.02 (2026-11-13)
 
 class spec():
-    def __init__(self, spectrum, snr=0, rv0=0, offset=0, cut_edges=False, orig='IACOB', delimiter=' ',
-                 outside_dir=''):
+    def __init__(self, spectrum, snr=0, rv0=0, offset=0, cut_edges=False, raw_flux=False,
+                 orig='IACOB', delimiter=' ', outside_dir=''):
         '''
         Parameters
         ----------
@@ -47,11 +47,17 @@ class spec():
             If True, it cuts the edges of the spectrum where the flux is asymptotic.
             Default is False.
 
+        raw_flux : boolean, optional
+            If True, it uses the not normalized flux values from the spectrum.
+            Default is False.
+
         orig : str, optional
             If 'IACOB', it assumes that the spectrum comes from the IACOB database.
-            If 'txt', it assumes that the spectrum comes from a two-columns file with
+            If 'txt'/'ascii', the spectrum comes from a two-columns file with
             wavelength and flux with no header in the file.
-            If 'syn', it assumes that the spectrum comes from a synthetic spectrum.
+            If 'syn'/'synthetic', the spectrum comes from a synthetic ascii spectrum.
+            If 'LiLiMaRlin', it assumes that the spectrum comes from the LiLiMaRlin
+            library by Jesús Maíz Apellániz.
             Default is IACOB.
 
         delimiter : str, optional
@@ -77,6 +83,8 @@ class spec():
             self.orig = 'ascii'
         elif orig_lower in ('syn', 'synthetic'):
             self.orig = 'synthetic'
+        elif orig_lower in ('lilimarlin',):
+            self.orig = 'LiLiMaRlin'
         else:
             msg.error(f"Problem in spec(): Unknown origin '{orig}'.\nExiting...")
             return None
@@ -106,17 +114,19 @@ class spec():
 
         # Extract spectral resolution from filename
         if self.orig == 'IACOB' or (self.orig in ('ascii', 'synthetic') and
-                                    any(k in self.filename for k in ('_V', '_R'))):
+                         any(k in self.filename for k in ('_V', '_R'))):
             self.resolution = int(re.split(r'(\d*\d+)', self.filename)[-2])
         else:
-            self.resolution = np.nan
-            msg.warn('Resolution not found in filename. Set to NaN.')
+            msg.warn('Resolution not found in filename.')
+            resol = input('Please enter the resolution of the spectrum: ')
+            if resol.isdigit():
+                self.resolution = float(resol)
 
         self.offset = offset  # Note: run self.waveflux to apply offset.
         self.rv0 = rv0        # Note: run self.waveflux to apply the correction.
         self.SpC = ''         # Spectral classification
 
-        self.waveflux(cut_edges=cut_edges, delimiter=delimiter)
+        self.waveflux(cut_edges=cut_edges, raw_flux=raw_flux, delimiter=delimiter)
 
 
     def get_spc(self):
@@ -139,7 +149,7 @@ class spec():
             self.SpC = ''
 
 
-    def waveflux(self, lwl=None, rwl=None, width=0, helcorr='hel', cut_edges=False, delimiter=' '):
+    def waveflux(self, lwl=None, rwl=None, width=0, helcorr='hel', cut_edges=False, raw_flux=False, delimiter=' '):
         '''
         Function to load or update the wavelength and flux vectors and optionally apply
         an offset or a radial velocity correction if they are different from 0 in the
@@ -178,20 +188,20 @@ class spec():
         if self.orig == 'IACOB':
 
             # Retrieve the key values from the fits header
-            hdu = fits.open(self.fullpath)  # Open the fits image file
-            hdu.verify('fix')               # Fix possible issues with the keywords
-            header0 = hdu[0].header         # Read header of primary extension
+            hdu = fits.open(self.fullpath) # Open the fits image file
+            hdu.verify('fix')              # Fix possible issues with the keywords
+            header = hdu[0].header         # Read header of primary extension
 
-            instrum = header0['INSTRUME']   # Instrument
+            instrum = header['INSTRUME']   # Instrument
 
-            if 'CTYPE1' in header0:
-                ctype = header0['CTYPE1']   # Type of wavelength calibration (linear, log, etc.)
+            if 'CTYPE1' in header:
+                ctype = header['CTYPE1']   # Type of wavelength calibration (linear, log, etc.)
             else:
                 ctype = 'WAVELENGTH'
-            lam0 = header0['CRVAL1']        # Get the wavelength of the first pixel
-            dlam = header0['CDELT1']        # Get the wavelength step in angstroms
-            pix0 = header0['CRPIX1']        # Reference pixel (generally 1, FEROS -49)
-            spec_length = header0['NAXIS1'] # Length of the spectrum
+            lam0 = header['CRVAL1']        # Get the wavelength of the first pixel
+            dlam = header['CDELT1']        # Get the wavelength step in angstroms
+            pix0 = header['CRPIX1']        # Reference pixel (generally 1, FEROS -49)
+            spec_length = header['NAXIS1'] # Length of the spectrum
             # Alternatively use len(hdu[0].data[0]) (NOT/MERCATOR) or len(hdu[0].data)
 
             # Correct Mercator CRVAL1 20101018-19:
@@ -199,27 +209,32 @@ class spec():
                 lam0 = 3763.61
 
             # Assign barycentric rv correction at midpoint [km/s]
-            if 'I-VBAR' in header0:
-                self.vbar = header0['I-VBAR']
+            if 'I-VBAR' in header:
+                self.vbar = header['I-VBAR']
             else:
                 print('No helio/bary-centric correction applied to' + self.fullpath)
                 self.vbar = 0
 
             # Assign Heliocentric Julian Date at midpoint
-            if 'I-HJD' in header0:
-                self.hjd = header0['I-HJD']
+            if 'I-HJD' in header:
+                self.hjd = header['I-HJD']
             else:
-                self.hjd = Time(header0['DATE'], scale='utc').jd
+                self.hjd = Time(header['DATE'], scale='utc').jd
 
             # Assign SNR
-            if 'I-SNR' in header0:
-                self.snr = header0['I-SNR']
+            if 'I-SNR' in header:
+                self.snr = header['I-SNR']
             else:
                 self.snr = np.nan
 
             # Assign SpC
-            if 'I-SPC' in header0:
-                self.SpC = header0['I-SPC']
+            if 'I-SPC' in header:
+                self.SpC = header['I-SPC']
+
+            if 'I-RESOL' in header:
+                if int(self.resolution) != int(header['I-RESOL']):
+                    msg.warn('Resolution in filename (%s) does not match header (%s)'
+                             % (self.resolution, header['I-RESOL']))
 
             # Make lists with wavelength and flux for each spectrum
             # Those with log or from FEROS are already corrected from heliocentric velocity
@@ -235,7 +250,10 @@ class spec():
 
             # Get the flux of the spectrum
             try:
-                flux = hdu[0].data[0]
+                if raw_flux:
+                    flux = hdu[0].data[1]
+                else:
+                    flux = hdu[0].data[0]
             except:
                 flux = hdu[0].data
 
@@ -732,9 +750,8 @@ class spec():
             return np.nan
 
         lam0 = np.mean(self.wave[mask])
-        resol = 10000
 
-        sigma = lam0/(2.35482*float(resol))
+        sigma = lam0/(2.35482*float(self.resolution))
 
         gauss = f_gaussian(np.arange(-5*sigma, 5*sigma, self.dlam), sigma)
         kernel = gauss/np.sum(gauss)
@@ -950,7 +967,7 @@ class spec():
         self.flux[mask] = convoluted
 
 
-    def convolution(self, vsini=None, beta=1.5, vmac=None, resol=None):
+    def convolution(self, vsini=None, beta=1.5, vmac=None, resol=None, quiet=False):
         '''
         Function to apply convolution to a spectrum.
 
@@ -970,12 +987,18 @@ class spec():
         ----------
         vsini : int/float, optional
             Rotational velocity in km/s to apply in the 'rotation' mode. Default is None.
+
         beta : float, optional
             Linear limb-darkening coefficient to apply in the 'rotation' mode. Default is 1.5.
+
         vmac : int/float, optional
             Macroturbulence velocity in km/s to apply in the 'macro' mode. Default is None.
+
         resol : int/float, optional
             Resolution of the spectrum to apply in the 'instrumental' mode. Default is None. d
+
+        quiet : bool, optional
+            If True, only the errors will be printed in the terminal. Default is False.
 
         Returns
         -------
@@ -990,13 +1013,13 @@ class spec():
             return None
 
         # Raise warning if difference in wavelengh is >100 A
-        if not hasattr(self, 'warning_len') and max(self.wave) - min(self.wave) > 100:
+        if not hasattr(self, 'warning_len') and max(self.wave) - min(self.wave) > 100 and not quiet:
             msg.warn('The wavelength range is >100 ang. As the broadening functions are')
             msg.bold('y','dependent of the central wavelength considered, the spectrum will be split')
             msg.bold('y','in smaller parts and the convolution will be applied separately to each.')
             setattr(self, 'warning_len', True)
 
-        if np.isnan(self.flux[0]) or np.isnan(self.flux[-1]):
+        if (np.isnan(self.flux[0]) or np.isnan(self.flux[-1])) and not quiet:
             msg.warn('The flux at the edges of the spectrum a nan value.')
             msg.y('Consider using cut_edges=True when loading the spectrum.')
 
@@ -1046,7 +1069,8 @@ class spec():
 
             # Check that the last slice reaches the end of the spectrum, otherwise raise warning
             if min_wave + n_slices*l_slices < max_wave:
-                msg.warn('The last slice does not reach the end of the spectrum.')
+                if not quiet:
+                    msg.warn('The last slice does not reach the end of the spectrum.')
 
             # Create the vectors with the information of the individual slices for the convolution
             # Mask for the wavelength and non nan flux values.
@@ -1116,7 +1140,9 @@ class spec():
         self.vsini = vsini
         self.vmac = vmac
         self.resolution = resol
-        print('Convolution applied in %.3f seconds.' % (Time.now() - t).sec)
+
+        if not quiet:
+            print('Convolution applied in %.3f seconds.' % (Time.now() - t).sec)
 
 
     def resamp(self, dlam, lwl=None, rwl=None, force_edges=False, method='linear'):
@@ -1330,6 +1356,10 @@ class spec():
 
         rwl : float, optional
             Sets the end wavelength of the spectrum.
+
+        lines : str, optional
+            Use to overplot position of spectral lines. Current options are:
+            all_OB/OB (recommended), all, 35-10k, 35k, 30k, 25k, 20k, 15k, 10k
 
         ylim : tuple/list, optional
             Sets the y-limits for the plot. Input must be like "[ymin,ymax]".
