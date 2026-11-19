@@ -423,6 +423,12 @@ class spec():
 
         line = float(line)
 
+        if self.resolution is np.nan:
+            # ask user to input resolution if not found in filename
+            resol = input('Resolution not found in filename. Please enter the resolution of the spectrum: ')
+            if resol.isdigit():
+                self.resolution = float(resol)
+
         dlamb = line/self.resolution
 
         # Maximum shift between the minimum of the fitted line and the tabulated value
