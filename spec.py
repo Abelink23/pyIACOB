@@ -19,11 +19,11 @@ plt.rc('xtick', direction='in', top=True)
 plt.rc('ytick', direction='in', right=True)
 
 
-#_* Spec module version 2.01 (2026-11-09)
+#_* Spec module version 2.02 (2026-11-13)
 
 class spec():
-    def __init__(self, spectrum, snr=0, rv0=0, offset=0, cut_edges=False, orig='IACOB', delimiter=' ',
-                 outside_dir=''):
+    def __init__(self, spectrum, snr=0, rv0=0, offset=0, cut_edges=False, raw_flux=False,
+                 orig='IACOB', delimiter=' ', outside_dir=''):
         '''
         Parameters
         ----------
@@ -47,11 +47,17 @@ class spec():
             If True, it cuts the edges of the spectrum where the flux is asymptotic.
             Default is False.
 
+        raw_flux : boolean, optional
+            If True, it uses the not normalized flux values from the spectrum.
+            Default is False.
+
         orig : str, optional
             If 'IACOB', it assumes that the spectrum comes from the IACOB database.
-            If 'txt', it assumes that the spectrum comes from a two-columns file with
+            If 'txt'/'ascii', the spectrum comes from a two-columns file with
             wavelength and flux with no header in the file.
-            If 'syn', it assumes that the spectrum comes from a synthetic spectrum.
+            If 'syn'/'synthetic', the spectrum comes from a synthetic ascii spectrum.
+            If 'LiLiMaRlin', it assumes that the spectrum comes from the LiLiMaRlin
+            library by Jesús Maíz Apellániz.
             Default is IACOB.
 
         delimiter : str, optional
@@ -77,6 +83,8 @@ class spec():
             self.orig = 'ascii'
         elif orig_lower in ('syn', 'synthetic'):
             self.orig = 'synthetic'
+        elif orig_lower in ('lilimarlin',):
+            self.orig = 'LiLiMaRlin'
         else:
             msg.error(f"Problem in spec(): Unknown origin '{orig}'.\nExiting...")
             return None
@@ -106,17 +114,19 @@ class spec():
 
         # Extract spectral resolution from filename
         if self.orig == 'IACOB' or (self.orig in ('ascii', 'synthetic') and
-                                    any(k in self.filename for k in ('_V', '_R'))):
+                         any(k in self.filename for k in ('_V', '_R'))):
             self.resolution = int(re.split(r'(\d*\d+)', self.filename)[-2])
         else:
-            self.resolution = np.nan
-            msg.warn('Resolution not found in filename. Set to NaN.')
+            msg.warn('Resolution not found in filename.')
+            resol = input('Please enter the resolution of the spectrum: ')
+            if resol.isdigit():
+                self.resolution = float(resol)
 
         self.offset = offset  # Note: run self.waveflux to apply offset.
         self.rv0 = rv0        # Note: run self.waveflux to apply the correction.
         self.SpC = ''         # Spectral classification
 
-        self.waveflux(cut_edges=cut_edges, delimiter=delimiter)
+        self.waveflux(cut_edges=cut_edges, raw_flux=raw_flux, delimiter=delimiter)
 
 
     def get_spc(self):
@@ -139,7 +149,7 @@ class spec():
             self.SpC = ''
 
 
-    def waveflux(self, lwl=None, rwl=None, width=0, helcorr='hel', cut_edges=False, delimiter=' '):
+    def waveflux(self, lwl=None, rwl=None, width=0, helcorr='hel', cut_edges=False, raw_flux=False, delimiter=' '):
         '''
         Function to load or update the wavelength and flux vectors and optionally apply
         an offset or a radial velocity correction if they are different from 0 in the
@@ -178,20 +188,20 @@ class spec():
         if self.orig == 'IACOB':
 
             # Retrieve the key values from the fits header
-            hdu = fits.open(self.fullpath)  # Open the fits image file
-            hdu.verify('fix')               # Fix possible issues with the keywords
-            header0 = hdu[0].header         # Read header of primary extension
+            hdu = fits.open(self.fullpath) # Open the fits image file
+            hdu.verify('fix')              # Fix possible issues with the keywords
+            header = hdu[0].header         # Read header of primary extension
 
-            instrum = header0['INSTRUME']   # Instrument
+            instrum = header['INSTRUME']   # Instrument
 
-            if 'CTYPE1' in header0:
-                ctype = header0['CTYPE1']   # Type of wavelength calibration (linear, log, etc.)
+            if 'CTYPE1' in header:
+                ctype = header['CTYPE1']   # Type of wavelength calibration (linear, log, etc.)
             else:
                 ctype = 'WAVELENGTH'
-            lam0 = header0['CRVAL1']        # Get the wavelength of the first pixel
-            dlam = header0['CDELT1']        # Get the wavelength step in angstroms
-            pix0 = header0['CRPIX1']        # Reference pixel (generally 1, FEROS -49)
-            spec_length = header0['NAXIS1'] # Length of the spectrum
+            lam0 = header['CRVAL1']        # Get the wavelength of the first pixel
+            dlam = header['CDELT1']        # Get the wavelength step in angstroms
+            pix0 = header['CRPIX1']        # Reference pixel (generally 1, FEROS -49)
+            spec_length = header['NAXIS1'] # Length of the spectrum
             # Alternatively use len(hdu[0].data[0]) (NOT/MERCATOR) or len(hdu[0].data)
 
             # Correct Mercator CRVAL1 20101018-19:
@@ -199,27 +209,32 @@ class spec():
                 lam0 = 3763.61
 
             # Assign barycentric rv correction at midpoint [km/s]
-            if 'I-VBAR' in header0:
-                self.vbar = header0['I-VBAR']
+            if 'I-VBAR' in header:
+                self.vbar = header['I-VBAR']
             else:
                 print('No helio/bary-centric correction applied to' + self.fullpath)
                 self.vbar = 0
 
             # Assign Heliocentric Julian Date at midpoint
-            if 'I-HJD' in header0:
-                self.hjd = header0['I-HJD']
+            if 'I-HJD' in header:
+                self.hjd = header['I-HJD']
             else:
-                self.hjd = Time(header0['DATE'], scale='utc').jd
+                self.hjd = Time(header['DATE'], scale='utc').jd
 
             # Assign SNR
-            if 'I-SNR' in header0:
-                self.snr = header0['I-SNR']
+            if 'I-SNR' in header:
+                self.snr = header['I-SNR']
             else:
                 self.snr = np.nan
 
             # Assign SpC
-            if 'I-SPC' in header0:
-                self.SpC = header0['I-SPC']
+            if 'I-SPC' in header:
+                self.SpC = header['I-SPC']
+
+            if 'I-RESOL' in header:
+                if int(self.resolution) != int(header['I-RESOL']):
+                    msg.warn('Resolution in filename (%s) does not match header (%s)'
+                             % (self.resolution, header['I-RESOL']))
 
             # Make lists with wavelength and flux for each spectrum
             # Those with log or from FEROS are already corrected from heliocentric velocity
@@ -235,7 +250,10 @@ class spec():
 
             # Get the flux of the spectrum
             try:
-                flux = hdu[0].data[0]
+                if raw_flux:
+                    flux = hdu[0].data[1]
+                else:
+                    flux = hdu[0].data[0]
             except:
                 flux = hdu[0].data
 
@@ -269,6 +287,36 @@ class spec():
 
             if self.orig == 'IACOB':
                 self.get_spc()
+
+        elif self.orig == 'LiLiMaRlin':
+
+            hdu = fits.open(self.fullpath)  # Open the fits image file
+            hdu.verify('fix')               # Fix possible issues with the keywords
+            header = hdu[1].header          # Read header of primary extension
+
+            instrum = header['INSTRUME']   # Instrument
+
+            # Assign barycentric rv correction at midpoint [km/s]
+            if 'I-VBAR' in header:
+                self.vbar = header['I-VBAR']
+            else:
+                print('No helio/bary-centric correction applied to' + self.fullpath)
+                self.vbar = 0
+
+            # Assign Heliocentric Julian Date at midpoint
+            if 'I-HJD' in header:
+                self.hjd = header['I-HJD']
+            else:
+                self.hjd = Time(header['DATE'], scale='utc').jd
+
+            # Assign SNR
+            if 'I-SNR' in header:
+                self.snr = header['I-SNR']
+            else:
+                self.snr = np.nan
+
+            wave = hdu[1].data[0]
+            flux = hdu[1].data[1]
 
         # Apply the radial velocity correction (if provided)
         wave = wave*(1 - 1000*self.rv0/cte.c)
@@ -732,9 +780,8 @@ class spec():
             return np.nan
 
         lam0 = np.mean(self.wave[mask])
-        resol = 10000
 
-        sigma = lam0/(2.35482*float(resol))
+        sigma = lam0/(2.35482*float(self.resolution))
 
         gauss = f_gaussian(np.arange(-5*sigma, 5*sigma, self.dlam), sigma)
         kernel = gauss/np.sum(gauss)
@@ -948,7 +995,6 @@ class spec():
 
         # Replace the flux by the convoluted one recovering the original flux with the nans
         self.flux[mask] = convoluted
-
 
 
     def convolution(self, vsini=None, beta=1.5, vmac=None, resol=None, quiet=False):
