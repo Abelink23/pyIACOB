@@ -142,10 +142,8 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, dict_name_translation=Non
             if 'log' in ctype.lower():
                 wave = np.exp(wave)
 
-            # Cut the wave and flux arrays to the minimum wavelength for each instrument
-            mask = wave >= wave_min
-            wave = wave[mask]
-            flux = flux[mask]
+            # Set flux values below the minimum wavelength to NaN
+            flux[wave <= wave_min] = np.nan
 
             TELES = 'MERCATOR_ARCHIVE' if M_archive == 'y' else TELES
 
