@@ -17,7 +17,7 @@ from scipy.interpolate import interp1d
 reduction_version = '1.0.3'
 print('Loading pyIACOB reduction module: ' + '\033[92mv' + reduction_version + '\033[0m')
 
-def raw_to_IACOB(path_to_spectra, table_with_spc=None, dict_name_translation=None, norm_order=2, plot=False):
+def raw_to_IACOB(path_to_spectra, table_with_spc=None, dict_objects=None, norm_order=2, plot=False):
 
     '''
     Function to turn raw files from the telescope to the IACOB format.
@@ -30,7 +30,7 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, dict_name_translation=Non
     table_with_spc : str | Path, optional
         Path to the spectral classification table [see retrieve_spc].
 
-    dict_name_translation : dict, optional
+    dict_objects : dict, optional
         Dictionary that maps the object names from the original to the chosen one.
 
     norm_order : int, optional
@@ -67,9 +67,8 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, dict_name_translation=Non
                 continue
 
             object = header['OBJECT'].replace(' ','').upper()
-            if dict_name_translation and object in [k.upper() for k in dict_name_translation.keys()]:
-                object = dict_name_translation[object]
-
+            if dict_objects and object in [k.upper() for k in dict_objects.keys()]:
+                object = dict_objects[object]
             if header['INSTRUME'].strip() == 'FIES':
                 telcode = '_N_'
                 TELES = 'NOT'
@@ -402,7 +401,6 @@ def normalize_slice(w, f, w0, w1, wlim1=None, wlim2=None, lam1=None, iter=None, 
     left_cond = (w >= w0) if include_left else (w > w0)
     mask = left_cond & (w <= w1) & (f > 0)
     if np.sum(mask) < 50:
-        print("Warning: Region has too few points to be normalized.")
         # Return neutral arrays
         ws0 = w[mask] if mask.any() else np.array([])
         fs0 = f[mask] if mask.any() else np.array([])
@@ -554,7 +552,7 @@ def normalize_slice(w, f, w0, w1, wlim1=None, wlim2=None, lam1=None, iter=None, 
     return ws00, fs00, fn, yn, fkt, snr, wlim1, wlim2, lam1
 
 
-def retrieve_spc(star_id, spc_table):
+def retrieve_spc(star_id, spc_table, dict_translation=None):
     """
     Function to ingest the spectral classification of the stars into the FITS headers.
 
@@ -588,7 +586,12 @@ def retrieve_spc(star_id, spc_table):
         table[id.upper()] = (spc, spc_ref)
 
     if star_id.upper() not in table:
-        print(f"Spectral classification not found for star ID '{star_id}'")
+        if dict_translation is not None and star_id.upper() in dict_translation:
+            star_id = dict_translation[star_id.upper()]
+            print(f"Star ID '{star_id}' translated to '{dict_translation[star_id.upper()]}'")
+        else:
+            print(f"Spectral classification not found for star ID '{star_id}'")
+
         print(f"Querying SIMBAD to retrieve it...")
         simbad = query_Simbad(star_id)
         if len(simbad) == 1:
