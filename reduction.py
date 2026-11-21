@@ -552,7 +552,7 @@ def normalize_slice(w, f, w0, w1, wlim1=None, wlim2=None, lam1=None, iter=None, 
     return ws00, fs00, fn, yn, fkt, snr, wlim1, wlim2, lam1
 
 
-def retrieve_spc(star_id, spc_table, dict_translation=None):
+def retrieve_spc(star_id, spc_table):
     """
     Function to ingest the spectral classification of the stars into the FITS headers.
 
@@ -586,12 +586,7 @@ def retrieve_spc(star_id, spc_table, dict_translation=None):
         table[id.upper()] = (spc, spc_ref)
 
     if star_id.upper() not in table:
-        if dict_translation is not None and star_id.upper() in dict_translation:
-            star_id = dict_translation[star_id.upper()]
-            print(f"Star ID '{star_id}' translated to '{dict_translation[star_id.upper()]}'")
-        else:
-            print(f"Spectral classification not found for star ID '{star_id}'")
-
+        print(f"Spectral classification not found for star ID '{star_id}'")
         print(f"Querying SIMBAD to retrieve it...")
         simbad = query_Simbad(star_id)
         if len(simbad) == 1:
