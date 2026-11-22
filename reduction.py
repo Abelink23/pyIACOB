@@ -153,9 +153,11 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, dict_objects=None, norm_o
 
             if plot:
                 fig, ax = plt.subplots(figsize=(14, 7))
-                ax.plot(wave, flux/np.nanmean(flux), label='Original', lw=0.5, alpha=0.5)
-                ax.plot(wave, ft, label='Normalized', lw=0.5, alpha=0.5)
-                ax.plot(wave, ynt/np.nanmean(ynt), label='Continuum fit', lw=1, alpha=0.5)
+                for l in lam:
+                    ax.axvline(l, color='red', lw=2, linestyle='--', alpha=0.5)
+                ax.plot(wave, flux/np.nanmean(flux), label='Original', lw=0.5, alpha=0.8, c='orange')
+                ax.plot(wave, ft, label='Normalized', lw=0.5, alpha=0.8, c='blue')
+                ax.plot(wave, ynt/np.nanmean(ynt), label='Continuum fit', lw=1.5, alpha=0.5, c='red')
                 fkt_plot = np.where(fkt == 0, np.nan, fkt)
                 ax.plot(wave, fkt_plot, label='Mask', lw=3, alpha=0.3, drawstyle='steps-mid')
                 ax.set_title(f"{object}_{DATE.replace('-', '').replace(':', '')}{telcode}{RESOL}")
@@ -271,9 +273,9 @@ def normalize(telescope, w, f, order=2):
                         5620,5690,5750,5840,5980,6100,6220,6460,6630,6900,7250,7520,7750,8400,
                         8710,8850,8995,9200], float) # original 8710,8790,8930,9020]
     elif telescope == 'MERCATOR_ARCHIVE':
-        lam = np.array([3800,3875,3950,4040,4220,4400,4455,4495,4600,4770,4840,4900,5075,5280,
-                        5390,5555,5690,5755,5840,5980,6137,6218,6430,6630,6835,6975,7130,7250,
-                        7520,7750,8060,8340,8635,8830,8995], float)
+        lam = np.array([3800,3875,3950,4040,4220,4400,4455,4495,4600,4770,5075,5280,5390,5555,
+                        5690,5755,5840,5980,6137,6218,6430,6630,6835,6975,7130,7250,7520,7750,
+                        8060,8340,8635,8830,8995], float)
     elif telescope == 'MPI-2.2':
         lam = np.array([3690,3760,3815,3870,3920,4040,4155,4260,4520,4605,4705,4780,4970,5140,
                         5320,5420,5500,5620,5690,5750,5860,5980,6100,6220,6320,6440,6700,6850,
