@@ -3,9 +3,8 @@ from __future__ import annotations
 from spec import *
 
 def iacob_broad(
-                # spectrum is a string or a class from pyIACOB spec module
                 spectrum   : str | spec,
-                snr        : float | None = None,
+                snr        : float | str | None = None,
                 rv0        : float = 0.0,
                 offset     : float = 0.0,
                 cut_edges  : bool = False,
@@ -226,9 +225,10 @@ def iacob_broad(
     """
 
     # #################### IMPORT SUB-PACKAGES ####################
+    from idl_bridge import _restore_idl, _restore_json, _save
     from broadening.gof import _best_models, _env_dist, _final_estimates, _gof_grid
     from broadening.interactive import _read_linelist
-    from broadening.results import _plot_summary, _print_results, _restore_idl, _restore_json, _save
+    from broadening.results import _plot_summary, _print_results
     from broadening.variables import FACT_VRT, FACT_VRT_HEI, FACT_VS
     from broadening.vsiniFT import _vsiniFT
 
@@ -350,6 +350,10 @@ def iacob_broad(
         raise TypeError(f"Option for QIB prompt step 'qib_step' must be a boolean. Got {type(qib_step).__name__}.")
 
 
+    # ################### WELCOME ####################
+    msg.info('Welcome to the IACOB-broad package\n The tool for the broadening of stellar spectra\n')
+
+
     # #################### SETTINGS ####################
     # ########## SPECTRAL LINES ##########
     """
@@ -367,11 +371,6 @@ def iacob_broad(
 
     # #################### CONSTRUCT THE SPEC CLASS FOR THE STAR ####################
     if isinstance(spectrum, str):
-        if snr is None:
-            raise ValueError("Input spectrum 'spectrum' is a string, but 'snr' is None. Please provide the SNR of the spectrum.")
-        if not isinstance(snr, (int, float)):
-            raise TypeError(f"Input SNR 'snr' must be a numeric value (int or float). Got {type(snr).__name__}.")
-        snr = float(snr)
         s = spec(spectrum, snr=snr, rv0=rv0, offset=offset, cut_edges=cut_edges,
                  orig=orig, delimiter=delimiter, outside_dir=outside_dir)
     else:

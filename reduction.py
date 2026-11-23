@@ -17,7 +17,7 @@ from scipy.interpolate import interp1d
 reduction_version = '1.0.3'
 print('Loading pyIACOB reduction module: ' + '\033[92mv' + reduction_version + '\033[0m')
 
-def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False):
+def raw_to_IACOB(path_to_spectra, table_with_spc=None, dict_objects=None, norm_order=2, plot=False):
 
     '''
     Function to turn raw files from the telescope to the IACOB format.
@@ -29,6 +29,9 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False)
 
     table_with_spc : str | Path, optional
         Path to the spectral classification table [see retrieve_spc].
+
+    dict_objects : dict, optional
+        Dictionary that maps the object names from the original to the chosen one.
 
     norm_order : int, optional
         Polynomial order for continuum normalization [see normalize_slice].
@@ -64,7 +67,8 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False)
                 continue
 
             object = header['OBJECT'].replace(' ','').upper()
-
+            if dict_objects and object in [k.upper() for k in dict_objects.keys()]:
+                object = dict_objects[object]
             if header['INSTRUME'].strip() == 'FIES':
                 telcode = '_N_'
                 TELES = 'NOT'
@@ -137,10 +141,8 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False)
             if 'log' in ctype.lower():
                 wave = np.exp(wave)
 
-            # Cut the wave and flux arrays to the minimum wavelength for each instrument
-            mask = wave >= wave_min
-            wave = wave[mask]
-            flux = flux[mask]
+            # Set flux values below the minimum wavelength to NaN
+            flux[wave <= wave_min] = np.nan
 
             TELES = 'MERCATOR_ARCHIVE' if M_archive == 'y' else TELES
 
@@ -151,9 +153,11 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False)
 
             if plot:
                 fig, ax = plt.subplots(figsize=(14, 7))
-                ax.plot(wave, flux/np.nanmean(flux), label='Original', lw=0.5, alpha=0.5)
-                ax.plot(wave, ft, label='Normalized', lw=0.5, alpha=0.5)
-                ax.plot(wave, ynt/np.nanmean(ynt), label='Continuum fit', lw=1, alpha=0.5)
+                for l in lam:
+                    ax.axvline(l, color='red', lw=2, linestyle='--', alpha=0.5)
+                ax.plot(wave, flux/np.nanmean(flux), label='Original', lw=0.5, alpha=0.8, c='orange')
+                ax.plot(wave, ft, label='Normalized', lw=0.5, alpha=0.8, c='blue')
+                ax.plot(wave, ynt/np.nanmean(ynt), label='Continuum fit', lw=1.5, alpha=0.5, c='red')
                 fkt_plot = np.where(fkt == 0, np.nan, fkt)
                 ax.plot(wave, fkt_plot, label='Mask', lw=3, alpha=0.3, drawstyle='steps-mid')
                 ax.set_title(f"{object}_{DATE.replace('-', '').replace(':', '')}{telcode}{RESOL}")
@@ -198,6 +202,12 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, norm_order=2, plot=False)
                 print(f"Warning: File '{new_name}' already exists. Skipping...")
                 continue
             hdu.writeto(out_path, overwrite=False)
+
+        print(f"File '{new_name}' saved in '{reduced_dir}/'.")
+        input("Press Enter to continue to the next file...\n")
+
+        if plot:
+            plt.close('all')
 
     return None
 
@@ -255,34 +265,36 @@ def normalize(telescope, w, f, order=2):
     lam0 = np.min(w.astype(float))
 
     # Selection of the individual regions for normalization
-    if telescope in ['MERCATOR','NOT']:
+    if telescope in ['MERCATOR', 'NOT']:
         #lam = np.array([3815,3920,4060,4150,4290,4605,4830,4950,5070,5320,5500,5620,5750,5840,
         #                5980,6200,6460,6700,7100,7620,8000,8400,8710,8930], float) # MINE
-        #lam = np.array([3815,3920,4060,4135,4290,4495,4605,4725,4800,4970,5200,5320,5440,5500,5620,5690,5750,5840,5980,6100,6220,6460,6630,6900,7250,7520,7750,8400,8710,8790,8930,9020], float) # iacobsweg
+        #                              4135,                                        5440,
         lam = np.array([3815,3920,4060,4150,4290,4495,4605,4725,4800,4970,5200,5320,5420,5500,
                         5620,5690,5750,5840,5980,6100,6220,6460,6630,6900,7250,7520,7750,8400,
-                        8710,8850,8995,9200], float)
+                        8710,8850,8995,9200], float) # original 8710,8790,8930,9020]
     elif telescope == 'MERCATOR_ARCHIVE':
-        lam = np.array([3800,4040,4220,4400,4455,4495,4600,4770,4840,4900,5075,5280,5390,5555,
+        lam = np.array([3800,3875,3950,4040,4220,4400,4455,4495,4600,4770,5075,5280,5390,5555,
                         5690,5755,5840,5980,6137,6218,6430,6630,6835,6975,7130,7250,7520,7750,
-                        8060,8635,8830,8995], float)
+                        8060,8340,8635,8830,8995], float)
     elif telescope == 'MPI-2.2':
         lam = np.array([3690,3760,3815,3870,3920,4040,4155,4260,4520,4605,4705,4780,4970,5140,
                         5320,5420,5500,5620,5690,5750,5860,5980,6100,6220,6320,6440,6700,6850,
                         7150,7350,7550,7820,8400,8710,8790,8930,9000,9250], float)
     else:
         print(f"Warning: Telescope '{telescope}' not recognized. Returning original spectrum.")
-        return f, np.zeros_like(w), np.ones_like(w, float), lam, np.array([np.nan]), np.nan
+        return f, np.zeros_like(w), np.ones_like(w, float), np.array([]), np.array([np.nan]), np.nan
 
-    # Take regions within the range of the spectrum
-    mask = (lam >= w.min()) & (lam <= w.max())
+    # Take internal region boundaries strictly inside (w.min(), w.max())
+    mask = (lam > w.min()) & (lam < w.max())
     lam = np.concatenate([lam[mask], [w.max()]]).astype(float)
 
     ws_list, fs_list, fn_list, yn_list, fk_list, snr_list = [], [], [], [], [], []
-    # First region
-    ws0, fs0, fn0, yn0, fk0, snr0, wlim1, wlim2, lam1 = normalize_slice(w, f, lam0, lam[0])
+
+    # First region (include_left=True so the first pixel w == lam0 is not dropped)
     ws0, fs0, fn0, yn0, fk0, snr0, wlim1, wlim2, lam1 = normalize_slice(
-        w, f, lam0, lam[0], wlim1=wlim1, wlim2=wlim2, lam1=lam1, iter=1, order=order)
+        w, f, lam0, lam[0], include_left=True)
+    ws0, fs0, fn0, yn0, fk0, snr0, wlim1, wlim2, lam1 = normalize_slice(
+        w, f, lam0, lam[0], wlim1=wlim1, wlim2=wlim2, lam1=lam1, iter=1, order=order, include_left=True)
     ws_list.append(ws0); fs_list.append(fs0); fn_list.append(fn0); yn_list.append(yn0); fk_list.append(fk0)
     snr_list.append(snr0)
 
@@ -320,8 +332,7 @@ def normalize(telescope, w, f, order=2):
     return ft, ynt, fkt, lam, snr, snr4500
 
 
-def normalize_slice(w, f, w0, w1, wlim1=None, wlim2=None, lam1=None, iter=None, order=2):
-
+def normalize_slice(w, f, w0, w1, wlim1=None, wlim2=None, lam1=None, iter=None, order=2, include_left=False):
     '''
     Function to normalize the spectrum by fitting a polynomial to the continuum
     regions. It removes the strong lines from the spectrum and iteratively fits a
@@ -350,6 +361,9 @@ def normalize_slice(w, f, w0, w1, wlim1=None, wlim2=None, lam1=None, iter=None, 
     order : int, optional
         Order of the polynomial to fit to the continuum. Default is 2.
         Note: for wavelengths above 8300 A, the order is forced to be 1.
+    include_left : bool, optional
+        If True, the left limit of the wavelength region (w0) is included in the
+        normalization. If False, it is excluded. Default is False.
 
     Returns
     -------
@@ -386,9 +400,9 @@ def normalize_slice(w, f, w0, w1, wlim1=None, wlim2=None, lam1=None, iter=None, 
     snr = np.nan
 
     # Cut region
-    mask = (w > w0) & (w <= w1) & (f > 0)
+    left_cond = (w >= w0) if include_left else (w > w0)
+    mask = left_cond & (w <= w1) & (f > 0)
     if np.sum(mask) < 50:
-        print(f"Warning: Region has too few points to be normalized.")
         # Return neutral arrays
         ws0 = w[mask] if mask.any() else np.array([])
         fs0 = f[mask] if mask.any() else np.array([])
@@ -406,17 +420,17 @@ def normalize_slice(w, f, w0, w1, wlim1=None, wlim2=None, lam1=None, iter=None, 
     if wlim2 is None or not isinstance(wlim2, np.ndarray) or len(wlim2) != len(lam0):
         wlim2 = np.zeros(len(lam0))
 
-    # Calculates the FWHM of the line as average size of the line wings
+    # Cap adaptive line half-widths so edge clipping cannot wipe out an entire region
     # The * 0.9 factor reduces that width by 10%.
     if iter is not None:
-        dlam0 = 0.5*(np.abs(wlim2)+np.abs(wlim1))*0.9
+        dlam0 = np.clip(0.5 * (np.abs(wlim2) + np.abs(wlim1)) * 0.9, 1.0, 15.0)
 
     # Remove strong lines
     for j in range(len(lam0)):
         if ws0.size == 0:
             break
-        if (ws0.min()-10 <= lam0[j]) and (ws0.max()+10 >= lam0[j]):
-            good = (ws0 <= lam0[j]-dlam0[j]) | (ws0 >= lam0[j]+dlam0[j])
+        if (ws0.min() - 10 <= lam0[j]) and (ws0.max() + 10 >= lam0[j]):
+            good = (ws0 <= lam0[j] - dlam0[j]) | (ws0 >= lam0[j] + dlam0[j])
             ws0 = ws0[good]
             fs0 = fs0[good]
             if iter is None:
@@ -425,49 +439,45 @@ def normalize_slice(w, f, w0, w1, wlim1=None, wlim2=None, lam1=None, iter=None, 
     ws = ws0
     fs = fs0
 
-    # Initial adjustment of the continuum. If there are not enough points, return the original spectrum.
-    ord = 1
-    if len(ws) < ord + 1:
-        # Not enough points to fit a polynomial of the given order.
-        print(f"Warning: not enough points to fit a polynomial of order {ord}")
+    # Use `order` (unless w0 >= 8300) for initial fit to handle steep blue continuum curvature
+    init_ord = order if w0 < 8300 else 1
+    if len(ws) < init_ord + 1:
+        print(f"Warning: not enough points to fit a polynomial of order {init_ord}")
         fn = np.ones_like(ws00)
         yn = np.zeros_like(ws00)
         fk = np.zeros_like(ws00)
-        if np.shape(fn)!=np.shape(yn):
-            print('fn return de normaliza region sin puntos: ', np.shape(fn))
-            print('yn return de normaliza region sin puntos: ', np.shape(yn))
         return ws00, fs00, fn, yn, fk, snr, wlim1, wlim2, np.array(lam1)
 
     # Note: Simón-Díaz used to add an extra smoothing here (not implemented)
-    dat = np.polyfit(ws, fs, ord)
+    dat = np.polyfit(ws, fs, init_ord)
     ys  = np.polyval(dat, ws)
 
     fn = fs / ys
     fk = np.ones_like(fn)
-    mfn = np.mean(fn)
+    mfn = np.median(fn)
     sfn = np.std(fn)
 
-    # Iterative sigma-clipping
+    # Vectorized iterative sigma-clipping
     error0, error = 40., 20.
-    value, step = 2., 0
-    while abs(error-error0) >= 0.05 and ws.size > 0:
-        for i in range(len(ws)):
-            if fn[i] < mfn-sfn or fn[i] > mfn+value*sfn:
-                bad = (fn < mfn - sfn) | (fn > mfn + value * sfn)
-                fn[bad] = mfn + np.random.randn(np.sum(bad)) * sfn
-                fk[bad] = 0.
+    value = 3.0
+    while abs(error - error0) >= 0.05 and ws.size > 0:
+        bad = (fn < mfn - sfn) | (fn > mfn + value * sfn)
+        if np.any(bad):
+            fn[bad] = mfn + np.random.randn(np.sum(bad)) * sfn
+            fk[bad] = 0.
 
         nn = np.where(fk > 0)[0]
         error0 = error
-        if len(nn) < 2:
+        if len(nn) < 3:
             break
+
         dat2 = np.polyfit(ws[nn], fn[nn], order)
         ys2  = np.polyval(dat2, ws)
-        error2 = np.std(fn - ys2)
+        error2 = np.std(fn[nn] - ys2[nn])
 
         dat1 = np.polyfit(ws[nn], fn[nn], 1)
         ys1  = np.polyval(dat1, ws)
-        error1 = np.std(fn - ys1)
+        error1 = np.std(fn[nn] - ys1[nn])
 
         if error2 <= error1:
             ys = ys2
@@ -479,40 +489,51 @@ def normalize_slice(w, f, w0, w1, wlim1=None, wlim2=None, lam1=None, iter=None, 
         if w0 >= 8300:
             dat = np.polyfit(ws[nn], fn[nn], 1)
             ys  = np.polyval(dat, ws)
-            error = np.std(fn - ys)
+            error = np.std(fn[nn] - ys[nn])
 
         fn = fn / ys
-        mfn = np.median(fn)
-        sfn = np.std(fn)
-        step += 1
+        mfn = np.median(fn[nn])
+        sfn = np.std(fn[nn])
 
-    # Final normalization
+    # Final continuum fit
     nn = np.where(fk > 0)[0]
     wp = ws[nn] if nn.size > 0 else np.array([])
     fp = fs[nn] if nn.size > 0 else np.array([])
 
-    # Here we perform a final fit to the continuum
-    ord = order if w0 < 8300 else 1
+    ord_final = order if w0 < 8300 else 1
     for _ in range(3):
-        if wp.size < ord+1:
+        if wp.size < ord_final + 1:
             break
-        dat = np.polyfit(wp, fp, ord)
+        dat = np.polyfit(wp, fp, ord_final)
         yfit = np.polyval(dat, wp) / fp
-        keep = np.abs(yfit - np.median(yfit)) <= 2*np.std(yfit)
+        keep = np.abs(yfit - np.median(yfit)) <= 2.5 * np.std(yfit)
+        if np.sum(keep) < ord_final + 1:
+            break
         wp = wp[keep]
         fp = fp[keep]
 
-    dat = np.polyfit(wp, fp, ord) if wp.size >= ord+1 else np.array([1.])
-    yn     = np.polyval(dat, ws00) if wp.size >= ord+1 else np.ones_like(ws00)
-    ynoise = np.polyval(dat, ws0)   if wp.size >= ord+1 else np.ones_like(ws0)
+    if wp.size >= ord_final + 1:
+        dat = np.polyfit(wp, fp, ord_final)
+        yn = np.polyval(dat, ws00)
+        ynoise = np.polyval(dat, ws0)
 
-    fn = fs00 / yn # This is the key to why fk has fewer points. fn is redefined here, but fk is not.
+        # Clamp polynomial extrapolation outside the fitted anchor range [wp.min(), wp.max()]
+        yn_min_anchor = np.polyval(dat, wp.min())
+        yn_max_anchor = np.polyval(dat, wp.max())
+        yn = np.where(ws00 < wp.min(), yn_min_anchor, yn)
+        yn = np.where(ws00 > wp.max(), yn_max_anchor, yn)
+        ynoise = np.where(ws0 < wp.min(), yn_min_anchor, ynoise)
+        ynoise = np.where(ws0 > wp.max(), yn_max_anchor, ynoise)
+    else:
+        yn = np.ones_like(ws00)
+        ynoise = np.ones_like(ws0)
 
-    # Calculate the SNR - NOT ENABLED
+    fn = fs00 / yn
+
     fnoise = fs0 / ynoise
     snr = calculate_snr(fnoise) if ws0.size > 0 else 0
 
-    # Save the limits of the strong lines for the next iteration.
+    # Save line limits for the next iteration
     if iter is None and len(lam1) > 0:
         lam1 = np.array(lam1)
         for line in lam1:
@@ -526,11 +547,9 @@ def normalize_slice(w, f, w0, w1, wlim1=None, wlim2=None, lam1=None, iter=None, 
                 wlim1[tt] = 0
                 wlim2[tt] = 0
 
-    # Fix small mismatch as fk was defined in ws, and everything else in ws00. It was coming out smaller
-    fkt = np.zeros_like(ws00)       #fkt = np.zeros_like(ws00, dtype=float)
-    idx = np.searchsorted(ws00, ws) #idx = np.searchsorted(ws00, ws)
-    # ensure that we only assign valid indices: valid = (idx >= 0) & (idx < len(ws00)) [possible alternative]
-    fkt[idx] = fk                   #fkt[idx[valid]] = fk[valid]
+    fkt = np.zeros_like(ws00)
+    idx = np.searchsorted(ws00, ws)
+    fkt[idx] = fk
 
     return ws00, fs00, fn, yn, fkt, snr, wlim1, wlim2, lam1
 

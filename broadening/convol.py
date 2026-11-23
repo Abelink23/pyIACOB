@@ -425,6 +425,7 @@ def _conv_spec(
 def _convol(
             sx     : np.ndarray[float],
             sy     : np.ndarray[float],
+            res0   : float | None = None,
             resol  : float | None = None,
             vsini  : float | None = None,
             beta   : float | None = None,
@@ -432,16 +433,18 @@ def _convol(
             zeta_t : float | None = None,
             vgauss : float | None = None,
             vg0    : float = 0.,
-            res0   : float | None = None
+            expo   : float | None = None,
+            spline : bool = False
     ) -> tuple[np.ndarray[float], np.ndarray[float]]:
     """
-    Convolve a spectrum with the rotational, radial-tangential
-    macroturbulence, instrumental and Gaussian profiles (translation of
-    CONVOL in convol.pro).
+    Convolve a spectrum with the instrumental, Gaussian, rotational,
+    radial-tangential macroturbulence and exponential profiles (translation
+    of CONVOL in convol.pro).
 
     Each profile is applied only when its parameter is given, and always in
-    the order rotation -> macroturbulence -> instrument -> Gaussian. The
-    spectrum is first resampled to an equidistant grid with a power-of-two
+    the order: rotation -> macroturbulence -> exponential -> instrument -> Gaussian.
+    Note that in principle the order of the convolutions should not matter.
+    The spectrum is first resampled to an equidistant grid with a power-of-two
     number of points, on which all the profiles are built.
 
     ----------
@@ -476,8 +479,14 @@ def _convol(
             Centre of the Gaussian profile [km/s]. Defaults to 0.
 
         res0 : float | None, optional
-            Step of the resampled and of the output spectrum [A]. IACOB-BROAD
-            always sets it.
+            Step of the resampled and of the output spectrum [A].
+
+        expo : float | None, optiona§l
+            Velocity of the exponential profile [km/s].
+
+        spline : bool, optional
+            Resample the input spectrum with a spline (IDL SPLINE, tension
+            1) instead of a linear interpolation. Defaults to False.
 
     -------
     Returns
@@ -502,6 +511,9 @@ def _convol(
 
         - All the profiles are built on the x-scale px = (i - n//2)*dx [A],
           centred on element n//2, and applied with _conv_spec.
+
+        - As in IDL, the profile of the radial-tangential macroturbulence is
+          purely tangential when only zeta_t is given.
     """
 
     # #################### MODULES & PACKAGES ####################
@@ -510,7 +522,7 @@ def _convol(
 
 
     # ########## PANORAMA ##########
-    from .numerics import _interpol
+    from .numerics import _interpol, _spline_tension
     from .variables import BETA, C_KMS_CONVOL
 
 
@@ -547,7 +559,8 @@ def _convol(
         nn = nn_x * 2 if (nn / nn_x > RSMPL_FAC and not not_eqdist) else nn_x # Doubled if the sampling would be too coarse
         rdd = (sxx[-1] - sxx[0]) / (nn - 1) # Step of the resampled grid
         sxx = np.arange(nn) * rdd + sx[0] # New equidistant grid, starting at the first ORIGINAL wavelength
-        syy = _interpol(sy, sx, sxx) # Flux on the new grid (IDL INTERPOL, with extrapolation)
+        syy = _spline_tension(sx, sy, sxx, sigma=1.) if spline else _interpol(sy, sx, sxx)
+        # Flux on the new grid (IDL INTERPOL, with extrapolation)
 
 
     # #################### PROFILES X-SCALE ####################
@@ -560,7 +573,7 @@ def _convol(
     # #################### CONVOLUTIONS ####################
     """
     - Order of the convolutions, as in IDL:
-        >> rotation -> macroturbulence -> instrument -> Gaussian
+        >> rotation -> macroturbulence -> exponential -> instrument -> Gaussian
     """
 
     # ########## ROTATION ##########
@@ -572,6 +585,11 @@ def _convol(
     if zeta_r or zeta_t:
         syy = _conv_spec(syy, _macroturbulence_profile(px, lam0, zeta_r, zeta_t), dx)
 
+
+    # ########## EXPONENTIAL ##########
+    if expo and expo > 0.:
+        dlam = expo * lam0 / C_KMS_CONVOL
+        syy = _conv_spec(syy, np.exp(-np.abs(px / dlam)) / (2. * dlam), dx)
 
     # ########## INSTRUMENT ##########
     if resol:
@@ -592,3 +610,79 @@ def _convol(
 
     # #################### OUTPUT ####################
     return wave, flux
+
+
+
+
+# ===============================================================================
+# ============================== SYNTHETIC SPECTRUM ==============================
+# ===============================================================================
+
+# ==============================
+def _crea_sp_fw(
+                w0      : np.ndarray[float],
+                model   : dict,
+                res0    : float,
+                resol   : float,
+                vsini   : float,
+                zeta_t  : float = 0.,
+                vgauss  : float = 0.,
+                micro   : str = '005'
+    ) -> np.ndarray[float]:
+    """
+    Synthetic spectrum of a FASTWIND model on the wavelengths of the observed
+    spectrum (translation of gbat_crea_sp_fw.pro).
+
+    ----------
+    Parameters
+    ----------
+        w0 : np.ndarray[float]
+            Wavelengths of the observed spectrum [A].
+
+        model : dict
+            FASTWIND model (see iacob_gbat_grid._load_model).
+
+        res0, resol, vsini, zeta_t, vgauss : float
+            Parameters of the convolution (see _convol).
+
+        micro : str, optional
+            Microturbulence of the profiles. Defaults to '005'.
+
+    -------
+    Returns
+    -------
+        yfw : np.ndarray[float]
+            Normalised synthetic flux on w0.
+
+    -----
+    Notes
+    -----
+        - Every line of the model with the given micro (except HEII6683,
+          included in the HEI6678 profile) is convolved, extended with
+          continuum points at min(w0) and max(w0) and interpolated to w0.
+          The line depths are added: yfw = 1 + sum(y_line - 1).
+    """
+
+    # #################### MODULES & PACKAGES ####################
+    # ########## PYTHON ##########
+    import numpy as np
+
+
+    # ########## PANORAMA ##########
+    from broadening.numerics import _interpol
+
+
+    # #################### SPECTRUM ####################
+    w0 = np.asarray(w0, dtype=float)
+    yfw = np.ones(w0.size)
+    for (linea, mic), (x, y) in model['lines'].items():
+        if mic != (micro or '005') or linea == 'HEII6683':
+            continue
+        xfw0, yfw0 = _convol(x, y, res0, resol=resol, vsini=vsini, zeta_t=zeta_t, vgauss=vgauss)
+        xfw0 = np.concatenate([[w0.min()], xfw0, [w0.max()]])
+        yfw0 = np.concatenate([[1.], yfw0, [1.]])
+        yfw = yfw + (_interpol(yfw0, xfw0, w0) - 1.)
+
+
+    # #################### OUTPUT ####################
+    return yfw
