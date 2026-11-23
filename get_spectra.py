@@ -112,9 +112,7 @@ def _format_dateobs_for_filename(val):
     try:
         return Time(s).strftime("%Y%m%d_%H%M%S")
     except Exception:
-        m = re.search(
-            r"(\d{4})-?(\d{2})-?(\d{2})[T\s_]?(\d{2}):?(\d{2}):?(\d{2})", s
-        )
+        m = re.search(r"(\d{4})-?(\d{2})-?(\d{2})[T\s_]?(\d{2}):?(\d{2}):?(\d{2})", s)
         if m:
             y, mo, d, h, mi, sec = m.groups()
             return f"{y}{mo}{d}_{h}{mi}{sec}"
