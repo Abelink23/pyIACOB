@@ -63,7 +63,7 @@ If you plan to use spectra in ascii format, you will need to put this files insi
 
 - db.py is the main module of the package, which loads the default paths, and provides functions to search for lists, tables, files, spectra (by, e.g. S/N); generate master tables; make queries in Simbad or Gaia; check the integrity of the fits files; and other functions to interact with the IACOB database.
 
-- get_feros.py contains functions to download FEROS datasets from the ESO archive and only keep the files that contain the reduced spectra of the target star.
+- get_spectra.py contains functions to download Mercator@HERMES and MPG/ESO2.2m@FEROS datasets ready to be ingested into the reduction.py module.
 
 - hardcoded_maui.py contains hardcoded values, parameters, or masks used in the MAUI module.
 

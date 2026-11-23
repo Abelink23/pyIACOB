@@ -17,7 +17,7 @@ from scipy.interpolate import interp1d
 reduction_version = '1.0.3'
 print('Loading pyIACOB reduction module: ' + '\033[92mv' + reduction_version + '\033[0m')
 
-def raw_to_IACOB(path_to_spectra, table_with_spc=None, dict_name_translation=None, norm_order=2, plot=False):
+def raw_to_IACOB(path_to_spectra, table_with_spc=None, dict_objects=None, norm_order=2, plot=False):
 
     '''
     Function to turn raw files from the telescope to the IACOB format.
@@ -30,7 +30,7 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, dict_name_translation=Non
     table_with_spc : str | Path, optional
         Path to the spectral classification table [see retrieve_spc].
 
-    dict_name_translation : dict, optional
+    dict_objects : dict, optional
         Dictionary that maps the object names from the original to the chosen one.
 
     norm_order : int, optional
@@ -67,9 +67,8 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, dict_name_translation=Non
                 continue
 
             object = header['OBJECT'].replace(' ','').upper()
-            if dict_name_translation and object in [k.upper() for k in dict_name_translation.keys()]:
-                object = dict_name_translation[object]
-
+            if dict_objects and object in [k.upper() for k in dict_objects.keys()]:
+                object = dict_objects[object]
             if header['INSTRUME'].strip() == 'FIES':
                 telcode = '_N_'
                 TELES = 'NOT'
@@ -142,10 +141,8 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, dict_name_translation=Non
             if 'log' in ctype.lower():
                 wave = np.exp(wave)
 
-            # Cut the wave and flux arrays to the minimum wavelength for each instrument
-            mask = wave >= wave_min
-            wave = wave[mask]
-            flux = flux[mask]
+            # Set flux values below the minimum wavelength to NaN
+            flux[wave <= wave_min] = np.nan
 
             TELES = 'MERCATOR_ARCHIVE' if M_archive == 'y' else TELES
 
@@ -156,9 +153,11 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, dict_name_translation=Non
 
             if plot:
                 fig, ax = plt.subplots(figsize=(14, 7))
-                ax.plot(wave, flux/np.nanmean(flux), label='Original', lw=0.5, alpha=0.5)
-                ax.plot(wave, ft, label='Normalized', lw=0.5, alpha=0.5)
-                ax.plot(wave, ynt/np.nanmean(ynt), label='Continuum fit', lw=1, alpha=0.5)
+                for l in lam:
+                    ax.axvline(l, color='red', lw=2, linestyle='--', alpha=0.5)
+                ax.plot(wave, flux/np.nanmean(flux), label='Original', lw=0.5, alpha=0.8, c='orange')
+                ax.plot(wave, ft, label='Normalized', lw=0.5, alpha=0.8, c='blue')
+                ax.plot(wave, ynt/np.nanmean(ynt), label='Continuum fit', lw=1.5, alpha=0.5, c='red')
                 fkt_plot = np.where(fkt == 0, np.nan, fkt)
                 ax.plot(wave, fkt_plot, label='Mask', lw=3, alpha=0.3, drawstyle='steps-mid')
                 ax.set_title(f"{object}_{DATE.replace('-', '').replace(':', '')}{telcode}{RESOL}")
@@ -274,9 +273,9 @@ def normalize(telescope, w, f, order=2):
                         5620,5690,5750,5840,5980,6100,6220,6460,6630,6900,7250,7520,7750,8400,
                         8710,8850,8995,9200], float) # original 8710,8790,8930,9020]
     elif telescope == 'MERCATOR_ARCHIVE':
-        lam = np.array([3800,3875,3950,4040,4220,4400,4455,4495,4600,4770,4840,4900,5075,5280,
-                        5390,5555,5690,5755,5840,5980,6137,6218,6430,6630,6835,6975,7130,7250,
-                        7520,7750,8060,8340,8635,8830,8995], float)
+        lam = np.array([3800,3875,3950,4040,4220,4400,4455,4495,4600,4770,5075,5280,5390,5555,
+                        5690,5755,5840,5980,6137,6218,6430,6630,6835,6975,7130,7250,7520,7750,
+                        8060,8340,8635,8830,8995], float)
     elif telescope == 'MPI-2.2':
         lam = np.array([3690,3760,3815,3870,3920,4040,4155,4260,4520,4605,4705,4780,4970,5140,
                         5320,5420,5500,5620,5690,5750,5860,5980,6100,6220,6320,6440,6700,6850,
@@ -404,7 +403,6 @@ def normalize_slice(w, f, w0, w1, wlim1=None, wlim2=None, lam1=None, iter=None, 
     left_cond = (w >= w0) if include_left else (w > w0)
     mask = left_cond & (w <= w1) & (f > 0)
     if np.sum(mask) < 50:
-        print("Warning: Region has too few points to be normalized.")
         # Return neutral arrays
         ws0 = w[mask] if mask.any() else np.array([])
         fs0 = f[mask] if mask.any() else np.array([])

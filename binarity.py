@@ -51,9 +51,10 @@ def findSB(ID, snr=0, zone='full', degrade=None, RV0lines='rv_Bs.txt', vspace=0.
     plt.figure(figsize=(11, 5))
     for i,j in zip(spectra, range(len(spectra))):
 
-        rv0 = RV0(RV0lines, i.split('/')[-1].split('\\')[-1], ewcut=50, width=15, tol=100, func='g')[0]
+        # i is a Path object, so we need to convert it to a string to use it in the spec() function
+        rv0 = RV0(RV0lines, i.name, ewcut=50, width=15, tol=100, func='g')[0]
 
-        sp = spec(i.split('/')[-1].split('\\')[-1], rv0=rv0)
+        sp = spec(i.name, rv0=rv0)
 
         snr_fits = sp.snr; sp.snrcalc('V')
         print('\n', sp.filename, 'FITS:', snr_fits, ' V:', round(sp.snr))
