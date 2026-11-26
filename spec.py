@@ -231,10 +231,17 @@ class spec():
             if 'I-SPC' in header:
                 self.SpC = header['I-SPC']
 
+            # Look for resolution
             if 'I-RESOL' in header:
                 if int(self.resolution) != int(header['I-RESOL']):
                     msg.warn('Resolution in filename (%s) does not match header (%s)'
                              % (self.resolution, header['I-RESOL']))
+
+            # Assign exposure time
+            if 'I-TEXP' in header:
+                self.exptime = header['I-TEXP']
+            elif 'EXPTIME' in header:
+                self.exptime = header['EXPTIME']
 
             # Make lists with wavelength and flux for each spectrum
             # Those with log or from FEROS are already corrected from heliocentric velocity
@@ -292,7 +299,7 @@ class spec():
 
             hdu = fits.open(self.fullpath)  # Open the fits image file
             hdu.verify('fix')               # Fix possible issues with the keywords
-            header = hdu[1].header          # Read header of primary extension
+            header = hdu[0].header          # Read header of primary extension
 
             instrum = header['INSTRUME']   # Instrument
 
@@ -315,8 +322,8 @@ class spec():
             else:
                 self.snr = np.nan
 
-            wave = hdu[1].data[0]
-            flux = hdu[1].data[1]
+            wave = hdu[1].data[0][0]
+            flux = hdu[1].data[0][1]
 
         # Apply the radial velocity correction (if provided)
         wave = wave*(1 - 1000*self.rv0/cte.c)
