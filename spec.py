@@ -231,10 +231,17 @@ class spec():
             if 'I-SPC' in header:
                 self.SpC = header['I-SPC']
 
+            # Look for resolution
             if 'I-RESOL' in header:
                 if int(self.resolution) != int(header['I-RESOL']):
                     msg.warn('Resolution in filename (%s) does not match header (%s)'
                              % (self.resolution, header['I-RESOL']))
+
+            # Assign exposure time
+            if 'I-TEXP' in header:
+                self.exptime = header['I-TEXP']
+            elif 'EXPTIME' in header:
+                self.exptime = header['EXPTIME']
 
             # Make lists with wavelength and flux for each spectrum
             # Those with log or from FEROS are already corrected from heliocentric velocity
