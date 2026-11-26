@@ -45,7 +45,8 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, dict_objects=None, norm_o
     '''
 
     spectra = [p for p in Path(path_to_spectra).glob('*.fits')
-               if not p.name.startswith('.') and p.is_file()]
+               if not p.name.startswith('.') and p.is_file() and
+               not any(suffix in p.name for suffix in ['_wave', '_blzcorr'])]
 
     reduced_dir = Path(datadir) / 'reduced'
     reduced_dir.mkdir(parents=True, exist_ok=True)
@@ -160,7 +161,7 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, dict_objects=None, norm_o
                 ax.plot(wave, ynt/np.nanmean(ynt), label='Continuum fit', lw=1.5, alpha=0.5, c='red')
                 fkt_plot = np.where(fkt == 0, np.nan, fkt)
                 ax.plot(wave, fkt_plot, label='Mask', lw=3, alpha=0.3, drawstyle='steps-mid')
-                ax.set_title(f"{object}_{DATE.replace('-', '').replace(':', '')}{telcode}{RESOL}")
+                ax.set_title(f"{spectrum.stem} --> {object}_{date}_{time}{telcode}{RESOL} | SNR(4500A)={snr4500}")
                 ax.legend()
                 fig.tight_layout()
                 plt.show(block=False)
@@ -203,7 +204,7 @@ def raw_to_IACOB(path_to_spectra, table_with_spc=None, dict_objects=None, norm_o
                 continue
             hdu.writeto(out_path, overwrite=False)
 
-        print(f"File '{new_name}' saved in '{reduced_dir}/'.")
+        print(f"File '{new_name}' saved in '{reduced_dir}/'")
         input("Press Enter to continue to the next file...\n")
 
         if plot:
@@ -385,13 +386,17 @@ def normalize_slice(w, f, w0, w1, wlim1=None, wlim2=None, lam1=None, iter=None, 
         Updated wavelengths of the strong lines to be removed.
     '''
 
-    # Strong lines
-    lamH = np.array([3712,3722,3735,3750,3771,3797,3835,3890,3970,4102,4340,4860,6563,
-                     8438,8465,8500,8545,8600,8665,8748,8860], dtype=float)
-    lamHeI  = np.array([3820,3926,4009,4026,4143.,4387.,4471.5,4713,4922,5875,6678])
-    lamHeII = np.array([4200,4542,4686,5411])
-    lamISM  = np.array([4430])
+    # Strong lines to be removed from the spectrum (H, HeI, HeII, ISM)
+    lamH    = np.array([3711,3722,3734,3750,3771,3798,
+                        3835,3889,3970,4102,4340,4860,
+                        6563,8438,8465,8500,8545,8600,
+                        8665,8748,8860], dtype=float)
+    lamHeI  = np.array([3820,3926,4009,4026,4143,4387,
+                        4471.5,4713,4922,5875,6678], dtype=float)
+    lamHeII = np.array([4200,4542,4686,5411], dtype=float)
+    lamISM  = np.array([4430], dtype=float)
 
+    # Combine all strong lines into a single array and define their half-widths for removal
     lam0  = np.concatenate([lamH, lamHeI, lamHeII, lamISM])
     dlam0 = np.concatenate([lamH*0+5., lamHeI*0+2., lamHeII*0+2., lamISM*0+5.])
     tt = np.argsort(lam0)
